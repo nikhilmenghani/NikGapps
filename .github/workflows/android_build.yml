@@ -33,7 +33,7 @@ jobs:
         run: |
           LATEST_VERSION=$(echo $LATEST_VERSION | sed 's/v//') # Remove 'v' if present
           echo "LATEST_VERSION=$LATEST_VERSION"
-          if [[ -z "$LATEST_VERSION" ]]; then
+          if [[ "$LATEST_VERSION" == "null" || -z "$LATEST_VERSION" ]]; then
           # If no latest version, start with 0.1
             NEW_VERSION="0.1"
             V_MAJOR=0
