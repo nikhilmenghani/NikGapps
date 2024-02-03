@@ -32,6 +32,7 @@ jobs:
         id: increment_version
         run: |
           LATEST_VERSION=$(echo $LATEST_VERSION | sed 's/v//') # Remove 'v' if present
+          echo "LATEST_VERSION=$LATEST_VERSION"
           if [[ -z "$LATEST_VERSION" ]]; then
           # If no latest version, start with 0.1
             NEW_VERSION="0.1"
@@ -40,6 +41,8 @@ jobs:
             V_PATCH=0
           else
             IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$LATEST_VERSION"
+            echo "before V_MAJOR=$V_MAJOR"
+            echo "before V_MINOR=$V_MINOR"
             if [[ -z $V_MAJOR ]]; then
               V_MAJOR=0
             fi
@@ -50,6 +53,9 @@ jobs:
               V_MINOR=$((V_MINOR + 1))
             fi
             NEW_VERSION="$V_MAJOR.$V_MINOR"
+            echo "after V_MAJOR=$V_MAJOR"
+            echo "after V_MINOR=$V_MINOR"
+            echo "NEW_VERSION=$NEW_VERSION"
           fi
           echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
           echo "::set-output name=new_version::v$NEW_VERSION"
@@ -78,7 +84,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/NikGapps-${{ steps.increment_version.outputs.new_version }}.apk
-          tag_name: v${{ steps.increment_version.outputs.new_version }}
+          tag_name: ${{ steps.increment_version.outputs.new_version }}
           name: ${{ steps.increment_version.outputs.new_version }}
           prerelease: false
         env:
