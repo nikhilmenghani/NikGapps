@@ -1,0 +1,75 @@
+name: Android Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Fetch the latest release version
+        id: latest_version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .name)
+          echo "LATEST_VERSION=$LATEST_VERSION"
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+
+      - name: Increment the version
+        id: increment_version
+        run: |
+          LATEST_VERSION=$(echo $LATEST_VERSION | sed 's/v//') # Remove 'v' if present
+          if [[ -z "$LATEST_VERSION" ]]; then
+          # If no latest version, start with 0.1
+            NEW_VERSION="0.1"
+          else
+          IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$LATEST_VERSION"
+          if [[ $V_MINOR -eq 99 ]]; then
+            V_MAJOR=$((V_MAJOR + 1))
+            V_MINOR=0
+          else
+            V_MINOR=$((V_MINOR + 1))
+          fi
+          NEW_VERSION="$V_MAJOR.$V_MINOR"
+          fi
+          echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
+          echo "::set-output name=new_version::v$NEW_VERSION"
+
+      - name: Set Executable Permission for Gradlew
+        run: chmod +x ./gradlew
+
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE }}" | base64 -d > my-release-key.keystore
+
+      - name: Build and Sign APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: List APK directory
+        run: |
+          ls -lR app/build/outputs/apk/release
+
+      - name: Rename APK
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/NikGapps-${{ steps.increment_version.outputs.new_version }}.apk
+
+      - name: Create Release with Files
+        uses: softprops/action-gh-release@v1
+        with:
+          files: app/build/outputs/apk/release/NikGapps-${{ steps.increment_version.outputs.new_version }}.apk
+          tag_name: v${{ steps.increment_version.outputs.new_version }}
+          name: ${{ steps.increment_version.outputs.new_version }}
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTH }}
+
