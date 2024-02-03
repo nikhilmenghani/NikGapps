@@ -35,15 +35,21 @@ jobs:
           if [[ -z "$LATEST_VERSION" ]]; then
           # If no latest version, start with 0.1
             NEW_VERSION="0.1"
-          else
-          IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$LATEST_VERSION"
-          if [[ $V_MINOR -eq 99 ]]; then
-            V_MAJOR=$((V_MAJOR + 1))
+            V_MAJOR=0
             V_MINOR=0
+            V_PATCH=0
           else
-            V_MINOR=$((V_MINOR + 1))
-          fi
-          NEW_VERSION="$V_MAJOR.$V_MINOR"
+            IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$LATEST_VERSION"
+            if [[ -z $V_MAJOR ]]; then
+              V_MAJOR=0
+            fi
+            if [[ $V_MINOR -eq 99 ]]; then
+              V_MAJOR=$((V_MAJOR + 1))
+              V_MINOR=0
+            else
+              V_MINOR=$((V_MINOR + 1))
+            fi
+            NEW_VERSION="$V_MAJOR.$V_MINOR"
           fi
           echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
           echo "::set-output name=new_version::v$NEW_VERSION"
