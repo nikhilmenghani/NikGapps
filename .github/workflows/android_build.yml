@@ -53,8 +53,6 @@ jobs:
               V_MINOR=$((V_MINOR + 1))
             fi
             NEW_VERSION="$V_MAJOR.$V_MINOR"
-            echo "after V_MAJOR=$V_MAJOR"
-            echo "after V_MINOR=$V_MINOR"
             echo "NEW_VERSION=$NEW_VERSION"
           fi
           echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
