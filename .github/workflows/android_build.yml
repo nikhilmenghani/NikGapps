@@ -56,7 +56,7 @@ jobs:
             echo "NEW_VERSION=$NEW_VERSION"
           fi
           echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
-          echo "::set-output name=new_version::v$NEW_VERSION"
+          echo "new_version=v$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Set Executable Permission for Gradlew
         run: chmod +x ./gradlew
@@ -76,14 +76,14 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/NikGapps-${{ steps.increment_version.outputs.new_version }}.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/NikGapps-${{ env.new_version }}.apk
 
       - name: Create Release with Files
         uses: softprops/action-gh-release@v1
         with:
-          files: app/build/outputs/apk/release/NikGapps-${{ steps.increment_version.outputs.new_version }}.apk
-          tag_name: ${{ steps.increment_version.outputs.new_version }}
-          name: ${{ steps.increment_version.outputs.new_version }}
+          files: app/build/outputs/apk/release/NikGapps-${{ env.new_version }}.apk
+          tag_name: ${{ env.new_version }}
+          name: ${{ env.new_version }}
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.AUTH }}
