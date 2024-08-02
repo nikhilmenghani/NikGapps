@@ -2,8 +2,8 @@ package com.nikgapps.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 data class NavItem(
@@ -15,5 +15,5 @@ data class NavItem(
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.HomeScreen.name),
     NavItem("Profile", Icons.Default.Person, Screens.ProfileScreen.name),
-    NavItem("Settings", Icons.Default.Settings, Screens.SettingsScreen.name)
+    NavItem("Download", Icons.Default.KeyboardArrowDown, Screens.DownloadScreen.name)
 )
