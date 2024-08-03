@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - '*.kt'
-      - '*.yml'
+      - '**/*.kt'
+      - '**/*.yml'
     tags-ignore:
       - '**'
 

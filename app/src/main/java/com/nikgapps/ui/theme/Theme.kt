@@ -3,11 +3,7 @@ package com.nikgapps.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
@@ -44,21 +40,52 @@ fun NikGappsTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    val context = LocalContext.current
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+
+    // Define overrides for dark theme
+    val darkColorOverrides = baseColorScheme.copy(
+//        primary = DarkGrey, // Override primary color
+//        secondary = DarkGrey, // Override secondary color
+//        tertiary = DarkGrey, // Override tertiary color
+//        background = DarkGrey, // Override background color
+//        surface = DarkGrey, // Override surface color
+//        onPrimary = Color.White, // Override onPrimary color
+//        onSecondary = Color.White, // Override onSecondary color
+//        onTertiary = Color.White, // Override onTertiary color
+//        onBackground = Pink40, // Override onBackground color
+//        onSurface = Color.White // Override onSurface color
+    )
+
+    // Define overrides for light theme
+    val lightColorOverrides = baseColorScheme.copy(
+//        primary = LightGrey, // Override primary color
+//        secondary = LightGrey, // Override secondary color
+//        tertiary = LightGrey, // Override tertiary color
+//        background = LightGrey, // Override background color
+//        surface = LightGrey, // Override surface color
+//        onPrimary = Color.Black, // Override onPrimary color
+//        onSecondary = Color.Black, // Override onSecondary color
+//        onTertiary = Color.Black, // Override onTertiary color
+//        onBackground = Pink40, // Override onBackground color
+//        onSurface = Color.Black // Override onSurface color
+    )
+
+    // Apply the correct overrides based on the theme
+    val colorScheme = if (darkTheme) darkColorOverrides else lightColorOverrides
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
