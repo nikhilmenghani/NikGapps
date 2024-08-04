@@ -1,23 +1,24 @@
 package com.nikgapps.screens
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
+import com.nikgapps.MainActivity
 import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
-import com.nikgapps.ui.theme.NikGappsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavHostController) {
+    val context = LocalContext.current as MainActivity
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -29,6 +30,12 @@ fun HomeScreen(navController: NavHostController) {
                         )
                     }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                    IconButton(onClick = {
+                        // Restart the activity to apply the new theme
+                        context.restartActivity()
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             )
@@ -74,30 +81,4 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
     )
-}
-
-@Preview(
-    name = "Home Screen - Light Theme",
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO
-)
-@Composable
-fun HomeScreenLightPreview() {
-    NikGappsTheme(darkTheme = false) {
-        val navController = rememberNavController()
-        HomeScreen(navController)
-    }
-}
-
-@Preview(
-    name = "Home Screen - Dark Theme",
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
-)
-@Composable
-fun HomeScreenDarkPreview() {
-    NikGappsTheme(darkTheme = true) {
-        val navController = rememberNavController()
-        HomeScreen(navController)
-    }
 }

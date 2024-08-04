@@ -11,13 +11,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.nikgapps.screens.DownloadScreen
-import com.nikgapps.screens.HomeScreen
-import com.nikgapps.screens.ProfileScreen
-import com.nikgapps.screens.SettingsScreen
+import com.nikgapps.screens.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(viewModel: SharedViewModel) {
     val navController: NavHostController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -64,7 +61,7 @@ fun AppNavigation() {
                 DownloadScreen()
             }
             composable(route = Screens.SettingsScreen.name) {
-                SettingsScreen()
+                SettingsScreen(navController = navController, viewModel = viewModel)
             }
         }
     }
