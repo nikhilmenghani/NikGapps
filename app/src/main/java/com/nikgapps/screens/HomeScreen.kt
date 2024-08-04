@@ -25,17 +25,17 @@ fun HomeScreen(navController: NavHostController) {
                 title = { Text(text = "NikGapps") },
                 actions = {
                     IconButton(onClick = {
+                        // Restart the activity to apply the new theme
+                        context.restartActivity()
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = {
                         navController.navigateWithState(
                             route = Screens.SettingsScreen.name
                         )
                     }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                    IconButton(onClick = {
-                        // Restart the activity to apply the new theme
-                        context.restartActivity()
-                    }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             )
