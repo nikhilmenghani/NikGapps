@@ -31,6 +31,7 @@ class PreferencesManager(context: Context) {
             is SettingType.Radio -> sharedPreferences.getString(key, "") ?: ""
             is SettingType.Checkbox -> sharedPreferences.getBoolean(key, false)
             is SettingType.Text -> sharedPreferences.getString(key, "") ?: ""
+            is SettingType.Dialog -> sharedPreferences.getString(key, "") ?: "" // Default value for Dialog
         }
         return SettingItem(key,
             key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, type, value, category, isStateFlow = stateFlows.containsKey(key), visibilityCondition, textToDisplay)
@@ -43,6 +44,7 @@ class PreferencesManager(context: Context) {
                 is SettingType.Radio -> putString(item.key, item.value as String)
                 is SettingType.Checkbox -> putBoolean(item.key, item.value as Boolean)
                 is SettingType.Text -> putString(item.key, item.value as String)
+                is SettingType.Dialog -> putString(item.key, item.value as String)
             }
             apply()
         }
@@ -54,8 +56,8 @@ class PreferencesManager(context: Context) {
             getSettingItem("use_dynamic_color", SettingType.Toggle, "UI", null, "Use Dynamic Color").copy(isStateFlow = true),
             getSettingItem("another_setting", SettingType.Text("Enter value"), "General", null, "Another Setting"),
             getSettingItem("enable_feature", SettingType.Checkbox, "Features", null, "Enable Feature"),
-            getSettingItem("theme_choice", SettingType.Radio(listOf("Light", "Dark", "System")), "UI", null, "Theme Choice")
-            // Add more settings as needed
+            getSettingItem("theme_choice", SettingType.Radio(listOf("Light", "Dark", "System")), "UI", null, "Theme Choice"),
+            getSettingItem("choose_account", SettingType.Dialog, "Account", null, "Choose Account") // New setting item
         )
     }
 
@@ -65,6 +67,7 @@ class PreferencesManager(context: Context) {
             is SettingType.Radio -> sharedPreferences.getString(key, "") ?: ""
             is SettingType.Checkbox -> sharedPreferences.getBoolean(key, false)
             is SettingType.Text -> sharedPreferences.getString(key, "") ?: ""
+            is SettingType.Dialog -> sharedPreferences.getString(key, "") ?: ""
         }
     }
 
@@ -75,6 +78,7 @@ class PreferencesManager(context: Context) {
                 is SettingType.Radio -> putString(key, value as String)
                 is SettingType.Checkbox -> putBoolean(key, value as Boolean)
                 is SettingType.Text -> putString(key, value as String)
+                is SettingType.Dialog -> putString(key, value as String)
             }
             apply()
         }
