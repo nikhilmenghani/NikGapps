@@ -21,6 +21,7 @@ import com.nikgapps.data.SettingType
 @Composable
 fun SettingsScreen(navController: NavHostController, viewModel: SharedViewModel) {
     val settings by viewModel.settings.collectAsState()
+    val settingValues = settings.associate { it.key to it.value }
 
     Scaffold(
         topBar = {
@@ -39,11 +40,20 @@ fun SettingsScreen(navController: NavHostController, viewModel: SharedViewModel)
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                items(settings) { setting ->
-                    SettingItemView(setting) { updatedSetting ->
-                        viewModel.updateSetting(updatedSetting)
+                val categories = settings.groupBy { it.category }
+                categories.forEach { (category, categorySettings) ->
+                    item {
+                        Text(text = category, style = MaterialTheme.typography.headlineSmall)
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    items(categorySettings) { setting ->
+                        if (setting.visibilityCondition == null || setting.visibilityCondition.invoke(settingValues)) {
+                            SettingItemView(setting) { updatedSetting ->
+                                viewModel.updateSetting(updatedSetting)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
                 }
             }
         }
@@ -80,8 +90,41 @@ fun SettingItemView(setting: SettingItem, onSettingChanged: (SettingItem) -> Uni
                 )
             }
         }
-        // Add more types like Radio and Checkbox as needed
-        SettingType.Checkbox -> TODO()
-        SettingType.Radio -> TODO()
+        is SettingType.Checkbox -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = setting.value as Boolean,
+                    onCheckedChange = { isChecked ->
+                        onSettingChanged(setting.copy(value = isChecked))
+                    }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = setting.title)
+            }
+        }
+        is SettingType.Radio -> {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(text = setting.title)
+                Spacer(modifier = Modifier.height(8.dp))
+                setting.type.options.forEach { option ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = setting.value == option,
+                            onClick = {
+                                onSettingChanged(setting.copy(value = option))
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = option)
+                    }
+                }
+            }
+        }
     }
 }

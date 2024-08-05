@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.*
 
 class PreferencesManager(context: Context) {
     private val sharedPreferences: SharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -18,14 +19,15 @@ class PreferencesManager(context: Context) {
         }
     }
 
-    fun getSettingItem(key: String, type: SettingType): SettingItem {
+    fun getSettingItem(key: String, type: SettingType, category: String, visibilityCondition: ((Map<String, Any>) -> Boolean)? = null): SettingItem {
         val value: Any = when (type) {
             is SettingType.Toggle -> sharedPreferences.getBoolean(key, false)
             is SettingType.Radio -> sharedPreferences.getString(key, "") ?: ""
             is SettingType.Checkbox -> sharedPreferences.getBoolean(key, false)
             is SettingType.Text -> sharedPreferences.getString(key, "") ?: ""
         }
-        return SettingItem(key, key.capitalize(), type, value, isStateFlow = stateFlows.containsKey(key))
+        return SettingItem(key,
+            key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, type, value, category, isStateFlow = stateFlows.containsKey(key), visibilityCondition)
     }
 
     fun setSettingItem(item: SettingItem) {
@@ -43,8 +45,10 @@ class PreferencesManager(context: Context) {
 
     fun getAllSettings(): List<SettingItem> {
         return listOf(
-            getSettingItem("use_dynamic_color", SettingType.Toggle).copy(isStateFlow = true),
-            getSettingItem("another_setting", SettingType.Text("Enter value"))
+            getSettingItem("use_dynamic_color", SettingType.Toggle, "UI").copy(isStateFlow = true),
+            getSettingItem("another_setting", SettingType.Text("Enter value"), "General"),
+            getSettingItem("enable_feature", SettingType.Checkbox, "Features"),
+            getSettingItem("theme_choice", SettingType.Radio(listOf("Light", "Dark", "System")), "UI")
             // Add more settings as needed
         )
     }

@@ -5,5 +5,7 @@ data class SettingItem(
     val title: String,
     val type: SettingType,
     val value: Any,
-    val isStateFlow: Boolean = false // Indicates if this setting should be managed as a StateFlow
+    val category: String, // Category to which the setting belongs
+    val isStateFlow: Boolean = false, // Indicates if this setting should be managed as a StateFlow
+    val visibilityCondition: ((Map<String, Any>) -> Boolean)? = null // Condition for dynamic visibility
 )
