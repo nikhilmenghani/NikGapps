@@ -19,7 +19,13 @@ class PreferencesManager(context: Context) {
         }
     }
 
-    fun getSettingItem(key: String, type: SettingType, category: String, visibilityCondition: ((Map<String, Any>) -> Boolean)? = null): SettingItem {
+    fun getSettingItem(
+        key: String,
+        type: SettingType,
+        category: String,
+        visibilityCondition: ((Map<String, Any>) -> Boolean)? = null,
+        textToDisplay: String
+    ): SettingItem {
         val value: Any = when (type) {
             is SettingType.Toggle -> sharedPreferences.getBoolean(key, false)
             is SettingType.Radio -> sharedPreferences.getString(key, "") ?: ""
@@ -27,7 +33,7 @@ class PreferencesManager(context: Context) {
             is SettingType.Text -> sharedPreferences.getString(key, "") ?: ""
         }
         return SettingItem(key,
-            key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, type, value, category, isStateFlow = stateFlows.containsKey(key), visibilityCondition)
+            key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, type, value, category, isStateFlow = stateFlows.containsKey(key), visibilityCondition, textToDisplay)
     }
 
     fun setSettingItem(item: SettingItem) {
@@ -45,10 +51,10 @@ class PreferencesManager(context: Context) {
 
     fun getAllSettings(): List<SettingItem> {
         return listOf(
-            getSettingItem("use_dynamic_color", SettingType.Toggle, "UI").copy(isStateFlow = true),
-            getSettingItem("another_setting", SettingType.Text("Enter value"), "General"),
-            getSettingItem("enable_feature", SettingType.Checkbox, "Features"),
-            getSettingItem("theme_choice", SettingType.Radio(listOf("Light", "Dark", "System")), "UI")
+            getSettingItem("use_dynamic_color", SettingType.Toggle, "UI", null, "Use Dynamic Color").copy(isStateFlow = true),
+            getSettingItem("another_setting", SettingType.Text("Enter value"), "General", null, "Another Setting"),
+            getSettingItem("enable_feature", SettingType.Checkbox, "Features", null, "Enable Feature"),
+            getSettingItem("theme_choice", SettingType.Radio(listOf("Light", "Dark", "System")), "UI", null, "Theme Choice")
             // Add more settings as needed
         )
     }

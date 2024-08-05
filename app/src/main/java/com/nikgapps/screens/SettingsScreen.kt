@@ -68,7 +68,7 @@ fun SettingItemView(setting: SettingItem, onSettingChanged: (SettingItem) -> Uni
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = setting.title)
+                Text(text = setting.textToDisplay)
                 Spacer(modifier = Modifier.weight(1f))
                 Switch(
                     checked = setting.value as Boolean,
@@ -80,7 +80,7 @@ fun SettingItemView(setting: SettingItem, onSettingChanged: (SettingItem) -> Uni
         }
         is SettingType.Text -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = setting.title)
+                Text(text = setting.textToDisplay)
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = setting.value as String,
@@ -102,12 +102,12 @@ fun SettingItemView(setting: SettingItem, onSettingChanged: (SettingItem) -> Uni
                     }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = setting.title)
+                Text(text = setting.textToDisplay)
             }
         }
         is SettingType.Radio -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = setting.title)
+                Text(text = setting.textToDisplay)
                 Spacer(modifier = Modifier.height(8.dp))
                 setting.type.options.forEach { option ->
                     Row(
