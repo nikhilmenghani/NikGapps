@@ -66,18 +66,6 @@ fun HomeScreen(navController: NavHostController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(onClick = { /* Handle Install/Update */ }) {
-                        Text(text = "Install/Update")
-                    }
-                    Button(onClick = { /* Handle Uninstall */ }) {
-                        Text(text = "Uninstall")
-                    }
-                }
             }
         }
     )
