@@ -1,0 +1,27 @@
+[versions]
+activity-compose = "1.9.1"
+androidx-junit = "1.2.1"
+core-ktx = "1.13.1"
+espresso-core = "3.6.1"
+junit = "4.13.2"
+lifecycle-runtime-ktx = "2.8.4"
+navigation-runtime-ktx = "2.7.7"
+material3 = "1.2.1"
+compose = "1.6.8"
+androidxComposeBom = "2024.06.00"
+uiToolingPreviewAndroid = "1.6.8"
+
+[libraries]
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso-core" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-runtime-ktx" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation-runtime-ktx" }
+androidx-navigation-runtime-ktx = { module = "androidx.navigation:navigation-runtime-ktx", version.ref = "navigation-runtime-ktx" }
+junit = { module = "junit:junit", version.ref = "junit" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "compose" }
+
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
+androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "uiToolingPreviewAndroid" }
