@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nikgapps.navigation.AppNavigation
-import com.nikgapps.screens.SharedViewModel
+import com.nikgapps.ui.screens.SharedViewModel
 import com.nikgapps.ui.theme.NikGappsTheme
 
 class MainActivity : ComponentActivity() {

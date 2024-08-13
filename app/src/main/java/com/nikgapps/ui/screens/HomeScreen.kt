@@ -1,11 +1,11 @@
-package com.nikgapps.screens
+package com.nikgapps.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -13,12 +13,17 @@ import androidx.navigation.NavHostController
 import com.nikgapps.MainActivity
 import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
+import com.nikgapps.ui.components.SettingsDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val context = LocalContext.current as MainActivity
-
+    var showDialog by remember { mutableStateOf(false) }
+    if (showDialog) {
+        SettingsDialog(title = "Settings Test",
+            onDismiss = { showDialog = false })
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -46,9 +51,6 @@ fun HomeScreen(navController: NavHostController) {
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                Text(text = "Installed Version: v23")
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Manager Version: v23.x")
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
@@ -57,10 +59,8 @@ fun HomeScreen(navController: NavHostController) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        Text(text = "SafetyNet Check")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = {}) {
-                            Text(text = "Run SafetyNet Check")
+                        Button(onClick = { showDialog = true }) {
+                            Text(text = "Open Settings Dialog")
                         }
                     }
                 }

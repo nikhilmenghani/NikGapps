@@ -1,5 +1,5 @@
 // SettingsScreen.kt
-package com.nikgapps.screens
+package com.nikgapps.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

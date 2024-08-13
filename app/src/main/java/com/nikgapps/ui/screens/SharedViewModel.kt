@@ -1,5 +1,5 @@
 // SharedViewModel.kt
-package com.nikgapps.screens
+package com.nikgapps.ui.screens
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
