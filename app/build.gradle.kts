@@ -74,4 +74,6 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.tooling.preview.android)
 }

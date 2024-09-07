@@ -25,6 +25,10 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Pink40
 )
 
+fun Color.applyOpacity(enabled: Boolean): Color {
+    return if (enabled) this else this.copy(alpha = 0.62f)
+}
+
 @Composable
 fun NikGappsTheme(
     viewModel: SharedViewModel,
@@ -77,3 +81,14 @@ fun NikGappsTheme(
         content = content
     )
 }
+
+@Composable
+fun NikGappsThemePreview(content: @Composable () -> Unit) {
+    // Simplified version of NikGappsTheme for previewing
+    MaterialTheme(
+        colorScheme = DarkColorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+
