@@ -5,6 +5,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -231,16 +232,16 @@ fun PreferenceItemPreview() {
         Surface {
             Column {
                 PreferenceSubtitle(text = "Preview")
-                PreferenceItem(title = "title", description = "description")
+                PreferenceItem(title = "title1", description = "description2")
                 PreferenceItem(
-                    title = "title",
-                    description = "description1",
+                    title = "title3",
+                    description = "description4",
                     icon = Icons.Outlined.Update
                 )
                 PreferenceItemVariant(
-                    title = "title",
-                    description = "description",
-                    icon = Icons.Outlined.Update
+                    title = "title5",
+                    description = "description6",
+                    icon = Icons.Outlined.Upload
                 )
             }
         }
