@@ -1,5 +1,6 @@
 package com.nikgapps.ui.screens
 
+import ModalBottomSheetM3Example
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -66,6 +67,8 @@ fun HomeScreen(navController: NavHostController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                ModalBottomSheetM3Example()
             }
         }
     )
