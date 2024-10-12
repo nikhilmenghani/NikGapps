@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.ui.components.Space
 import com.nikgapps.ui.preferences.compose.DisplayContainer
+import com.nikgapps.ui.preferences.compose.SingleChoiceDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +43,7 @@ fun SettingsScreen(navController: NavHostController, viewModel: SharedViewModel)
             )
         },
         content = { paddingValues ->
+            SingleChoiceDialog()
             Column(
                 Modifier
                     .fillMaxSize()

@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.ui.preferences.constant.ThemePreference
+import com.nikgapps.ui.preferences.emptyString
 
 @Composable
 fun DisplayContainer() {
@@ -43,6 +44,37 @@ fun DisplayContainer() {
 
         val columnCount = arrayListOf(
             "1", "2", "3", "4", "Auto"
+        )
+
+        PreferenceItem(
+            label = stringResource(R.string.files_list_column_count),
+            supportingText = if (preferences.fileListColumnCount == -1) columnCount[4] else preferences.fileListColumnCount.toString(),
+            icon = Icons.AutoMirrored.Rounded.ManageSearch,
+            onClick = {
+                manager.singleChoiceDialog.show(
+                    title = globalClass.getString(R.string.files_list_column_count),
+                    description = globalClass.getString(R.string.choose_number_of_columns),
+                    choices = columnCount,
+                    selectedChoice = if (preferences.fileListColumnCount == -1) 4 else columnCount.indexOf(
+                        preferences.fileListColumnCount.toString()
+                    ),
+                    onSelect = {
+                        val limit = when (columnCount[it]) {
+                            columnCount[4] -> -1
+                            else -> columnCount[it].toIntOrNull() ?: -1
+                        }
+                        preferences.fileListColumnCount = limit
+                    }
+                )
+            }
+        )
+
+        PreferenceItem(
+            label = stringResource(R.string.use_dynamic_color),
+            supportingText = emptyString,
+            icon = Icons.AutoMirrored.Rounded.Label,
+            switchState = preferences.useDynamicColor,
+            onSwitchChange = { preferences.useDynamicColor = it }
         )
 
     }

@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.ui.screens.SharedViewModel
 
 private val DarkColorScheme = darkColorScheme(
@@ -31,17 +32,15 @@ fun Color.applyOpacity(enabled: Boolean): Color {
 
 @Composable
 fun NikGappsTheme(
-    viewModel: SharedViewModel,
     content: @Composable () -> Unit
 ) {
-    val useDynamicColorFlow = viewModel.getSettingStateFlow("use_dynamic_color")
-    val useDynamicColor by useDynamicColorFlow?.collectAsState() ?: remember { mutableStateOf(false) }
-
+    val manager = globalClass.preferencesManager
+    val useDynamicColor = manager.displayPrefs.useDynamicColor
     val darkTheme = isSystemInDarkTheme()
     val context = LocalContext.current
 
     val colorScheme = when {
-        useDynamicColor as Boolean && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
@@ -49,7 +48,7 @@ fun NikGappsTheme(
     }
 
     // Override specific colors only if dynamicColor is false
-    val customColorScheme = if (!(useDynamicColor as Boolean)) {
+    val customColorScheme = if (!(useDynamicColor)) {
         colorScheme.copy(
             primary = if (darkTheme) DarkGrey else LightGrey,
             secondary = if (darkTheme) DarkGrey else LightGrey,

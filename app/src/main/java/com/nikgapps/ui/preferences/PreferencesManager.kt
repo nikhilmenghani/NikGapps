@@ -8,14 +8,16 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import com.nikgapps.ui.preferences.constant.ThemePreference
 import com.nikgapps.ui.preferences.modal.prefMutableState
 
+const val emptyString = ""
+
 class PreferencesManager {
 
     object SingleChoiceDialog {
         var show by mutableStateOf(false)
 
-        var title = ""
+        var title = emptyString
             private set
-        var description = ""
+        var description = emptyString
             private set
         var choices = mutableListOf<String>()
             private set
@@ -25,8 +27,8 @@ class PreferencesManager {
 
         fun dismiss() {
             show = false
-            title = ""
-            description = ""
+            title = emptyString
+            description = emptyString
             choices.clear()
             selectedChoice = -1
             onSelect = {}
@@ -56,10 +58,16 @@ class PreferencesManager {
             getPreferencesKey = { intPreferencesKey(it) }
         )
 
-        var showBottomBarLabels by prefMutableState(
-            keyName = "showBottomBarLabels",
+        var useDynamicColor by prefMutableState(
+            keyName = "useDynamicColor",
             defaultValue = true,
             getPreferencesKey = { booleanPreferencesKey(it) }
+        )
+
+        var fileListColumnCount by prefMutableState(
+            keyName = "fileListColumnCount",
+            defaultValue = 1,
+            getPreferencesKey = { intPreferencesKey(it) }
         )
     }
 

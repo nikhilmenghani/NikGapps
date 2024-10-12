@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val viewModel: SharedViewModel = viewModel(factory = SharedViewModel.provideFactory(this))
-            NikGappsTheme(viewModel = viewModel) {
+            NikGappsTheme() {
                 // Your composable content
                 AppNavigation(viewModel = viewModel)
             }

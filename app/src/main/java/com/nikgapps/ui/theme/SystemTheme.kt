@@ -2,7 +2,6 @@ package com.nikgapps.ui.theme
 
 import android.app.Activity
 import android.os.Build
-import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -30,7 +29,7 @@ private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
 @Composable
-fun NikGappsTheme(
+fun SystemTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
