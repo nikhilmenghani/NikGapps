@@ -14,7 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.nikgapps.ui.screens.*
 
 @Composable
-fun AppNavigation(viewModel: SharedViewModel) {
+fun AppNavigation() {
     val navController: NavHostController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -61,7 +61,7 @@ fun AppNavigation(viewModel: SharedViewModel) {
                 DownloadScreen()
             }
             composable(route = Screens.SettingsScreen.name) {
-                SettingsScreen(navController = navController, viewModel = viewModel)
+                SettingsScreen(navController = navController)
             }
         }
     }

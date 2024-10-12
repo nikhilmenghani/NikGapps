@@ -12,7 +12,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.nikgapps.App.Companion.globalClass
-import com.nikgapps.ui.screens.SharedViewModel
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
