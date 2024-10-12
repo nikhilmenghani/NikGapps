@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.constant
+package com.nikgapps.ui.theme
 
 enum class ThemePreference {
     LIGHT,
