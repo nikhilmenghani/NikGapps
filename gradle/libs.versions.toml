@@ -11,6 +11,8 @@ compose = "1.7.3"
 androidxComposeBom = "2024.09.03"
 uiToolingPreviewAndroid = "1.7.3"
 uiTooling = "1.7.3"
+datastores = "1.1.1"
+appcompat = "1.7.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
@@ -26,3 +28,5 @@ compose-material-icons-extended = { module = "androidx.compose.material:material
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
 androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "uiToolingPreviewAndroid" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "uiTooling" }
+androidx-datastore = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastores" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }

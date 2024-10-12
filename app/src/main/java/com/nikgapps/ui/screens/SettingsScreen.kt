@@ -2,11 +2,15 @@
 package com.nikgapps.ui.screens
 
 import SettingItemView
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
@@ -17,6 +21,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.nikgapps.ui.components.Space
+import com.nikgapps.ui.preferences.compose.DisplayContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,27 +42,39 @@ fun SettingsScreen(navController: NavHostController, viewModel: SharedViewModel)
             )
         },
         content = { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .padding(16.dp)
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = paddingValues.calculateTopPadding())
             ) {
-                val categories = settings.groupBy { it.category }
-                categories.forEach { (category, categorySettings) ->
-                    item {
-                        Text(text = category, style = MaterialTheme.typography.headlineSmall)
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                    items(categorySettings) { setting ->
-                        if (setting.visibilityCondition == null || setting.visibilityCondition.invoke(settingValues)) {
-                            SettingItemView(setting) { updatedSetting ->
-                                viewModel.updateSetting(updatedSetting)
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                }
+                Space(size = 4.dp)
+
+                DisplayContainer()
+
+                Space(size = 4.dp)
             }
+//            LazyColumn(
+//                modifier = Modifier
+//                    .padding(paddingValues)
+//                    .padding(16.dp)
+//            ) {
+//                val categories = settings.groupBy { it.category }
+//                categories.forEach { (category, categorySettings) ->
+//                    item {
+//                        Text(text = category, style = MaterialTheme.typography.headlineSmall)
+//                        Spacer(modifier = Modifier.height(16.dp))
+//                    }
+//                    items(categorySettings) { setting ->
+//                        if (setting.visibilityCondition == null || setting.visibilityCondition.invoke(settingValues)) {
+//                            SettingItemView(setting) { updatedSetting ->
+//                                viewModel.updateSetting(updatedSetting)
+//                            }
+//                            Spacer(modifier = Modifier.height(16.dp))
+//                        }
+//                    }
+//                }
+//            }
         }
     )
 }

@@ -1,94 +1,87 @@
-// Theme.kt
 package com.nikgapps.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import com.nikgapps.ui.screens.SharedViewModel
+import com.nikgapps.App.Companion.globalClass
+import com.nikgapps.ui.preferences.constant.ThemePreference
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+private val DarkColorScheme = darkColorScheme()
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-)
-
-fun Color.applyOpacity(enabled: Boolean): Color {
-    return if (enabled) this else this.copy(alpha = 0.62f)
-}
+private val LightColorScheme = lightColorScheme()
 
 @Composable
 fun NikGappsTheme(
-    viewModel: SharedViewModel,
     content: @Composable () -> Unit
 ) {
-    val useDynamicColorFlow = viewModel.getSettingStateFlow("use_dynamic_color")
-    val useDynamicColor by useDynamicColorFlow?.collectAsState() ?: remember { mutableStateOf(false) }
-
-    val darkTheme = isSystemInDarkTheme()
     val context = LocalContext.current
-
-    val colorScheme = when {
-        useDynamicColor as Boolean && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val manager = globalClass.preferencesManager
+    val darkTheme: Boolean = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (manager.displayPrefs.theme == ThemePreference.SYSTEM.ordinal) {
+            isSystemInDarkTheme()
+        } else manager.displayPrefs.theme == ThemePreference.DARK.ordinal
+    } else {
+        manager.displayPrefs.theme == ThemePreference.DARK.ordinal
     }
 
-    // Override specific colors only if dynamicColor is false
-    val customColorScheme = if (!(useDynamicColor as Boolean)) {
-        colorScheme.copy(
-            primary = if (darkTheme) DarkGrey else LightGrey,
-            secondary = if (darkTheme) DarkGrey else LightGrey,
-            tertiary = if (darkTheme) DarkGrey else LightGrey,
-            background = if (darkTheme) DarkGrey else LightGrey,
-            surface = if (darkTheme) DarkGrey else LightGrey,
-            onPrimary = if (darkTheme) Color.White else Color.Black,
-            onSecondary = if (darkTheme) Color.White else Color.Black,
-            onTertiary = if (darkTheme) Color.White else Color.Black,
-            onBackground = Pink40,
-            onSurface = if (darkTheme) Color.White else Color.Black
-        )
-    } else {
-        colorScheme
+    fun getTheme(): ColorScheme {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            when (manager.displayPrefs.theme) {
+                ThemePreference.LIGHT.ordinal -> dynamicLightColorScheme(context)
+                ThemePreference.DARK.ordinal -> dynamicDarkColorScheme(context)
+                else -> if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(
+                    context
+                )
+            }
+        } else {
+            when (manager.displayPrefs.theme) {
+                ThemePreference.LIGHT.ordinal -> LightColorScheme
+                ThemePreference.DARK.ordinal -> DarkColorScheme
+                else -> if (darkTheme) DarkColorScheme else LightColorScheme
+            }
+        }
+    }
+
+    var colorScheme by remember {
+        mutableStateOf(getTheme())
+    }
+
+    LaunchedEffect(manager.displayPrefs.theme) {
+        colorScheme = getTheme()
     }
 
     val view = LocalView.current
+
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = customColorScheme.primary.toArgb()
+            window.statusBarColor = colorScheme.surfaceContainer.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
     MaterialTheme(
-        colorScheme = customColorScheme,
-        typography = Typography,
+        colorScheme = colorScheme,
+        typography = typography,
         content = content
     )
 }
-
-@Composable
-fun NikGappsThemePreview(content: @Composable () -> Unit) {
-    // Simplified version of NikGappsTheme for previewing
-    MaterialTheme(
-        colorScheme = DarkColorScheme,
-        typography = Typography,
-        content = content
-    )
-}
-

@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.nikgapps"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         create("release") {
@@ -19,7 +19,7 @@ android {
     defaultConfig {
         applicationId = "com.nikgapps"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -60,7 +60,7 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.datastore)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -76,4 +76,5 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.tooling.preview.android)
+    implementation(libs.androidx.appcompat)
 }
