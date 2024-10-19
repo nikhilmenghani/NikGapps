@@ -1,4 +1,4 @@
-package com.nikgapps.ui.screens
+package com.nikgapps.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

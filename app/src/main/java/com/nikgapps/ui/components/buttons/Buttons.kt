@@ -1,4 +1,4 @@
-package com.nikgapps.ui.components
+package com.nikgapps.ui.components.buttons
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -24,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nikgapps.ui.theme.NikGappsThemePreview
 import com.nikgapps.R
+import com.nikgapps.ui.components.items.PreferenceSubtitle
 
 @Composable
 fun OutlinedButtonWithIcon(

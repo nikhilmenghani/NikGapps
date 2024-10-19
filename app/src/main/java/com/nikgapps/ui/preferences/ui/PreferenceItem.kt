@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.compose
+package com.nikgapps.ui.preferences.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background

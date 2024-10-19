@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.compose
+package com.nikgapps.ui.components.containers
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable

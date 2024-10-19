@@ -1,4 +1,4 @@
-package com.nikgapps.ui.components
+package com.nikgapps.ui.components.dialogs
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

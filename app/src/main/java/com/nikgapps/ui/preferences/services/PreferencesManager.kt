@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences
+package com.nikgapps.ui.preferences.services
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.nikgapps.ui.theme.ThemePreference
-import com.nikgapps.ui.preferences.modal.prefMutableState
 
 const val emptyString = ""
 

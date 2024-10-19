@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.compose
+package com.nikgapps.ui.components.dialogs
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,8 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nikgapps.App.Companion.globalClass
-import com.nikgapps.ui.components.BottomSheetDialog
-import com.nikgapps.ui.components.CheckableItem
+import com.nikgapps.ui.components.items.CheckableItem
 import com.nikgapps.ui.components.Space
 
 @OptIn(ExperimentalMaterial3Api::class)

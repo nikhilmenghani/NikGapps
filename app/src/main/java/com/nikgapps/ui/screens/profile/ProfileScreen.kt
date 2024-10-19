@@ -1,4 +1,4 @@
-package com.nikgapps.ui.screens
+package com.nikgapps.ui.screens.profile
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nikgapps.ui.components.BottomSheetDialog
+import com.nikgapps.ui.components.dialogs.BottomSheetDialog
 import com.nikgapps.ui.components.Space
 import kotlinx.coroutines.launch
 

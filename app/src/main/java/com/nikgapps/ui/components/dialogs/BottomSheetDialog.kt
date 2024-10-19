@@ -1,4 +1,4 @@
-package com.nikgapps.ui.components
+package com.nikgapps.ui.components.dialogs
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet

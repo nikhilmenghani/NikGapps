@@ -1,4 +1,4 @@
-package com.nikgapps.ui.components
+package com.nikgapps.ui.components.items
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Done

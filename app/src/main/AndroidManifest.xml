@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <queries>
+        <!-- If you need to query a specific app by its package name -->
+        <package android:name="com.android.vending" />
+        <package android:name="com.nikgapps" />
 
+        <!-- If you need to query apps with specific intent filters (e.g., email clients, browsers) -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+
+        <!-- You can also specify categories of apps such as browsers -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
     <application android:name=".App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

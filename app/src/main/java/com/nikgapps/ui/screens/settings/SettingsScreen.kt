@@ -1,5 +1,5 @@
 // SettingsScreen.kt
-package com.nikgapps.ui.screens
+package com.nikgapps.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.ui.components.Space
-import com.nikgapps.ui.preferences.compose.DisplayContainer
-import com.nikgapps.ui.preferences.compose.SingleChoiceDialog
+import com.nikgapps.ui.components.containers.DisplayContainer
+import com.nikgapps.ui.components.dialogs.SingleChoiceDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

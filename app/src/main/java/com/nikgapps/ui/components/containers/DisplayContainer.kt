@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.compose
+package com.nikgapps.ui.components.containers
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Label
@@ -8,8 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
+import com.nikgapps.ui.preferences.ui.PreferenceItem
 import com.nikgapps.ui.theme.ThemePreference
-import com.nikgapps.ui.preferences.emptyString
+import com.nikgapps.ui.preferences.services.emptyString
 
 @Composable
 fun DisplayContainer() {
@@ -52,7 +53,7 @@ fun DisplayContainer() {
             onSwitchChange = { preferences.useDynamicColor = it }
         )
 
-        if (!preferences.useDynamicColor){
+        if (!preferences.useDynamicColor) {
             PreferenceItem(
                 label = stringResource(R.string.theme),
                 supportingText = when (preferences.theme) {

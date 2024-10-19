@@ -1,4 +1,4 @@
-package com.nikgapps.ui.screens
+package com.nikgapps.ui.screens.downloads
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

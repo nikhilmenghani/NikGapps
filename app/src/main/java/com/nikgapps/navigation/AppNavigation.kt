@@ -11,7 +11,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.nikgapps.ui.screens.*
+import com.nikgapps.ui.screens.downloads.DownloadScreen
+import com.nikgapps.ui.screens.home.HomeScreen
+import com.nikgapps.ui.screens.profile.ProfileScreen
+import com.nikgapps.ui.screens.settings.SettingsScreen
 
 @Composable
 fun AppNavigation() {

@@ -1,4 +1,4 @@
-package com.nikgapps.ui.preferences.constant
+package com.nikgapps.ui.preferences.services
 
 import android.content.Context
 import androidx.datastore.core.DataStore

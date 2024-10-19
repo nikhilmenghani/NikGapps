@@ -1,11 +1,10 @@
-package com.nikgapps.ui.preferences.modal
+package com.nikgapps.ui.preferences.services
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.nikgapps.App
-import com.nikgapps.ui.preferences.constant.dataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 

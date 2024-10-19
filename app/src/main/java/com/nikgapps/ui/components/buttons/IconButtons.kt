@@ -1,4 +1,4 @@
-package com.nikgapps.ui.components
+package com.nikgapps.ui.components.buttons
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nikgapps.R
-import com.nikgapps.ui.common.HapticFeedback.slightHapticFeedback
+import com.nikgapps.ui.components.feedback.HapticFeedback.slightHapticFeedback
 
 @Composable
 fun PasteFromClipBoardButton(onPaste: (String) -> Unit = {}) {

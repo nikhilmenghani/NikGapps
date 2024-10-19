@@ -1,4 +1,4 @@
-package com.nikgapps.ui.screens
+package com.nikgapps.ui.screens.home
 
 import ModalBottomSheetM3Example
 import androidx.compose.foundation.layout.*
@@ -14,7 +14,7 @@ import androidx.navigation.NavHostController
 import com.nikgapps.MainActivity
 import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
-import com.nikgapps.ui.components.SettingsDialog
+import com.nikgapps.ui.components.dialogs.SettingsDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

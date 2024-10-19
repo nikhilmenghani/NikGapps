@@ -1,4 +1,4 @@
-package com.nikgapps.ui.common
+package com.nikgapps.ui.components.feedback
 
 import android.view.HapticFeedbackConstants
 import android.view.View
