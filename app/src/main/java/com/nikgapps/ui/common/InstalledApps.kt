@@ -31,7 +31,7 @@ data class InstalledApp(
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
-fun ListInstalledApps(context: Context) {
+fun ListInstalledApps1(context: Context) {
     // Remember the list of installed apps so it's not recomputed on every recomposition
     val installedApps = remember { getInstalledApps(context) }
     var originalSystemPaths = remember { getInstalledAppsWithOriginalPaths(context) }
