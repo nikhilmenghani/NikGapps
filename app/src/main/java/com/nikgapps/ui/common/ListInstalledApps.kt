@@ -23,7 +23,6 @@ import com.nikgapps.ui.model.InstalledAppInfo
 fun ListInstalledApps(context: Context) {
     val packageManager = context.packageManager
     val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-        .filter { it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM == 0 }
         .map { app ->
             InstalledAppInfo(
                 appName = app.loadLabel(packageManager).toString(),
