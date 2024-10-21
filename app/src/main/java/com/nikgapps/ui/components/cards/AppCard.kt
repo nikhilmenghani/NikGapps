@@ -29,36 +29,46 @@ fun AppCard(appInfo: InstalledAppInfo, elevation: Dp) {
         elevation = CardDefaults.cardElevation(elevation),
         colors = CardDefaults.cardColors(containerColor = if (appInfo.isSystemApp) Color.LightGray else Color.White)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Image(
-                painter = appInfo.appIcon as Painter,
-                contentDescription = "App Icon",
-                modifier = Modifier
-                    .size(48.dp)
-                    .padding(end = 16.dp)
-            )
-            Column() {
-                Text(
-                    text = appInfo.packageName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = appInfo.appIcon as Painter,
+                    contentDescription = "App Icon",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(end = 16.dp)
                 )
-                Text(
-                    text = appInfo.appName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 18.sp
-                )
-                Text(
-                    text = "Install Location: ${appInfo.installLocation}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = if (appInfo.isSystemApp) "Type: System App" else "Type: User App",
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Column() {
+                    Text(
+                        text = if (appInfo.isSystemApp) "System App" else "User App",
+                        modifier = Modifier.padding(4.dp).align(Alignment.End),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = appInfo.packageName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = appInfo.appName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 18.sp
+                    )
+                    Text(
+                        text = "Install Location: ${appInfo.installLocation}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = if (appInfo.isSystemApp) "Type: System App" else "Type: User App",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }
