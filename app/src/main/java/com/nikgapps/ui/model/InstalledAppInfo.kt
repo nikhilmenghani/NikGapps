@@ -7,6 +7,7 @@ data class InstalledAppInfo(
     val packageName: String,
     val installLocation: String,
     val appIcon: Any,
-    val isSystemApp: Boolean
+    val isSystemApp: Boolean,
+    val appType: String
 )
 

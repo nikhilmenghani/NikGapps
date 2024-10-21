@@ -27,49 +27,47 @@ fun AppCard(appInfo: InstalledAppInfo, elevation: Dp) {
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(elevation),
-        colors = CardDefaults.cardColors(containerColor = if (appInfo.isSystemApp) Color.LightGray else Color.White)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = appInfo.appIcon as Painter,
-                    contentDescription = "App Icon",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .padding(end = 16.dp)
-                )
-                Column() {
-                    Text(
-                        text = if (appInfo.isSystemApp) "System App" else "User App",
-                        modifier = Modifier.padding(4.dp).align(Alignment.End),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Text(
-                        text = appInfo.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = appInfo.appName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontSize = 18.sp
-                    )
-                    Text(
-                        text = "Install Location: ${appInfo.installLocation}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = if (appInfo.isSystemApp) "Type: System App" else "Type: User App",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+        colors = CardDefaults.cardColors(
+            containerColor = when (appInfo.appType) {
+                "Updated System App" -> MaterialTheme.colorScheme.secondary
+                "System App" -> MaterialTheme.colorScheme.surfaceVariant
+                else -> MaterialTheme.colorScheme.background
             }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Image(
+                painter = appInfo.appIcon as Painter,
+                contentDescription = "App Icon",
+                modifier = Modifier
+                    .size(48.dp)
+                    .padding(end = 16.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = appInfo.packageName,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = appInfo.appName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 18.sp
+                )
+            }
+            Text(
+                text = if (appInfo.isSystemApp) "System App" else "User App",
+                modifier = Modifier.padding(4.dp),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
@@ -82,7 +80,8 @@ fun PreviewAppCard() {
         packageName = "com.example.sample",
         installLocation = "/data/app/com.example.sample",
         appIcon = ColorPainter(Color.Gray),
-        isSystemApp = false
+        isSystemApp = false,
+        appType = "User App"
     )
     AppCard(appInfo = sampleAppInfo, elevation = 16.dp)
 }

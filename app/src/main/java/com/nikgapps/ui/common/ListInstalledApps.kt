@@ -27,7 +27,15 @@ fun ListInstalledApps(context: Context) {
                 packageName = app.packageName,
                 installLocation = app.sourceDir,
                 appIcon = rememberAsyncImagePainter(model = app.loadIcon(packageManager)),
-                isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0,
+                appType = if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                    app.sourceDir.startsWith(
+                        "/data/app"
+                    )
+                ) "Updated System App"
+                else if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0)
+                    "System App"
+                else "User App"
             )
         }
         .sortedBy { it.appName }
@@ -35,7 +43,11 @@ fun ListInstalledApps(context: Context) {
     Scaffold(
         topBar = { AppTopBar(title = "Installed Apps") }
     ) { paddingValues ->
-        LazyColumn(modifier = Modifier.padding(paddingValues).padding(16.dp)) {
+        LazyColumn(
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
             items(installedApps) { appInfo ->
                 AppCard(appInfo = appInfo, elevation = if (appInfo.isSystemApp) 2.dp else 60.dp)
             }
