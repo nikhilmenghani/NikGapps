@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import com.nikgapps.MainActivity
 import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
+import com.nikgapps.ui.components.buttons.CopyFileButton
 import com.nikgapps.ui.components.dialogs.SettingsDialog
 import com.nikgapps.ui.components.texts.RootStatusDisplay
 
@@ -64,6 +65,7 @@ fun HomeScreen(navController: NavHostController) {
                         Button(onClick = { showDialog = true }) {
                             Text(text = "Open Settings Dialog")
                         }
+                        CopyFileButton()
                     }
                 }
 
