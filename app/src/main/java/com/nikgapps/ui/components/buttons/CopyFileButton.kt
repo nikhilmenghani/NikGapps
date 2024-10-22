@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import com.nikgapps.R
 
 @Composable
 fun CopyFileButton() {
@@ -25,56 +27,27 @@ fun CopyFileButton() {
                 val sourcePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/NikGapps.apk"
                 val destPath = "/product/app/NikGapps/NikGapps.apk"
 
-                // Check if the /product partition exists
-                val partitionCheckResult = Shell.cmd("[ -d /product ] && echo 'exists' || echo 'not_exists'").exec()
-                val partitionExists = partitionCheckResult.out.contains("exists")
-                Log.d("CopyFileButton", "Partition check output: ${partitionCheckResult.out.joinToString("\n")}")
+                // Load the script from raw resources
+                val inputStream = context.resources.openRawResource(R.raw.copy_file_script)
+                val scriptFile = File(context.filesDir, "copy_file_script.sh")
+                scriptFile.outputStream().use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
 
-                if (partitionExists) {
-                    // Remount /product as read-write
-                    val remountResult = Shell.cmd("mount -o rw,remount /product 2>&1").exec()
-                    Log.d("CopyFileButton", "Remount output: ${remountResult.out.joinToString("\n")}")
+                // Change permission to executable
+                scriptFile.setExecutable(true)
 
-                    if (remountResult.isSuccess) {
-                        // Create necessary directories
-                        val mkdirResult = Shell.cmd("mkdir -p /product/app/NikGapps").exec()
-                        Log.d("CopyFileButton", "Directory creation output: ${mkdirResult.out.joinToString("\n")}")
-                        val mkdirOutput = mkdirResult.out.joinToString("\n")
+                // Execute the shell script with root privileges
+                val result = Shell.cmd("sh ${scriptFile.absolutePath} $sourcePath $destPath").exec()
+                val output = result.out.joinToString("\n")
+                Log.d("CopyFileButton", "Shell script output: \n$output")
 
-                        if (mkdirResult.isSuccess) {
-                            // Copy the file using dd
-                            val ddResult = Shell.cmd("dd if=$sourcePath of=$destPath bs=1M 2>&1").exec()
-                            Log.d("CopyFileButton", "dd command output: ${ddResult.out.joinToString("\n")}")
-                            val output = ddResult.out.joinToString("\n")
-
-                            // Check if the file was copied
-                            val fileCheckResult = Shell.cmd("ls -l $destPath").exec()
-                            Log.d("CopyFileButton", "File check output: ${fileCheckResult.out.joinToString("\n")}")
-
-                            withContext(Dispatchers.Main) {
-                                if (ddResult.isSuccess) {
-                                    Toast.makeText(context, "File copied successfully", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Failed to copy file: $output. Folder creation output: $mkdirOutput", Toast.LENGTH_LONG).show()
-                                    Log.e("CopyFileButton", "Failed to copy file: $output. Folder creation output: $mkdirOutput")
-                                }
-                            }
-                        } else {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Failed to create directory: $mkdirOutput", Toast.LENGTH_LONG).show()
-                                Log.e("CopyFileButton", "Failed to create directory: $mkdirOutput")
-                            }
-                        }
+                withContext(Dispatchers.Main) {
+                    if (result.isSuccess) {
+                        Toast.makeText(context, "File copied successfully", Toast.LENGTH_SHORT).show()
                     } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to remount /product as read-write", Toast.LENGTH_SHORT).show()
-                            Log.e("CopyFileButton", "Failed to remount /product as read-write")
-                        }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Partition /product does not exist", Toast.LENGTH_SHORT).show()
-                        Log.e("CopyFileButton", "Partition /product does not exist")
+                        Toast.makeText(context, "Failed to copy file: $output", Toast.LENGTH_LONG).show()
+                        Log.e("CopyFileButton", "Failed to copy file: $output")
                     }
                 }
             } else {
