@@ -15,6 +15,7 @@ import com.nikgapps.MainActivity
 import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
 import com.nikgapps.ui.components.dialogs.SettingsDialog
+import com.nikgapps.ui.components.texts.RootStatusDisplay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +54,7 @@ fun HomeScreen(navController: NavHostController) {
                     .padding(16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
-
+                RootStatusDisplay()
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {

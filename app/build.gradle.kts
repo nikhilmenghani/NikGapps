@@ -78,4 +78,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling.preview.android)
     implementation(libs.androidx.appcompat)
     implementation(libs.coil.compose)
+    implementation(libs.libsu)
 }

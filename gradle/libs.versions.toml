@@ -14,6 +14,7 @@ uiTooling = "1.7.4"
 datastores = "1.1.1"
 appcompat = "1.7.0"
 coil = "2.7.0"
+libsuv = "6.0.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
@@ -32,3 +33,4 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", vers
 androidx-datastore = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastores" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsuv" }
