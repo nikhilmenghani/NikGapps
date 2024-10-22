@@ -1,4 +1,4 @@
-package com.nikgapps.ui.common
+package com.nikgapps.ui.examples
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -31,7 +31,7 @@ data class InstalledApp(
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
-fun ListInstalledApps1(context: Context) {
+fun ListInstalledApps2(context: Context) {
     // Remember the list of installed apps so it's not recomputed on every recomposition
     val installedApps = remember { getInstalledApps(context) }
     var originalSystemPaths = remember { getInstalledAppsWithOriginalPaths(context) }

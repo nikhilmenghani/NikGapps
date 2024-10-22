@@ -1,7 +1,8 @@
-package com.nikgapps.ui.common
+package com.nikgapps.ui.examples
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import androidx.annotation.RequiresApi
 import android.content.pm.PackageManager
@@ -21,13 +22,12 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
-import com.nikgapps.ui.model.InstalledAppInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("QueryPermissionsNeeded")
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
-fun ListInstalledApps2(context: Context) {
+fun ListInstalledApps1(context: Context) {
     val packageManager = context.packageManager
     val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
         .map { app ->
@@ -36,7 +36,7 @@ fun ListInstalledApps2(context: Context) {
                 packageName = app.packageName,
                 installLocation = app.sourceDir,
                 appIcon = rememberAsyncImagePainter(app.loadIcon(packageManager)),
-                isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                isSystemApp = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             )
         }
         .sortedBy { it.appName }
@@ -64,7 +64,7 @@ fun ListInstalledApps2(context: Context) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        painter = appInfo.appIcon as Painter,
+                        painter = appInfo.appIcon,
                         contentDescription = "App Icon",
                         modifier = Modifier
                             .size(56.dp)
