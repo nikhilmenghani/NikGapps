@@ -11,7 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.nikgapps.ui.common.ListInstalledApps
+import com.nikgapps.ui.screens.apps.AppsScreen
 import com.nikgapps.ui.screens.downloads.DownloadScreen
 import com.nikgapps.ui.screens.home.HomeScreen
 import com.nikgapps.ui.screens.profile.ProfileScreen
@@ -65,7 +65,7 @@ fun AppNavigation() {
                 DownloadScreen()
             }
             composable(route = Screens.AppsScreen.name) {
-                ListInstalledApps()
+                AppsScreen()
             }
             composable(route = Screens.SettingsScreen.name) {
                 SettingsScreen(navController = navController)

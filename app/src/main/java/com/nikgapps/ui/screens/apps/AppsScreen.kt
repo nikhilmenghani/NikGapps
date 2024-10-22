@@ -1,6 +1,7 @@
-package com.nikgapps.ui.common
+package com.nikgapps.ui.screens.apps
 
 import android.annotation.SuppressLint
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,7 +19,7 @@ import com.nikgapps.ui.model.InstalledAppInfo
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("QueryPermissionsNeeded")
 @Composable
-fun ListInstalledApps() {
+fun AppsScreen() {
     val packageManager = globalClass.packageManager
     val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
         .map { app ->
@@ -27,11 +28,11 @@ fun ListInstalledApps() {
                 packageName = app.packageName,
                 installLocation = app.sourceDir,
                 appIcon = rememberAsyncImagePainter(model = app.loadIcon(packageManager)),
-                isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0,
-                appType = if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 && app.sourceDir.startsWith(
+                isSystemApp = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                appType = if ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0 && app.sourceDir.startsWith(
                         "/data/app"
                     )
-                ) "Updated System App" else if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0) "System App" else "User App"
+                ) "Updated System App" else if ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0) "System App" else "User App"
             )
         }
         .sortedBy { it.appName }
