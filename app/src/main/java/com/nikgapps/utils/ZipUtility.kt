@@ -1,19 +1,12 @@
 package com.nikgapps.utils
 
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
 
 object ZipUtility {
-    /**
-     * Extracts a zip file to the specified output directory.
-     *
-     * @param zipFilePath The path of the zip file to be extracted.
-     * @param outputDirPath The directory path where the contents should be extracted.
-     * @param includeExtn A list of file extensions or strings that should be included during extraction (e.g., ".zip", ".apk"). If empty, extracts all files.
-     * @return True if the extraction was successful, False otherwise.
-     */
-    fun extractZip(zipFilePath: String, outputDirPath: String, includeExtn: List<String> = emptyList()): Boolean {
+    fun extractZip(zipFilePath: String, outputDirPath: String, includeExtn: List<String> = emptyList(), extractNestedZips: Boolean = false): Boolean {
         return try {
             val zipFile = File(zipFilePath)
             val outputDir = File(outputDirPath)
@@ -36,6 +29,20 @@ object ZipUtility {
                             FileOutputStream(extractedFile).use { outputStream ->
                                 zipStream.copyTo(outputStream)
                             }
+
+                            // If the extracted file is a zip and the extractNestedZips flag is true, extract it
+                            if (extractNestedZips && extractedFile.extension == "zip") {
+                                val nestedOutputDir = File(extractedFile.parentFile, extractedFile.nameWithoutExtension)
+                                if (!nestedOutputDir.exists()) {
+                                    nestedOutputDir.mkdirs()
+                                }
+                                val nestedExtractSuccessful = extractZip(extractedFile.absolutePath, nestedOutputDir.absolutePath, extractNestedZips = true)
+                                if (!nestedExtractSuccessful) {
+                                    Log.e("ZipUtility", "Failed to extract nested zip file ${extractedFile.name}")
+                                } else {
+                                    Log.d("ZipUtility", "Nested zip file ${extractedFile.name} extracted successfully into ${nestedOutputDir.path}")
+                                }
+                            }
                         }
                     }
                     zipStream.closeEntry()
@@ -47,5 +54,33 @@ object ZipUtility {
             e.printStackTrace()
             false
         }
+    }
+
+    fun extractNestedZips(directory: File): Boolean {
+        var allSuccess = true
+        directory.listFiles()?.forEach { file ->
+            if (file.isDirectory) {
+                // Recursively call extractNestedZips for subdirectories
+                val success = extractNestedZips(file)
+                if (!success) {
+                    allSuccess = false
+                }
+            } else if (file.extension == "zip") {
+                // Create a folder with the same name as the zip file (without extension)
+                val extractDir = File(file.parentFile, file.nameWithoutExtension)
+                if (!extractDir.exists()) {
+                    extractDir.mkdirs()
+                }
+                // Extract zip into the newly created directory
+                val nestedExtractSuccessful = extractZip(file.absolutePath, extractDir.absolutePath)
+                if (nestedExtractSuccessful) {
+                    Log.d("ZipUtility", "Nested zip file ${file.name} extracted successfully into ${extractDir.path}")
+                } else {
+                    Log.e("ZipUtility", "Failed to extract nested zip file ${file.name}")
+                    allSuccess = false
+                }
+            }
+        }
+        return allSuccess
     }
 }
