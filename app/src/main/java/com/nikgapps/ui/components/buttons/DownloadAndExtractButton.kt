@@ -9,48 +9,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import com.nikgapps.App
 import com.nikgapps.utils.Constants
+import com.nikgapps.utils.DownloadUtility
+import com.nikgapps.utils.ZipUtility
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okio.buffer
-import okio.sink
 import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipInputStream
 
 @Composable
 fun DownloadAndExtractButton() {
-    val context = App.globalClass
-    val client = OkHttpClient()
+    val context = LocalContext.current
 
     Button(onClick = {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/file.zip"
+                val outputDirPath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/extracted"
+
                 val zipFile = File(destFilePath)
 
                 // Step 1: Check if file already exists
                 if (!zipFile.exists()) {
-                    // Download the file from SourceForge
-                    val downloadPageUrl = Constants.DOWNLOAD_URL
-                    val request = Request.Builder().url(downloadPageUrl).build()
-                    val response = client.newCall(request).execute()
+                    // Download the file using DownloadUtility
+                    val downloadSuccessful = DownloadUtility.downloadFile(Constants.DOWNLOAD_URL, destFilePath)
 
-                    if (response.isSuccessful) {
-                        response.body?.let { responseBody ->
-                            // Write the response to a file
-                            zipFile.sink().buffer().use { bufferedSink ->
-                                bufferedSink.writeAll(responseBody.source())
-                            }
-                        }
+                    if (downloadSuccessful) {
                         Log.d("DownloadAndExtractButton", "File downloaded successfully")
                     } else {
-                        Log.e("DownloadAndExtractButton", "Failed to download file: ${response.message}")
+                        Log.e("DownloadAndExtractButton", "Failed to download file")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, "Failed to download file", Toast.LENGTH_LONG).show()
                         }
@@ -63,41 +52,23 @@ fun DownloadAndExtractButton() {
                     Log.d("DownloadAndExtractButton", "File already exists, skipping download")
                 }
 
-                // Step 2: Extract the zip file
-                val outputDir = File(Environment.getExternalStorageDirectory().absolutePath + "/Download/extracted")
-                if (!outputDir.exists()) {
-                    outputDir.mkdirs() // Create the output directory if it doesn't exist
-                }
+                // Step 2: Extract the zip file using ZipUtility
+                val extractSuccessful = ZipUtility.extractZip(destFilePath, outputDirPath, listOf(".zip"))
 
-                ZipInputStream(zipFile.inputStream()).use { zipStream ->
-                    var entry = zipStream.nextEntry
-                    while (entry != null) {
-                        if (!(entry.name.endsWith(".zip") && entry.name.contains("AppSet"))) {
-                            Log.d("DownloadAndExtractButton", "Skipping nested zip file: ${entry.name}")
-                            zipStream.closeEntry()
-                            entry = zipStream.nextEntry
-                            continue
-                        }
-                        val extractedFile = File(outputDir, entry.name)
-                        if (entry.isDirectory) {
-                            extractedFile.mkdirs()
-                        } else {
-                            extractedFile.parentFile?.mkdirs()
-                            Log.d("DownloadAndExtractButton", "Extracting: ${extractedFile.absolutePath}")
-                            FileOutputStream(extractedFile).use { outputStream ->
-                                zipStream.copyTo(outputStream)
-                            }
-                        }
-                        zipStream.closeEntry()
-                        entry = zipStream.nextEntry
+                if (extractSuccessful) {
+                    Log.d("DownloadAndExtractButton", "File extracted successfully")
+                } else {
+                    Log.e("DownloadAndExtractButton", "Failed to extract file")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to extract file", Toast.LENGTH_LONG).show()
                     }
+                    return@launch
                 }
-                Log.d("DownloadAndExtractButton", "File extracted successfully")
 
                 // Step 3: Copy extracted files to system or product partitions
                 if (App.hasRootAccess) {
                     val destPath = "/product/app/NikGapps/" // Example destination path
-                    val result = Shell.cmd("cp -r ${outputDir.absolutePath}/* $destPath").exec()
+                    val result = Shell.cmd("cp -r ${outputDirPath}/* $destPath").exec()
                     val output = result.out.joinToString("\n")
                     Log.d("DownloadAndExtractButton", "Shell script output: \n$output")
 
@@ -124,6 +95,7 @@ fun DownloadAndExtractButton() {
             }
         }
     }) {
+        // Button text
         Text(text = "Download, Extract, and Copy File")
     }
 }
