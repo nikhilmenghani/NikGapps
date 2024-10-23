@@ -40,6 +40,7 @@ object ZipUtility {
                                 if (!nestedExtractSuccessful) {
                                     Log.e("ZipUtility", "Failed to extract nested zip file ${extractedFile.name}")
                                 } else {
+                                    extractedFile.delete()
                                     Log.d("ZipUtility", "Nested zip file ${extractedFile.name} extracted successfully into ${nestedOutputDir.path}")
                                 }
                             }
