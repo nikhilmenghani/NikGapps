@@ -1,19 +1,31 @@
 package com.nikgapps.utils
 
 import android.util.Log
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 object ZipUtility {
-    fun extractZip(zipFilePath: String, outputDirPath: String, includeExtn: List<String> = emptyList(), extractNestedZips: Boolean = false): Boolean {
-        return try {
+    suspend fun extractZip(
+        zipFilePath: String,
+        outputDirPath: String,
+        includeExtn: List<String> = emptyList(),
+        extractNestedZips: Boolean = false
+    ): Boolean = coroutineScope {
+        try {
             val zipFile = File(zipFilePath)
             val outputDir = File(outputDirPath)
 
             if (!outputDir.exists()) {
                 outputDir.mkdirs()
             }
+
+            val deferreds = mutableListOf<Deferred<Boolean>>()
 
             ZipInputStream(zipFile.inputStream()).use { zipStream ->
                 var entry = zipStream.nextEntry
@@ -30,19 +42,16 @@ object ZipUtility {
                                 zipStream.copyTo(outputStream)
                             }
 
-                            // If the extracted file is a zip and the extractNestedZips flag is true, extract it
+                            // If the extracted file is a zip and the extractNestedZips flag is true, extract it asynchronously
                             if (extractNestedZips && extractedFile.extension == "zip") {
                                 val nestedOutputDir = File(extractedFile.parentFile, extractedFile.nameWithoutExtension)
                                 if (!nestedOutputDir.exists()) {
                                     nestedOutputDir.mkdirs()
                                 }
-                                val nestedExtractSuccessful = extractZip(extractedFile.absolutePath, nestedOutputDir.absolutePath, extractNestedZips = true)
-                                if (!nestedExtractSuccessful) {
-                                    Log.e("ZipUtility", "Failed to extract nested zip file ${extractedFile.name}")
-                                } else {
-                                    extractedFile.delete()
-                                    Log.d("ZipUtility", "Nested zip file ${extractedFile.name} extracted successfully into ${nestedOutputDir.path}")
+                                val deferred = async(Dispatchers.IO) {
+                                    extractZip(extractedFile.absolutePath, nestedOutputDir.absolutePath, extractNestedZips = true)
                                 }
+                                deferreds.add(deferred)
                             }
                         }
                     }
@@ -50,6 +59,13 @@ object ZipUtility {
                     entry = zipStream.nextEntry
                 }
             }
+
+            // Await all nested extraction tasks to complete
+            val nestedResults = deferreds.awaitAll()
+            if (nestedResults.any { !it }) {
+                return@coroutineScope false
+            }
+
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -57,7 +73,7 @@ object ZipUtility {
         }
     }
 
-    fun extractNestedZips(directory: File): Boolean {
+    suspend fun extractNestedZips(directory: File): Boolean {
         var allSuccess = true
         directory.listFiles()?.forEach { file ->
             if (file.isDirectory) {

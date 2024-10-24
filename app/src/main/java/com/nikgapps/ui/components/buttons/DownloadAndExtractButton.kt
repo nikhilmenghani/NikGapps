@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.system.measureTimeMillis
 
 @Composable
 fun DownloadAndExtractButton() {
@@ -30,12 +31,15 @@ fun DownloadAndExtractButton() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     isProcessing = true
+                    val zipFileName = Constants.DOWNLOAD_URL.split("/").lastOrNull { it.endsWith(".zip") }
+                        ?: throw IllegalArgumentException("No .zip file found in URL")
 
-                    val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/file.zip"
-                    val outputDirPath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/extracted"
+                    val zipFileNameWithoutExtension = zipFileName.removeSuffix(".zip")
+
+                    val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileNameWithoutExtension.zip"
+                    val outputDirPath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileNameWithoutExtension"
 
                     val zipFile = File(destFilePath)
-                    val outputDir = File(outputDirPath)
 
                     // Step 1: Check if file already exists
                     if (!zipFile.exists()) {
@@ -60,18 +64,21 @@ fun DownloadAndExtractButton() {
                     }
 
                     // Step 2: Extract the zip file using ZipUtility
-                    val extractSuccessful = ZipUtility.extractZip(destFilePath, outputDirPath, extractNestedZips = true)
+                    val extractionTime = measureTimeMillis {
+                        val extractSuccessful = ZipUtility.extractZip(destFilePath, outputDirPath, extractNestedZips = true)
 
-                    if (extractSuccessful) {
-                        Log.d("DownloadAndExtractButton", "File extracted successfully")
-                    } else {
-                        Log.e("DownloadAndExtractButton", "Failed to extract file")
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to extract file", Toast.LENGTH_LONG).show()
+                        if (extractSuccessful) {
+                            Log.d("DownloadAndExtractButton", "File extracted successfully")
+                        } else {
+                            Log.e("DownloadAndExtractButton", "Failed to extract file")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to extract file", Toast.LENGTH_LONG).show()
+                            }
+                            isProcessing = false
+                            return@launch
                         }
-                        isProcessing = false
-                        return@launch
                     }
+                    Log.d("DownloadAndExtractButton", "Extraction completed in $extractionTime ms")
 
                     // Step 3: Copy extracted files to system or product partitions
                     if (App.hasRootAccess) {
