@@ -15,7 +15,8 @@ object ZipUtility {
         zipFilePath: String,
         outputDirPath: String,
         includeExtn: List<String> = emptyList(),
-        extractNestedZips: Boolean = false
+        extractNestedZips: Boolean = false,
+        progressCallback: (String) -> Unit
     ): Boolean = coroutineScope {
         try {
             val zipFile = File(zipFilePath)
@@ -32,11 +33,14 @@ object ZipUtility {
                 while (entry != null) {
                     val fileName = entry.name
 
-                    if (includeExtn.isEmpty() || includeExtn.any { fileName.contains(it, ignoreCase = true) }) {
+                    if (includeExtn.isEmpty() || includeExtn.any {
+                            fileName.contains(it, ignoreCase = true)
+                        }) {
                         val extractedFile = File(outputDir, fileName)
                         if (entry.isDirectory) {
                             extractedFile.mkdirs()
                         } else {
+                            progressCallback("Extracting $fileName...")
                             extractedFile.parentFile?.mkdirs()
                             FileOutputStream(extractedFile).use { outputStream ->
                                 zipStream.copyTo(outputStream)
@@ -44,12 +48,20 @@ object ZipUtility {
 
                             // If the extracted file is a zip and the extractNestedZips flag is true, extract it asynchronously
                             if (extractNestedZips && extractedFile.extension == "zip") {
-                                val nestedOutputDir = File(extractedFile.parentFile, extractedFile.nameWithoutExtension)
+                                val nestedOutputDir = File(
+                                    extractedFile.parentFile,
+                                    extractedFile.nameWithoutExtension
+                                )
                                 if (!nestedOutputDir.exists()) {
                                     nestedOutputDir.mkdirs()
                                 }
                                 val deferred = async(Dispatchers.IO) {
-                                    extractZip(extractedFile.absolutePath, nestedOutputDir.absolutePath, extractNestedZips = true)
+                                    extractZip(
+                                        extractedFile.absolutePath,
+                                        nestedOutputDir.absolutePath,
+                                        extractNestedZips = true,
+                                        progressCallback = progressCallback
+                                    )
                                 }
                                 deferreds.add(deferred)
                             }
@@ -89,9 +101,17 @@ object ZipUtility {
                     extractDir.mkdirs()
                 }
                 // Extract zip into the newly created directory
-                val nestedExtractSuccessful = extractZip(file.absolutePath, extractDir.absolutePath)
+                val nestedExtractSuccessful = extractZip(
+                    file.absolutePath,
+                    extractDir.absolutePath,
+                    progressCallback = { progress ->
+                        Log.d("ZipUtility", "Progress: $progress")
+                    })
                 if (nestedExtractSuccessful) {
-                    Log.d("ZipUtility", "Nested zip file ${file.name} extracted successfully into ${extractDir.path}")
+                    Log.d(
+                        "ZipUtility",
+                        "Nested zip file ${file.name} extracted successfully into ${extractDir.path}"
+                    )
                 } else {
                     Log.e("ZipUtility", "Failed to extract nested zip file ${file.name}")
                     allSuccess = false
