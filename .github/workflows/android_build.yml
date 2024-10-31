@@ -40,9 +40,8 @@ jobs:
             NEW_VERSION="0.1"
             V_MAJOR=0
             V_MINOR=0
-            V_PATCH=0
           else
-            IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$LATEST_VERSION"
+            IFS='.' read -r V_MAJOR V_MINOR <<< "$LATEST_VERSION"
             if [[ -z $V_MAJOR ]]; then
               V_MAJOR=0
             fi
@@ -53,10 +52,17 @@ jobs:
               V_MINOR=$((V_MINOR + 1))
             fi
             NEW_VERSION="$V_MAJOR.$V_MINOR"
-            echo "NEW_VERSION=$NEW_VERSION"
           fi
           echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
           echo "new_version=v$NEW_VERSION" >> $GITHUB_ENV
+          echo "V_MAJOR=$V_MAJOR" >> $GITHUB_ENV
+          echo "V_MINOR=$V_MINOR" >> $GITHUB_ENV
+          echo "VERSION_CODE=$((V_MAJOR * 100 + V_MINOR))" >> $GITHUB_ENV
+
+      - name: Update Version in build.gradle.kts
+        run: |
+          sed -i "s/versionName = \".*\"/versionName = \"${{ env.new_version }}\"/" app/build.gradle.kts
+          sed -i "s/versionCode = .*/versionCode = $(( ${{ env.V_MAJOR }} * 100 + ${{ env.V_MINOR }} ))/" app/build.gradle.kts
 
       - name: Set Executable Permission for Gradlew
         run: chmod +x ./gradlew
@@ -87,4 +93,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.AUTH }}
-
