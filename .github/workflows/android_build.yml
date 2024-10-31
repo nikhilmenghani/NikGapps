@@ -53,15 +53,15 @@ jobs:
             fi
             NEW_VERSION="$V_MAJOR.$V_MINOR"
           fi
-          echo "NEW_VERSION=v$NEW_VERSION" >> $GITHUB_ENV
-          echo "new_version=v$NEW_VERSION" >> $GITHUB_ENV
+          echo "TAG_VERSION=v$NEW_VERSION" >> $GITHUB_ENV   # Version with 'v' for tagging
+          echo "PLAIN_VERSION=$NEW_VERSION" >> $GITHUB_ENV # Version without 'v' for versionName
           echo "V_MAJOR=$V_MAJOR" >> $GITHUB_ENV
           echo "V_MINOR=$V_MINOR" >> $GITHUB_ENV
           echo "VERSION_CODE=$((V_MAJOR * 100 + V_MINOR))" >> $GITHUB_ENV
 
       - name: Update Version in build.gradle.kts
         run: |
-          sed -i "s/versionName = \".*\"/versionName = \"${{ env.new_version }}\"/" app/build.gradle.kts
+          sed -i "s/versionName = \".*\"/versionName = \"${{ env.PLAIN_VERSION }}\"/" app/build.gradle.kts
           sed -i "s/versionCode = .*/versionCode = $(( ${{ env.V_MAJOR }} * 100 + ${{ env.V_MINOR }} ))/" app/build.gradle.kts
 
       - name: Set Executable Permission for Gradlew
@@ -82,14 +82,14 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/NikGapps-${{ env.new_version }}.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/NikGapps-${{ env.TAG_VERSION }}.apk
 
       - name: Create Release with Files
         uses: softprops/action-gh-release@v1
         with:
-          files: app/build/outputs/apk/release/NikGapps-${{ env.new_version }}.apk
-          tag_name: ${{ env.new_version }}
-          name: ${{ env.new_version }}
+          files: app/build/outputs/apk/release/NikGapps-${{ env.TAG_VERSION }}.apk
+          tag_name: ${{ env.TAG_VERSION }}
+          name: ${{ env.TAG_VERSION }}
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.AUTH }}
