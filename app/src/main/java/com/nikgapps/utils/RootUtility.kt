@@ -2,6 +2,8 @@ package com.nikgapps.utils
 
 import android.util.Log
 import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 object RootUtility {
@@ -47,6 +49,17 @@ object RootUtility {
         } catch (e: Exception) {
             Log.e("RootUtility", "Exception while copying files: ${e.message}")
             false
+        }
+    }
+
+    // Function to check if the app has root access
+    suspend fun hasRootAccess(): Boolean {
+        return withContext(Dispatchers.IO) {
+            // Close any existing shell to avoid stale results
+            Shell.getCachedShell()?.close()
+
+            // Perform a fresh check for root access
+            Shell.getShell().isRoot
         }
     }
 }

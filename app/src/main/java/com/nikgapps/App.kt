@@ -17,7 +17,6 @@ class App: Application() {
             get() = appContext as App
 
         var hasRootAccess: Boolean = false
-            private set
     }
 
     val preferencesManager: PreferencesManager by lazy { PreferencesManager() }
@@ -25,14 +24,6 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
-        checkRootAccess()
-    }
-
-    fun checkRootAccess() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val rootAccess = com.topjohnwu.superuser.Shell.getShell().isRoot
-            hasRootAccess = rootAccess
-        }
     }
 
     fun showMsg(@StringRes msgSrc: Int) {
