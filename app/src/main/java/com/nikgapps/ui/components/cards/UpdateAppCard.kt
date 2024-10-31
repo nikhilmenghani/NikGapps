@@ -1,8 +1,12 @@
 package com.nikgapps.ui.components.cards
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
@@ -100,16 +104,29 @@ fun installApk(context: Context, apkPath: String) {
     try {
         val apkFile = File(apkPath)
         if (apkFile.exists()) {
+            // Check if the app has permission to install unknown apps
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+                // Request permission from the user
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Allow app installation from unknown sources to proceed", Toast.LENGTH_LONG).show()
+                return
+            }
+
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.provider", // Ensure this matches the authority in AndroidManifest.xml
+                "${context.packageName}.provider",
                 apkFile
             )
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             context.startActivity(intent)
+
         } else {
             Log.e("UpdateAppCard", "APK file does not exist: $apkPath")
         }
