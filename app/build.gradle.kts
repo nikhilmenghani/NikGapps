@@ -79,4 +79,6 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.coil.compose)
     implementation(libs.libsu)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
 }

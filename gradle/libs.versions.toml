@@ -15,6 +15,8 @@ datastores = "1.1.1"
 appcompat = "1.7.0"
 coil = "2.7.0"
 libsuv = "6.0.0"
+okhttpv = "4.12.0"
+jsonv = "1.7.2"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
@@ -28,9 +30,11 @@ junit = { module = "junit:junit", version.ref = "junit" }
 compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "compose" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
-androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "uiToolingPreviewAndroid" }
-androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "uiTooling" }
+androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "compose" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "compose" }
 androidx-datastore = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastores" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsuv" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttpv" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "jsonv" }
