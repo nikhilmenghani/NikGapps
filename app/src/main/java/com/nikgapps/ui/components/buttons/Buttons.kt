@@ -1,5 +1,11 @@
 package com.nikgapps.ui.components.buttons
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -21,9 +27,11 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.nikgapps.ui.theme.NikGappsThemePreview
 import com.nikgapps.R
 import com.nikgapps.ui.components.items.PreferenceSubtitle
+import com.nikgapps.utils.startFileDownload
 
 @Composable
 fun OutlinedButtonWithIcon(
@@ -209,6 +217,52 @@ fun LongTapTextButton(
                 )
             }
         }
+    }
+}
+
+@SuppressLint("InlinedApi")
+@Composable
+fun RequestNotificationPermission(context: Context) {
+    // Define the launcher to request permissions
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted: Boolean ->
+            if (isGranted) {
+                // Permission granted, proceed to show notifications
+                Toast.makeText(context, "Notifications Permission Granted", Toast.LENGTH_SHORT).show()
+            } else {
+                // Permission denied, show an explanation or alternative
+                Toast.makeText(context, "Notifications Permission Denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    // Check if we have the permission already
+    val hasPermission = ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (!hasPermission) {
+        // UI to request permission
+        Button(onClick = {
+            requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }) {
+            Text("Request Notifications Permission")
+        }
+    } else {
+        // Permission already granted, you can start showing notifications
+        Text("Notification Permission Granted")
+    }
+}
+
+
+@Composable
+fun DownloadButton(context: Context) {
+    Button(onClick = {
+        startFileDownload(context)
+    }) {
+        Text("Start Download")
     }
 }
 

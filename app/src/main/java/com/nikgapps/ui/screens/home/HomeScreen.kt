@@ -16,6 +16,8 @@ import com.nikgapps.navigation.Screens
 import com.nikgapps.navigation.navigateWithState
 import com.nikgapps.ui.components.buttons.CopyFileButton
 import com.nikgapps.ui.components.buttons.DownloadAndExtractButton
+import com.nikgapps.ui.components.buttons.DownloadButton
+import com.nikgapps.ui.components.buttons.RequestNotificationPermission
 import com.nikgapps.ui.components.cards.GetRootAccessCard
 import com.nikgapps.ui.components.cards.UpdateAppCard
 import com.nikgapps.ui.components.dialogs.SettingsDialog
@@ -80,6 +82,8 @@ fun HomeScreen(navController: NavHostController) {
                 ModalBottomSheetM3Example()
                 GetRootAccessCard()
                 UpdateAppCard()
+                RequestNotificationPermission(context)
+                DownloadButton(context)
             }
         }
     )
