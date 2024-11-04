@@ -28,12 +28,12 @@ fun startFileDownload(context: Context) {
 }
 
 @SuppressLint("MissingPermission", "NotificationPermission")
-fun showProgressNotification(context: Context, progress: Int) {
+fun showProgressNotification(context: Context, progress: Int, progressText: String = "Download in progress") {
     val notificationManager = NotificationManagerCompat.from(context)
 
     val builder = NotificationCompat.Builder(context, "progress_channel_id")
         .setContentTitle("File Download")
-        .setContentText("Download in progress")
+        .setContentText(progressText)
         .setSmallIcon(R.drawable.ic_launcher_foreground) // Replace with your icon
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setOnlyAlertOnce(true) // Ensures no repetitive sound for each progress update
