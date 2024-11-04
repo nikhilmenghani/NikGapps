@@ -1,7 +1,7 @@
 [versions]
 activity-compose = "1.9.3"
 androidx-junit = "1.2.1"
-core-ktx = "1.13.1"
+core-ktx = "1.15.0"
 espresso-core = "3.6.1"
 junit = "4.13.2"
 lifecycle-runtime-ktx = "2.8.7"
