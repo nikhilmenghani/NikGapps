@@ -15,6 +15,7 @@ coil = "2.7.0"
 libsuv = "6.0.0"
 okhttpv = "4.12.0"
 jsonv = "1.7.2"
+kotlin = "2.0.20"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
@@ -36,3 +37,7 @@ coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsuv" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttpv" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "jsonv" }
+
+[plugins]
+org-jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
