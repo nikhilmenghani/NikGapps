@@ -86,4 +86,5 @@ dependencies {
     implementation(libs.libsu)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.work.runtime.ktx)
 }

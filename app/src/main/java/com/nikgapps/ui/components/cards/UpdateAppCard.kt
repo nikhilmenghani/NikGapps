@@ -10,6 +10,8 @@ import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -18,22 +20,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nikgapps.utils.DownloadUtility
+import androidx.core.content.FileProvider
+import androidx.work.*
+import com.nikgapps.App
 import com.nikgapps.utils.fetchLatestVersion
+import com.nikgapps.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
-import com.nikgapps.App
 
 @SuppressLint("NewApi")
 @Composable
 fun UpdateAppCard() {
     val context = App.globalClass
+    val workManager = WorkManager.getInstance(context)
+
     var currentVersion by remember { mutableStateOf(getCurrentVersion(context)) }
     var latestVersion by remember { mutableStateOf(currentVersion) }
     var isLatestVersion by remember { mutableStateOf(true) }
@@ -82,29 +84,47 @@ fun UpdateAppCard() {
                 } else {
                     Button(onClick = {
                         isDownloading = true
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val downloadUrl = "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
-                            val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/NikGapps-v$latestVersion.apk"
-                            val downloadSuccess = DownloadUtility.downloadApk(downloadUrl, destFilePath)
 
-                            withContext(Dispatchers.Main) {
-                                if (downloadSuccess) {
-                                    // Check if permission to install unknown apps is granted
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        if (context.packageManager.canRequestPackageInstalls()) {
-                                            installApk(context, destFilePath)
-                                        } else {
-                                            // If permission not granted, navigate to settings to grant permission
-                                            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
-                                            settingsLauncher.launch(intent)
-                                        }
-                                    } else {
+                        val downloadUrl = "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
+                        val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/NikGapps-v$latestVersion.apk"
+
+                        val inputData = workDataOf(
+                            DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
+                            DownloadWorker.DEST_FILE_PATH_KEY to destFilePath,
+                            DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_APK
+                        )
+
+                        val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
+                            .setInputData(inputData)
+                            .setConstraints(
+                                Constraints.Builder()
+                                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                                    .build()
+                            )
+                            .build()
+
+                        // Enqueue the download request using WorkManager
+                        workManager.enqueue(downloadRequest)
+
+                        // Observe the WorkManager status
+                        workManager.getWorkInfoByIdLiveData(downloadRequest.id).observeForever { info ->
+                            if (info?.state == WorkInfo.State.SUCCEEDED) {
+                                isDownloading = false
+                                // Install the APK after download completes
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    if (context.packageManager.canRequestPackageInstalls()) {
                                         installApk(context, destFilePath)
+                                    } else {
+                                        // If permission not granted, navigate to settings to grant permission
+                                        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+                                        settingsLauncher.launch(intent)
                                     }
                                 } else {
-                                    Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
+                                    installApk(context, destFilePath)
                                 }
+                            } else if (info?.state == WorkInfo.State.FAILED) {
                                 isDownloading = false
+                                Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
                             }
                         }
                     }) {
@@ -132,7 +152,7 @@ fun installApk(context: Context, apkPath: String) {
         if (apkFile.exists()) {
             val uri: Uri = FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.provider", // Update this with your FileProvider authority
+                "${context.packageName}.provider",
                 apkFile
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
