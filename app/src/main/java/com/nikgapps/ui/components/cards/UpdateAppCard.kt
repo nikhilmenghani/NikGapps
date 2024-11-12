@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.work.*
 import com.nikgapps.App
-import com.nikgapps.utils.fetchLatestVersion
+import com.nikgapps.app.utils.fetchLatestVersion
 import com.nikgapps.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

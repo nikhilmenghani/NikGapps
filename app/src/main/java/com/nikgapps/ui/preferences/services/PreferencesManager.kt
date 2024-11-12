@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
-import com.nikgapps.ui.theme.ThemePreference
+import com.nikgapps.app.presentation.theme.ThemePreference
 
 const val emptyString = ""
 

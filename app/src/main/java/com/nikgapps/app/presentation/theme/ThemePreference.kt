@@ -1,4 +1,4 @@
-package com.nikgapps.ui.theme
+package com.nikgapps.app.presentation.theme
 
 enum class ThemePreference {
     LIGHT,

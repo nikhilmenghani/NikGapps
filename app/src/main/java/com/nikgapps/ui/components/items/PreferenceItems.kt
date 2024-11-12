@@ -17,8 +17,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nikgapps.ui.theme.NikGappsThemePreview
-import com.nikgapps.ui.theme.applyOpacity
+import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.theme.applyOpacity
 
 private const val horizontal = 8
 private const val vertical = 12

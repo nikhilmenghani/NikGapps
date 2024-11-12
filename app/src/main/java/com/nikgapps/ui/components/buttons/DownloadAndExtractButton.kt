@@ -17,9 +17,9 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.App
-import com.nikgapps.utils.Constants
+import com.nikgapps.app.utils.Constants
 import com.nikgapps.utils.ZipUtility
-import com.nikgapps.utils.RootUtility
+import com.nikgapps.app.utils.RootUtility
 import com.nikgapps.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

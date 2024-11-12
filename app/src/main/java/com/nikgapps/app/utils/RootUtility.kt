@@ -1,4 +1,4 @@
-package com.nikgapps.utils
+package com.nikgapps.app.utils
 
 import android.util.Log
 import com.topjohnwu.superuser.Shell

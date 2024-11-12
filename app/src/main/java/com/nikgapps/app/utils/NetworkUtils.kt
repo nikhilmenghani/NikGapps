@@ -1,4 +1,4 @@
-package com.nikgapps.utils
+package com.nikgapps.app.utils
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement

@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.nikgapps.ui.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.R
 import com.nikgapps.ui.components.items.PreferenceSubtitle
 import com.nikgapps.utils.startFileDownload

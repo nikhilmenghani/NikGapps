@@ -1,4 +1,4 @@
-package com.nikgapps.ui.theme
+package com.nikgapps.app.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 

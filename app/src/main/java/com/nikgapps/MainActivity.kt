@@ -7,7 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import com.nikgapps.navigation.AppNavigation
-import com.nikgapps.ui.theme.NikGappsTheme
+import com.nikgapps.app.presentation.theme.NikGappsTheme
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
