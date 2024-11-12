@@ -1,4 +1,4 @@
-package com.nikgapps.ui.common
+package com.nikgapps.app.utils.extensions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
