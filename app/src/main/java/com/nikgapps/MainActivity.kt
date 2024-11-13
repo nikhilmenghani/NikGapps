@@ -6,17 +6,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
-import com.nikgapps.navigation.AppNavigation
 import com.nikgapps.app.presentation.theme.NikGappsTheme
+import com.nikgapps.app.presentation.ui.screen.MainScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            NikGappsTheme() {
+            NikGappsTheme {
                 // Your composable content
-                AppNavigation()
+                MainScreen()
             }
         }
     }

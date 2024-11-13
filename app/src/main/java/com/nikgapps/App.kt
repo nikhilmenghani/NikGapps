@@ -4,7 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.StringRes
-import com.nikgapps.ui.preferences.services.PreferencesManager
+import com.nikgapps.app.utils.managers.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
