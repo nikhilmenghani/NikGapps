@@ -137,7 +137,7 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
                     }
                     else -> {
                         if (permanentlyDenied) {
-                            Settings.openAppSettings(context)
+                            Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                         } else {
                             val permissions =
                                 permissionMap[permissionName]?.permission ?: arrayOf("")
