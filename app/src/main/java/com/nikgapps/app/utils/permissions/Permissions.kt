@@ -2,7 +2,9 @@ package com.nikgapps.app.utils.permissions
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -18,8 +20,15 @@ object Permissions {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
-        return permissions.all { permission ->
-            ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        return when (permissionName) {
+            "Storage" -> {
+                Environment.isExternalStorageManager()
+            }
+            else -> {
+                permissions.all { permission ->
+                    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+                }
+            }
         }
     }
 
@@ -28,7 +37,8 @@ object Permissions {
         val permissions = permissionMap[permissionName]?.permission ?: return false
         return if (context is Activity) {
             permissions.any { permission ->
-                !isPermissionGranted(context, permissionName) && !ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
+                ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED &&
+                        !ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
             }
         } else {
             false

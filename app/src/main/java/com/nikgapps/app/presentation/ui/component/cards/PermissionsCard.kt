@@ -131,12 +131,20 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
         permissionsText = permissionsText,
         onRequestPermission = {
             if (!hasPermission) {
-                if (permanentlyDenied) {
-                    Settings.openAppSettings(context)
-                } else {
-                    val permissions = permissionMap[permissionName]?.permission ?: arrayOf("")
-                    permissions.forEach { permission ->
-                        requestPermissionLauncher?.launch(permission)
+                when (permissionName) {
+                    "Storage" -> {
+                        Settings.openAllFilesAccessSettings(context)
+                    }
+                    else -> {
+                        if (permanentlyDenied) {
+                            Settings.openAppSettings(context)
+                        } else {
+                            val permissions =
+                                permissionMap[permissionName]?.permission ?: arrayOf("")
+                            permissions.forEach { permission ->
+                                requestPermissionLauncher?.launch(permission)
+                            }
+                        }
                     }
                 }
             } else {

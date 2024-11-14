@@ -3,20 +3,16 @@ package com.nikgapps
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.navigation.ScreenNavigator
-import com.nikgapps.app.utils.managers.PermissionsManager
 
-class MainActivity : PermissionsManager() {
+class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        checkPermissions()
-    }
-
-    override fun onPermissionGranted() {
         setContent {
             NikGappsTheme {
                 // Your composable content
