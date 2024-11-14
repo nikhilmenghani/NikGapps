@@ -75,41 +75,27 @@ fun PermissionsCard(
 fun PermissionsManagerCard() {
     val context = LocalContext.current
 
-    // Track permission state
-    var hasPermission by remember { mutableStateOf(Notifications.checkPermission(context)) }
-    var permissionsText by remember { mutableStateOf(if (hasPermission) "Notifications Permission Granted" else "Request Notifications Permission") }
-
-    // Track if permission is permanently denied (when "Don't ask again" is selected)
-    var permanentlyDenied by remember {
+    // Track permission state and message text
+    var hasPermission by remember { mutableStateOf(Notifications.isPermissionGranted(context)) }
+    var permanentlyDenied by remember { mutableStateOf(Notifications.isPermissionPermanentlyDenied(context)) }
+    var permissionsText by remember {
         mutableStateOf(
-            !hasPermission && !ActivityCompat.shouldShowRequestPermissionRationale(
-                context as Activity,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
+            if (hasPermission) "Notifications Permission Granted" else "Request Notifications Permission"
         )
     }
 
-    // Permission request launcher with callback
-    val requestPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            hasPermission = isGranted
-            permanentlyDenied =
-                !isGranted && !ActivityCompat.shouldShowRequestPermissionRationale(
-                    context as Activity,
-                    Manifest.permission.POST_NOTIFICATIONS
-                )
-            // Update permissions text
-            permissionsText = if (isGranted) {
-                "Notifications Permission Granted"
-            } else if (permanentlyDenied) {
-                "Denied Permanently, Go to Settings"
-            } else {
-                "Notifications Permission Denied"
-            }
-            Toast.makeText(context, permissionsText, Toast.LENGTH_SHORT).show()
+    // Use Notifications object to handle permission request
+    val requestPermissionLauncher = Notifications.requestPermission(
+        context = context
+    ) { isGranted, isPermanentlyDenied ->
+        hasPermission = isGranted
+        permanentlyDenied = isPermanentlyDenied
+        permissionsText = when {
+            isGranted -> "Notifications Permission Granted"
+            isPermanentlyDenied -> "Denied Permanently, Go to Settings"
+            else -> "Notifications Permission Denied"
         }
-    )
+    }
 
     // Observe lifecycle changes to recheck permission on resume
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -117,18 +103,12 @@ fun PermissionsManagerCard() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 // Re-check permission when returning to the app
-                hasPermission = Notifications.checkPermission(context)
-                // Re-evaluate if permanently denied
-                permanentlyDenied = !hasPermission && !ActivityCompat.shouldShowRequestPermissionRationale(
-                    context as Activity,
-                    Manifest.permission.POST_NOTIFICATIONS
-                )
-                permissionsText = if (hasPermission) {
-                    "Notifications Permission Granted"
-                } else if (permanentlyDenied) {
-                    "Denied Permanently, Go to Settings"
-                } else {
-                    "Request Notifications Permission"
+                hasPermission = Notifications.isPermissionGranted(context)
+                permanentlyDenied = Notifications.isPermissionPermanentlyDenied(context)
+                permissionsText = when {
+                    hasPermission -> "Notifications Permission Granted"
+                    permanentlyDenied -> "Denied Permanently, Go to Settings"
+                    else -> "Request Notifications Permission"
                 }
             }
         }

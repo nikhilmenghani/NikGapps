@@ -1,42 +1,63 @@
 package com.nikgapps.app.utils.permissions
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-
 object Notifications {
-
-    @Composable
-    fun getRequestPermissionLauncher(context: Context): ActivityResultLauncher<String> {
-        // Define the launcher to request permissions
-        return rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted: Boolean ->
-                if (isGranted) {
-                    Toast.makeText(context, "Notifications Permission Granted", Toast.LENGTH_SHORT)
-                        .show()
-                } else {
-                    Toast.makeText(context, "Notifications Permission Denied", Toast.LENGTH_SHORT)
-                        .show()
-                }
-            }
-        )
+    // Check if notification permission is granted
+    fun isPermissionGranted(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Assume granted for versions below TIRAMISU
+        }
     }
 
-    fun checkPermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    // Check if notification permission is permanently denied
+    fun isPermissionPermanentlyDenied(context: Context): Boolean {
+        return if (context is Activity) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                false
+            } else {
+                !isPermissionGranted(context) && !ActivityCompat.shouldShowRequestPermissionRationale(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
         } else {
-            true // Assume true for API levels below TIRAMISU as they don't require runtime notification permission
+            false
+        }
+    }
+
+    // Launch permission request with callback
+    @Composable
+    fun requestPermission(
+        context: Context,
+        onPermissionResult: (Boolean, Boolean) -> Unit
+    ): ActivityResultLauncher<String> {
+        return rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            val permanentlyDenied = isPermissionPermanentlyDenied(context)
+            onPermissionResult(isGranted, permanentlyDenied)
+            val message = when {
+                isGranted -> "Notifications Permission Granted"
+                permanentlyDenied -> "Denied Permanently, Go to Settings"
+                else -> "Notifications Permission Denied"
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 }
