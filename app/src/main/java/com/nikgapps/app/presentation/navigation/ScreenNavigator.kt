@@ -2,10 +2,17 @@ package com.nikgapps.app.presentation.navigation
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
@@ -14,7 +21,28 @@ import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
+import com.nikgapps.app.presentation.ui.screen.PermissionsScreen
 import com.nikgapps.app.utils.extensions.navigateWithState
+
+
+data class NavItem(
+    val label: String,
+    val icon: ImageVector,
+    val route: String
+)
+
+val listOfNavItems = listOf(
+    NavItem("Home", Icons.Default.Home, Screens.Home.name),
+    NavItem("Profile", Icons.Default.Person, Screens.Profile.name),
+    NavItem("Download", Icons.Default.Download, Screens.Download.name),
+    NavItem("Apps", Icons.Default.Apps, Screens.Apps.name)
+)
+
+enum class Screens {
+    Home, Profile, Download, Settings, Apps, Permissions
+}
+
+val excludedScreens = listOf(Screens.Settings.name, Screens.Permissions.name)
 
 @Composable
 fun ScreenNavigator() {
@@ -31,7 +59,7 @@ fun ScreenNavigator() {
 fun BottomNavigationBar(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    if (currentDestination?.route != Screens.SettingsScreen.name) {
+    if (currentDestination?.route !in excludedScreens) {
         NavigationBar {
             listOfNavItems.forEach { navItem: NavItem ->
                 NavigationBarItem(
@@ -60,23 +88,26 @@ fun BottomNavigationBar(navController: NavHostController) {
 fun NavigationHost(navController: NavHostController, modifier: Modifier) {
     NavHost(
         navController = navController,
-        startDestination = Screens.HomeScreen.name,
+        startDestination = Screens.Permissions.name,
         modifier = modifier
     ) {
-        composable(route = Screens.HomeScreen.name) {
+        composable(route = Screens.Home.name) {
             HomeScreen(navController = navController)
         }
-        composable(route = Screens.ProfileScreen.name) {
+        composable(route = Screens.Profile.name) {
             ProfileScreen()
         }
-        composable(route = Screens.DownloadScreen.name) {
+        composable(route = Screens.Download.name) {
             DownloadScreen()
         }
-        composable(route = Screens.AppsScreen.name) {
+        composable(route = Screens.Apps.name) {
             AppsScreen()
         }
-        composable(route = Screens.SettingsScreen.name) {
+        composable(route = Screens.Settings.name) {
             SettingsScreen(navController = navController)
+        }
+        composable(route = Screens.Permissions.name) {
+            PermissionsScreen(navController = navController)
         }
     }
 }

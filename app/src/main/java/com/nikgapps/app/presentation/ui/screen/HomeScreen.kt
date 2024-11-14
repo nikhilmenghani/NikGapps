@@ -45,7 +45,7 @@ fun HomeScreen(navController: NavHostController) {
                     }
                     IconButton(onClick = {
                         navController.navigateWithState(
-                            route = Screens.SettingsScreen.name
+                            route = Screens.Settings.name
                         )
                     }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
