@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +30,23 @@ import com.nikgapps.app.presentation.ui.component.dialogs.BottomSheetDialog
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.theme.NikGappsTheme
-import com.nikgapps.app.presentation.ui.component.cards.PermissionsManager
+import com.nikgapps.app.presentation.ui.component.cards.PermissionsCard
+import com.nikgapps.app.utils.constants.permissionMap
 import com.nikgapps.app.utils.extensions.navigateWithState
+import com.nikgapps.app.utils.permissions.Permissions
+import com.nikgapps.app.utils.settings.Settings
 import kotlinx.coroutines.launch
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -66,9 +78,9 @@ fun PermissionsScreen(navController: NavHostController) {
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Button(onClick = { isSheetVisible = true }) {
-                    Text("Show Bottom Sheet")
-                }
+//                Button(onClick = { isSheetVisible = true }) {
+//                    Text("Show Bottom Sheet")
+//                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { navController.navigateWithState(route = Screens.Home.name) }) {
                     Text("Take me Home")
@@ -77,6 +89,90 @@ fun PermissionsScreen(navController: NavHostController) {
             }
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+fun PermissionsManager() {
+    Column {
+        permissionMap.forEach { (permissionName, _) ->
+            PermissionsManagerCard(permissionName = permissionName)
+        }
+    }
+}
+
+@SuppressLint("InlinedApi")
+@Composable
+fun PermissionsManagerCard(permissionName: String = "Notifications") {
+    val context = LocalContext.current
+    var hasPermission by remember { mutableStateOf(Permissions.isPermissionGranted(context, permissionName)) }
+    var permanentlyDenied by remember { mutableStateOf(Permissions.isPermissionPermanentlyDenied(context, permissionName)) }
+    var permissionsText by remember {
+        mutableStateOf(
+            if (hasPermission) "$permissionName Permission Granted" else "Request $permissionName Permission"
+        )
+    }
+
+    val requestPermissionLauncher = Permissions.requestPermission(
+        context = context,
+        permissionName = permissionName
+    ) { isGranted, isPermanentlyDenied ->
+        hasPermission = isGranted
+        permanentlyDenied = isPermanentlyDenied
+        permissionsText = when {
+            isGranted -> "$permissionName Permission Granted"
+            isPermanentlyDenied -> "Denied Permanently, Go to Settings"
+            else -> "$permissionName Permission Denied"
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPermission = Permissions.isPermissionGranted(context, permissionName)
+                permanentlyDenied = Permissions.isPermissionPermanentlyDenied(context, permissionName)
+                permissionsText = when {
+                    hasPermission -> "$permissionName Permission Granted"
+                    permanentlyDenied -> "Denied Permanently, Go to Settings"
+                    else -> "Request $permissionName Permission"
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    PermissionsCard(
+        title = "$permissionName Permission",
+        description = permissionMap[permissionName]?.rationale ?: "We need this permission for better functionality.",
+        isPermissionGranted = hasPermission,
+        permissionsText = permissionsText,
+        onRequestPermission = {
+            if (!hasPermission) {
+                when (permissionName) {
+                    "Storage" -> {
+                        Settings.openAllFilesAccessSettings(context)
+                    }
+                    else -> {
+                        if (permanentlyDenied) {
+                            Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
+                        } else {
+                            val permissions =
+                                permissionMap[permissionName]?.permission ?: arrayOf("")
+                            permissions.forEach { permission ->
+                                requestPermissionLauncher?.launch(permission)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(context, "Permission already granted", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 }
 
 
