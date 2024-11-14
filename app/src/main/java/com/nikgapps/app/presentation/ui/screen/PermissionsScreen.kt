@@ -32,7 +32,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.theme.NikGappsTheme
-import com.nikgapps.app.presentation.ui.component.cards.PermissionsManagerCard
+import com.nikgapps.app.presentation.ui.component.cards.PermissionsManager
 import com.nikgapps.app.utils.extensions.navigateWithState
 import kotlinx.coroutines.launch
 
@@ -73,7 +73,7 @@ fun PermissionsScreen(navController: NavHostController) {
                 Button(onClick = { navController.navigateWithState(route = Screens.Home.name) }) {
                     Text("Take me Home")
                 }
-                PermissionsManagerCard()
+                PermissionsManager()
             }
         }
     }
@@ -92,6 +92,7 @@ fun PreviewLightPermissionsScreen() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Preview(name = "Dark Theme", showBackground = true)
 @Composable
 fun PreviewDarkPermissionsScreen() {

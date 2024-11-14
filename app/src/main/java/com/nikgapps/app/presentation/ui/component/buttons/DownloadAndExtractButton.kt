@@ -17,9 +17,9 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.App
-import com.nikgapps.app.utils.Constants
 import com.nikgapps.app.utils.ZipUtility
 import com.nikgapps.app.utils.RootUtility
+import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +41,7 @@ fun DownloadAndExtractButton() {
             isProcessing = true
             progressText = "Downloading and extracting file..."
 
-            val zipFileName = Constants.DOWNLOAD_URL.split("/").lastOrNull { it.endsWith(".zip") }
+            val zipFileName = ApplicationConstants.DOWNLOAD_URL.split("/").lastOrNull { it.endsWith(".zip") }
                 ?: throw IllegalArgumentException("No .zip file found in URL")
             val zipFileNameWithoutExtension = zipFileName.removeSuffix(".zip")
             val destFilePath =
@@ -55,7 +55,7 @@ fun DownloadAndExtractButton() {
                 // Download file using DownloadWorker
                 progressText = "Downloading file..."
                 val inputData = workDataOf(
-                    DownloadWorker.DOWNLOAD_URL_KEY to Constants.DOWNLOAD_URL,
+                    DownloadWorker.DOWNLOAD_URL_KEY to ApplicationConstants.DOWNLOAD_URL,
                     DownloadWorker.DEST_FILE_PATH_KEY to destFilePath,
                     DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_FILE
                 )

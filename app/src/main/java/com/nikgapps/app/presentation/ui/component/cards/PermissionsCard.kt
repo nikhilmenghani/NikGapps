@@ -1,14 +1,12 @@
 package com.nikgapps.app.presentation.ui.component.cards
 
-import android.Manifest
+
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.os.Build
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,11 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.nikgapps.app.utils.permissions.Notifications
+import com.nikgapps.app.utils.constants.permissionMap
+import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.app.utils.settings.Settings
 
 @Composable
@@ -70,30 +68,40 @@ fun PermissionsCard(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+fun PermissionsManager() {
+    Column {
+        permissionMap.forEach { (permissionName, _) ->
+            PermissionsManagerCard(permissionName = permissionName)
+        }
+    }
+}
+
 @SuppressLint("InlinedApi")
 @Composable
-fun PermissionsManagerCard() {
+fun PermissionsManagerCard(permissionName: String = "Notifications") {
     val context = LocalContext.current
-
     // Track permission state and message text
-    var hasPermission by remember { mutableStateOf(Notifications.isPermissionGranted(context)) }
-    var permanentlyDenied by remember { mutableStateOf(Notifications.isPermissionPermanentlyDenied(context)) }
+    var hasPermission by remember { mutableStateOf(Permissions.isPermissionGranted(context, permissionName)) }
+    var permanentlyDenied by remember { mutableStateOf(Permissions.isPermissionPermanentlyDenied(context, permissionName)) }
     var permissionsText by remember {
         mutableStateOf(
-            if (hasPermission) "Notifications Permission Granted" else "Request Notifications Permission"
+            if (hasPermission) "$permissionName Permission Granted" else "Request $permissionName Permission"
         )
     }
 
-    // Use Notifications object to handle permission request
-    val requestPermissionLauncher = Notifications.requestPermission(
-        context = context
+    // Use Permissions object to handle permission request
+    val requestPermissionLauncher = Permissions.requestPermission(
+        context = context,
+        permissionName = permissionName
     ) { isGranted, isPermanentlyDenied ->
         hasPermission = isGranted
         permanentlyDenied = isPermanentlyDenied
         permissionsText = when {
-            isGranted -> "Notifications Permission Granted"
+            isGranted -> "$permissionName Permission Granted"
             isPermanentlyDenied -> "Denied Permanently, Go to Settings"
-            else -> "Notifications Permission Denied"
+            else -> "$permissionName Permission Denied"
         }
     }
 
@@ -103,12 +111,12 @@ fun PermissionsManagerCard() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 // Re-check permission when returning to the app
-                hasPermission = Notifications.isPermissionGranted(context)
-                permanentlyDenied = Notifications.isPermissionPermanentlyDenied(context)
+                hasPermission = Permissions.isPermissionGranted(context, permissionName)
+                permanentlyDenied = Permissions.isPermissionPermanentlyDenied(context, permissionName)
                 permissionsText = when {
-                    hasPermission -> "Notifications Permission Granted"
+                    hasPermission -> "$permissionName Permission Granted"
                     permanentlyDenied -> "Denied Permanently, Go to Settings"
-                    else -> "Request Notifications Permission"
+                    else -> "Request $permissionName Permission"
                 }
             }
         }
@@ -124,9 +132,9 @@ fun PermissionsManagerCard() {
         onRequestPermission = {
             if (!hasPermission) {
                 if (permanentlyDenied) {
-                    Settings.openNotificationSettings(context)
+                    Settings.openAppSettings(context)
                 } else {
-                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    requestPermissionLauncher?.launch(permissionMap[permissionName]?.permission ?: "")
                 }
             } else {
                 Toast.makeText(context, "Permission already granted", Toast.LENGTH_SHORT).show()
@@ -140,5 +148,5 @@ fun PermissionsManagerCard() {
 @Preview
 @Composable
 fun PreviewSamplePermissionsManagerCard() {
-    PermissionsManagerCard()
+    PermissionsManager()
 }
