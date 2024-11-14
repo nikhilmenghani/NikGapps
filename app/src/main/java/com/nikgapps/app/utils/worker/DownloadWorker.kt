@@ -29,7 +29,7 @@ class DownloadWorker(
         val downloadType = inputData.getString(DOWNLOAD_TYPE_KEY)
 
         if (downloadUrl.isNullOrEmpty() || destFilePath.isNullOrEmpty()) {
-            Log.e("DownloadWorker", "Invalid input data: URL or destination path is missing.")
+            Log.e("NikGapps-DownloadWorker", "Invalid input data: URL or destination path is missing.")
             return Result.failure()
         }
 
@@ -38,7 +38,7 @@ class DownloadWorker(
             DOWNLOAD_TYPE_APK -> ApkDownloadStrategy()
             DOWNLOAD_TYPE_FILE -> FileDownloadStrategy()
             else -> {
-                Log.e("DownloadWorker", "Invalid download type specified.")
+                Log.e("NikGapps-DownloadWorker", "Invalid download type specified.")
                 return Result.failure()
             }
         }
@@ -47,15 +47,15 @@ class DownloadWorker(
             try {
                 val downloadSuccess = downloadStrategy.download(downloadUrl, destFilePath)
                 if (downloadSuccess) {
-                    Log.d("DownloadWorker", "Download successful: $destFilePath")
+                    Log.d("NikGapps-DownloadWorker", "Download successful: $destFilePath")
                     Result.success()
                 } else {
-                    Log.e("DownloadWorker", "Download failed.")
+                    Log.e("NikGapps-DownloadWorker", "Download failed.")
                     Result.retry()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.e("DownloadWorker", "Exception during download: ${e.message}")
+                Log.e("NikGapps-DownloadWorker", "Exception during download: ${e.message}")
                 Result.retry()
             }
         }

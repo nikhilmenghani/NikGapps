@@ -23,7 +23,7 @@ fun CopyFileButton() {
     Button(onClick = {
         CoroutineScope(Dispatchers.IO).launch {
             if (App.hasRootAccess) {
-                Log.d("CopyFileButton", "Root access confirmed")
+                Log.d("NikGapps-CopyFileButton", "Root access confirmed")
                 val sourcePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/NikGapps.apk"
                 val destPath = "/product/app/NikGapps/NikGapps.apk"
 
@@ -40,20 +40,20 @@ fun CopyFileButton() {
                 // Execute the shell script with root privileges
                 val result = Shell.cmd("sh ${scriptFile.absolutePath} $sourcePath $destPath").exec()
                 val output = result.out.joinToString("\n")
-                Log.d("CopyFileButton", "Shell script output: \n$output")
+                Log.d("NikGapps-CopyFileButton", "Shell script output: \n$output")
 
                 withContext(Dispatchers.Main) {
                     if (result.isSuccess) {
                         Toast.makeText(context, "File copied successfully", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Failed to copy file: $output", Toast.LENGTH_LONG).show()
-                        Log.e("CopyFileButton", "Failed to copy file: $output")
+                        Log.e("NikGapps-CopyFileButton", "Failed to copy file: $output")
                     }
                 }
             } else {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Root access not available", Toast.LENGTH_SHORT).show()
-                    Log.e("CopyFileButton", "Root access not available")
+                    Log.e("NikGapps-CopyFileButton", "Root access not available")
                 }
             }
         }

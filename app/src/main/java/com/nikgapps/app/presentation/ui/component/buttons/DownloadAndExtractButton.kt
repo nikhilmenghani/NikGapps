@@ -77,35 +77,35 @@ fun DownloadAndExtractButton() {
                     if (workInfo != null && workInfo.state.isFinished) {
                         if (workInfo.state == WorkInfo.State.SUCCEEDED) {
                             progressText = "File downloaded successfully"
-                            Log.d("DownloadAndExtractButton", "File downloaded successfully")
+                            Log.d("NikGapps-DownloadAndExtractButton", "File downloaded successfully")
                             // Proceed with extraction and copying after download is complete
-                            handleExtractionAndCopy(
-                                context,
-                                destFilePath,
-                                outputDirPath,
-                                { progress -> progressText = progress },
-                                { processing -> isProcessing = processing }
-                            )
+//                            handleExtractionAndCopy(
+//                                context,
+//                                destFilePath,
+//                                outputDirPath,
+//                                { progress -> progressText = progress },
+//                                { processing -> isProcessing = processing }
+//                            )
                         } else if (workInfo.state == WorkInfo.State.FAILED) {
                             // Handle the failure of the download
                             progressText = "Failed to download file"
-                            Log.e("DownloadAndExtractButton", "Failed to download file")
+                            Log.e("NikGapps-DownloadAndExtractButton", "Failed to download file")
                             Toast.makeText(context, "Failed to download file", Toast.LENGTH_LONG).show()
                             isProcessing = false
                         }
                     }
                 }
             } else {
-                Log.d("DownloadAndExtractButton", "File already exists, skipping download")
+                Log.d("NikGapps-DownloadAndExtractButton", "File already exists, skipping download")
                 progressText = "File already exists, skipping download"
                 // Proceed with extraction and copying if file already exists
-                handleExtractionAndCopy(
-                    context,
-                    destFilePath,
-                    outputDirPath,
-                    { progress -> progressText = progress },
-                    { processing -> isProcessing = processing }
-                )
+//                handleExtractionAndCopy(
+//                    context,
+//                    destFilePath,
+//                    outputDirPath,
+//                    { progress -> progressText = progress },
+//                    { processing -> isProcessing = processing }
+//                )
             }
         }) {
             // Button text
@@ -136,7 +136,7 @@ private fun handleExtractionAndCopy(
 
                 if (extractSuccessful) {
                     updateProgressText("File extracted successfully")
-                    Log.d("DownloadAndExtractButton", "File extracted successfully")
+                    Log.d("NikGapps-DownloadAndExtractButton", "File extracted successfully")
                 } else {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Failed to extract file", Toast.LENGTH_LONG).show()
@@ -145,7 +145,7 @@ private fun handleExtractionAndCopy(
                     return@launch
                 }
             }
-            Log.d("DownloadAndExtractButton", "Extraction completed in $extractionTime ms")
+            Log.d("NikGapps-DownloadAndExtractButton", "Extraction completed in $extractionTime ms")
 
             // Copy extracted files to system/product partitions
             if (App.hasRootAccess) {
@@ -155,17 +155,17 @@ private fun handleExtractionAndCopy(
                         Toast.makeText(context, "Files copied successfully", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Failed to copy files", Toast.LENGTH_LONG).show()
-                        Log.e("DownloadAndExtractButton", "Failed to copy files")
+                        Log.e("NikGapps-DownloadAndExtractButton", "Failed to copy files")
                     }
                 }
             } else {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Root access not available", Toast.LENGTH_SHORT).show()
-                    Log.e("DownloadAndExtractButton", "Root access not available")
+                    Log.e("NikGapps-DownloadAndExtractButton", "Root access not available")
                 }
             }
         } catch (e: Exception) {
-            Log.e("DownloadAndExtractButton", "Error: ${e.message}")
+            Log.e("NikGapps-DownloadAndExtractButton", "Error: ${e.message}")
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }

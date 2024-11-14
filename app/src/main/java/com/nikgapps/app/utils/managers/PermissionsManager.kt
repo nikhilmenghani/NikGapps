@@ -7,14 +7,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 
-abstract class PermissionsManager : AppCompatActivity() {
+abstract class PermissionsManager : ComponentActivity() {
 
     private val permissionRequestCode = 2027
 

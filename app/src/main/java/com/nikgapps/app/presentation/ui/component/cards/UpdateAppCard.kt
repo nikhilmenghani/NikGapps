@@ -162,12 +162,12 @@ fun installApk(context: Context, apkPath: String) {
             }
             context.startActivity(intent)
         } else {
-            Log.e("UpdateAppCard", "APK file does not exist: $apkPath")
+            Log.e("NikGapps-UpdateAppCard", "APK file does not exist: $apkPath")
             Toast.makeText(context, "APK file does not exist: $apkPath", Toast.LENGTH_LONG).show()
         }
     } catch (e: Exception) {
         e.printStackTrace()
-        Log.e("UpdateAppCard", "Error installing APK: ${e.message}")
+        Log.e("NikGapps-UpdateAppCard", "Error installing APK: ${e.message}")
         Toast.makeText(context, "Error installing APK: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }

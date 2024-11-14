@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.presentation.ui.component.buttons.CopyFileButton
@@ -22,6 +21,7 @@ import com.nikgapps.app.presentation.ui.component.cards.GetRootAccessCard
 import com.nikgapps.app.presentation.ui.component.cards.UpdateAppCard
 import com.nikgapps.app.presentation.ui.component.common.RootStatusDisplay
 import com.nikgapps.app.presentation.ui.component.dialogs.SettingsDialog
+import com.nikgapps.MainActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,5 +1,6 @@
 package com.nikgapps.app.utils.download
 
+//noinspection SuspiciousImport
 import android.R
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -7,6 +8,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.nikgapps.App
@@ -83,7 +85,7 @@ class FileDownloadStrategy() : DownloadStrategy {
 
                             val notificationBuilder = NotificationCompat.Builder(App.globalClass, CHANNEL_ID)
                                 .setSmallIcon(R.drawable.stat_sys_download)
-                                .setContentTitle("Downloading file")
+                                .setContentTitle("Downloading $zipFileName")
                                 .setContentText("Download in progress")
                                 .setPriority(NotificationCompat.PRIORITY_LOW)
                                 .setProgress(100, 0, false)
@@ -100,17 +102,21 @@ class FileDownloadStrategy() : DownloadStrategy {
 
                                     // Update progress
                                     val progress = (totalBytesRead * 100 / contentLength).toInt()
-                                    notificationBuilder.setProgress(100, progress, false)
+                                    notificationBuilder
+                                        .setContentText("Download in progress: $progress%")
+                                        .setProgress(100, progress, false)
                                     NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
                                 }
                             }
-
+                            Log.d("FileDownloadStrategy", "Download complete")
                             // Mark the download as complete
-                            notificationBuilder.setContentText("Download complete")
-                                .setProgress(0, 0, false)
+                            notificationBuilder
+                                .setContentTitle("Downloading Complete")
+                                .setContentText("Download complete")
+                                .setProgress(100, 0, false)
                                 .setSmallIcon(R.drawable.stat_sys_download_done)
                             NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
-
+                            Log.d("FileDownloadStrategy", "Notification complete")
                             continuation.resume(true)
                         } catch (e: Exception) {
                             e.printStackTrace()
