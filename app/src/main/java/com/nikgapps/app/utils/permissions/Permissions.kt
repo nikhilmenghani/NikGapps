@@ -16,20 +16,20 @@ import com.nikgapps.app.utils.constants.permissionMap
 object Permissions {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    fun isPermissionGranted(context: Context, permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            permissionMap[permission]?.permission ?: ""
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    fun isPermissionGranted(context: Context, permissionName: String): Boolean {
+        val permissions = permissionMap[permissionName]?.permission ?: return false
+        return permissions.all { permission ->
+            ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    fun isPermissionPermanentlyDenied(context: Context, permission: String): Boolean {
+    fun isPermissionPermanentlyDenied(context: Context, permissionName: String): Boolean {
+        val permissions = permissionMap[permissionName]?.permission ?: return false
         return if (context is Activity) {
-            !isPermissionGranted(context, permission) && !ActivityCompat.shouldShowRequestPermissionRationale(
-                context,
-                permissionMap[permission]?.permission ?: ""
-            )
+            permissions.any { permission ->
+                !isPermissionGranted(context, permissionName) && !ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
+            }
         } else {
             false
         }
@@ -46,7 +46,10 @@ object Permissions {
         return rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
         ) { isGranted ->
-            val permanentlyDenied = isPermissionPermanentlyDenied(context, permissionInfo.permission)
+            val permissions = permissionInfo.permission
+            val permanentlyDenied = permissions.any { permission ->
+                isPermissionPermanentlyDenied(context, permission)
+            }
             onPermissionResult(isGranted, permanentlyDenied)
             val message = when {
                 isGranted -> "$permissionName Permission Granted"

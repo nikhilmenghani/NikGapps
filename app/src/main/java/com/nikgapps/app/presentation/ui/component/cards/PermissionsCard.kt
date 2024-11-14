@@ -134,7 +134,10 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
                 if (permanentlyDenied) {
                     Settings.openAppSettings(context)
                 } else {
-                    requestPermissionLauncher?.launch(permissionMap[permissionName]?.permission ?: "")
+                    val permissions = permissionMap[permissionName]?.permission ?: arrayOf("")
+                    permissions.forEach { permission ->
+                        requestPermissionLauncher?.launch(permission)
+                    }
                 }
             } else {
                 Toast.makeText(context, "Permission already granted", Toast.LENGTH_SHORT).show()
