@@ -17,6 +17,9 @@ import com.nikgapps.app.utils.constants.permissionMap
 
 object Permissions {
 
+    private const val PREFS_NAME = "permission_prefs"
+    private const val KEY_PERMISSION_REQUESTED = "requested_"
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
@@ -35,14 +38,27 @@ object Permissions {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionPermanentlyDenied(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Check if this permission has been requested before
+        val permissionRequested = sharedPreferences.getBoolean(KEY_PERMISSION_REQUESTED + permissionName, false)
+
         return if (context is Activity) {
             permissions.any { permission ->
-                ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED &&
-                        !ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
+                val isDenied = ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+                val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
+
+                // If this permission has been requested and rationale shouldn't show, consider it permanently denied
+                isDenied && permissionRequested && !shouldShowRationale
             }
         } else {
             false
         }
+    }
+
+    fun markPermissionAsRequested(context: Context, permissionName: String) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        sharedPreferences.edit().putBoolean(KEY_PERMISSION_REQUESTED + permissionName, true).apply()
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)

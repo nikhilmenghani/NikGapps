@@ -19,7 +19,7 @@ val permissionMap = mapOf(
         action = Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
     ),
     "Location" to PermissionInfo(
-        permission = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+        permission = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
         rationale = "Location permission is required to access your location."
     )
 )

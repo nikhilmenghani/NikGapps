@@ -121,7 +121,7 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
         permanentlyDenied = isPermanentlyDenied
         permissionsText = when {
             isGranted -> "$permissionName Permission Granted"
-            isPermanentlyDenied -> "Denied Permanently, Go to Settings"
+            isPermanentlyDenied -> "Request $permissionName Permission, Go to Settings"
             else -> "$permissionName Permission Denied"
         }
     }
@@ -134,7 +134,7 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
                 permanentlyDenied = Permissions.isPermissionPermanentlyDenied(context, permissionName)
                 permissionsText = when {
                     hasPermission -> "$permissionName Permission Granted"
-                    permanentlyDenied -> "Denied Permanently, Go to Settings"
+                    permanentlyDenied -> "Request $permissionName Permission, Go to Settings"
                     else -> "Request $permissionName Permission"
                 }
             }
@@ -160,9 +160,10 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
                         if (permanentlyDenied) {
                             Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                         } else {
-                            val permissions =
-                                permissionMap[permissionName]?.permission ?: arrayOf("")
+                            val permissions = permissionMap[permissionName]?.permission ?: arrayOf("")
                             permissions.forEach { permission ->
+                                // Mark the permission as requested
+                                Permissions.markPermissionAsRequested(context, permissionName)
                                 requestPermissionLauncher?.launch(permission)
                             }
                         }
