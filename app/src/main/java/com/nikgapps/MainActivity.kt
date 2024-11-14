@@ -3,11 +3,10 @@ package com.nikgapps
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import com.nikgapps.app.presentation.theme.NikGappsTheme
-import com.nikgapps.app.presentation.ui.screen.MainScreen
+import com.nikgapps.app.presentation.navigation.ScreenNavigator
 import com.nikgapps.app.utils.managers.PermissionsManager
 
 class MainActivity : PermissionsManager() {
@@ -21,7 +20,7 @@ class MainActivity : PermissionsManager() {
         setContent {
             NikGappsTheme {
                 // Your composable content
-                MainScreen()
+                ScreenNavigator()
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.nikgapps.app.presentation.ui.screen
+package com.nikgapps.app.presentation.navigation
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -9,13 +9,15 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.nikgapps.app.presentation.navigation.NavItem
-import com.nikgapps.app.presentation.navigation.Screens
-import com.nikgapps.app.presentation.navigation.listOfNavItems
+import com.nikgapps.app.presentation.ui.screen.AppsScreen
+import com.nikgapps.app.presentation.ui.screen.DownloadScreen
+import com.nikgapps.app.presentation.ui.screen.HomeScreen
+import com.nikgapps.app.presentation.ui.screen.ProfileScreen
+import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.utils.extensions.navigateWithState
 
 @Composable
-fun MainScreen() {
+fun ScreenNavigator() {
     val navController: NavHostController = rememberNavController()
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
