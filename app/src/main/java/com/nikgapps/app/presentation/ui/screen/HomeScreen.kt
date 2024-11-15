@@ -59,26 +59,10 @@ fun HomeScreen(navController: NavHostController) {
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                RootStatusDisplay()
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Button(onClick = { showDialog = true }) {
-                            Text(text = "Open Settings Dialog")
-                        }
-                        CopyFileButton()
-                        DownloadAndExtractButton()
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 GetRootAccessCard()
                 UpdateAppCard()
-                DownloadButton(context)
             }
         }
     )
