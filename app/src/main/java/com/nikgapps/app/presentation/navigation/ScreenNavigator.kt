@@ -40,10 +40,10 @@ val listOfNavItems = listOf(
 )
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps, Permissions
+    Home, Profile, Download, Settings, Apps
 }
 
-val excludedScreens = listOf(Screens.Settings.name, Screens.Permissions.name)
+val excludedScreens = listOf(Screens.Settings.name)
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
