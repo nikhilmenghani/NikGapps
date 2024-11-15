@@ -34,6 +34,9 @@ object Permissions {
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
         return when (permissionName) {
+            "Install Apps" -> {
+                context.packageManager.canRequestPackageInstalls()
+            }
             "Storage" -> {
                 Environment.isExternalStorageManager()
             }

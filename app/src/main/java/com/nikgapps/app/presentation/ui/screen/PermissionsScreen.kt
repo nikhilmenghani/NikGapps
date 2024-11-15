@@ -159,16 +159,17 @@ fun PermissionsManagerCard(
         onRequestPermission = {
             if (!hasPermission) {
                 when (permissionName) {
+                    "Install Apps" -> {
+                        Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
+                    }
+
                     "Storage" -> {
-                        Settings.openAllFilesAccessSettings(context)
+                        Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                     }
 
                     else -> {
                         if (permanentlyDenied) {
-                            Settings.openSettings(
-                                context,
-                                permissionMap[permissionName]?.action ?: ""
-                            )
+                            Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                         } else {
                             val permissions =
                                 permissionMap[permissionName]?.permission ?: arrayOf("")

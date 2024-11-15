@@ -21,5 +21,10 @@ val permissionMap = mapOf(
     "Location" to PermissionInfo(
         permission = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
         rationale = "Location permission is required to access your location."
+    ),
+    "Install Apps" to PermissionInfo(
+        permission = arrayOf(Manifest.permission.REQUEST_INSTALL_PACKAGES),
+        rationale = "Install apps permission is required to NikGapps app updates.",
+        action = Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES
     )
 )
