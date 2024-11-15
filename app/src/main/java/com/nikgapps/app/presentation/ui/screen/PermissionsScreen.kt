@@ -33,6 +33,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.theme.NikGappsTheme
+import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.cards.PermissionsCard
 import com.nikgapps.app.utils.constants.PermissionConstants
 import com.nikgapps.app.utils.constants.PermissionConstants.permissionMap
@@ -177,38 +178,9 @@ fun PermissionsManagerCard(
 @Preview(name = "Dark Theme", showBackground = true)
 @Composable
 fun PreviewDarkPermissionsScreen() {
-    NikGappsTheme(darkTheme = true, dynamicColor = false) {
+    NikGappsThemePreview() {
         PermissionsScreen()
     }
 }
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(name = "Dynamic Dark Theme", showBackground = true)
-@Composable
-fun PreviewDarkDynamicPermissionsScreen() {
-    NikGappsTheme(darkTheme = true, dynamicColor = true) {
-        PermissionsScreen()
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(name = "Light Theme", showBackground = true)
-@Composable
-fun PreviewLightPermissionsScreen() {
-    NikGappsTheme(darkTheme = false, dynamicColor = false) {
-        PermissionsScreen()
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(name = "Dynamic Light Theme", showBackground = true)
-@Composable
-fun PreviewLightDynamicPermissionsScreen() {
-    NikGappsTheme(darkTheme = false, dynamicColor = true) {
-        PermissionsScreen()
-    }
-}
-
-
 
 
