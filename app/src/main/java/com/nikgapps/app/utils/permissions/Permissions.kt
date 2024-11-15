@@ -13,7 +13,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.nikgapps.app.utils.constants.permissionMap
+import com.nikgapps.app.utils.constants.PermissionConstants
+import com.nikgapps.app.utils.constants.PermissionConstants.permissionMap
 
 object Permissions {
 
@@ -34,10 +35,10 @@ object Permissions {
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
         return when (permissionName) {
-            "Install Apps" -> {
+            PermissionConstants.INSTALL_APPS -> {
                 context.packageManager.canRequestPackageInstalls()
             }
-            "Storage" -> {
+            PermissionConstants.STORAGE -> {
                 Environment.isExternalStorageManager()
             }
             else -> {

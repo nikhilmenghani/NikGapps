@@ -6,49 +6,38 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import com.nikgapps.app.presentation.navigation.Screens
-import com.nikgapps.app.presentation.ui.component.bottomsheets.ProfileBottomSheet
-import com.nikgapps.app.presentation.ui.component.dialogs.BottomSheetDialog
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.ui.component.cards.PermissionsCard
-import com.nikgapps.app.utils.constants.permissionMap
-import com.nikgapps.app.utils.extensions.navigateWithState
+import com.nikgapps.app.utils.constants.PermissionConstants
+import com.nikgapps.app.utils.constants.PermissionConstants.permissionMap
 import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.app.utils.settings.Settings
-import kotlinx.coroutines.launch
-import kotlin.collections.component1
-import kotlin.collections.component2
+import kotlin.text.get
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -89,7 +78,7 @@ fun PermissionsScreen(onAllPermissionsGranted: () -> Unit = {}) {
 @SuppressLint("InlinedApi")
 @Composable
 fun PermissionsManagerCard(
-    permissionName: String = "Notifications",
+    permissionName: String = PermissionConstants.NOTIFICATIONS,
     onPermissionStatusChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -159,14 +148,9 @@ fun PermissionsManagerCard(
         onRequestPermission = {
             if (!hasPermission) {
                 when (permissionName) {
-                    "Install Apps" -> {
+                    PermissionConstants.INSTALL_APPS, PermissionConstants.STORAGE -> {
                         Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                     }
-
-                    "Storage" -> {
-                        Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
-                    }
-
                     else -> {
                         if (permanentlyDenied) {
                             Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
