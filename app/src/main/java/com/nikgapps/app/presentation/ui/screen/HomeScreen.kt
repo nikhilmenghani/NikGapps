@@ -76,13 +76,8 @@ fun HomeScreen(navController: NavHostController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                Text(text = "Modal Bottom Sheet Example")
-
-                ModalBottomSheetM3Example()
                 GetRootAccessCard()
                 UpdateAppCard()
-                RequestNotificationPermission(context)
                 DownloadButton(context)
             }
         }

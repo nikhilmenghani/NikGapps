@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -172,25 +173,38 @@ fun PermissionsManagerCard(
     )
 }
 
-
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(name = "Light Theme", showBackground = true)
+@Preview(name = "Dark Theme", showBackground = true)
 @Composable
-fun PreviewLightPermissionsScreen() {
-    val navController = rememberNavController()
-    MaterialTheme(
-        colorScheme = lightColorScheme()
-    ) {
+fun PreviewDarkPermissionsScreen() {
+    NikGappsTheme(darkTheme = true, dynamicColor = false) {
         PermissionsScreen()
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(name = "Dark Theme", showBackground = true)
+@Preview(name = "Dynamic Dark Theme", showBackground = true)
 @Composable
-fun PreviewDarkPermissionsScreen() {
-    val navController = rememberNavController()
-    NikGappsTheme {
+fun PreviewDarkDynamicPermissionsScreen() {
+    NikGappsTheme(darkTheme = true, dynamicColor = true) {
+        PermissionsScreen()
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Preview(name = "Light Theme", showBackground = true)
+@Composable
+fun PreviewLightPermissionsScreen() {
+    NikGappsTheme(darkTheme = false, dynamicColor = false) {
+        PermissionsScreen()
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Preview(name = "Dynamic Light Theme", showBackground = true)
+@Composable
+fun PreviewLightDynamicPermissionsScreen() {
+    NikGappsTheme(darkTheme = false, dynamicColor = true) {
         PermissionsScreen()
     }
 }
