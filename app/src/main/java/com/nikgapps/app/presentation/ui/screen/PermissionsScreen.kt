@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,10 +54,16 @@ import kotlin.collections.component2
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PermissionsScreen(navController: NavHostController) {
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
-    var isSheetVisible by remember { mutableStateOf(false) }
+fun PermissionsScreen(onAllPermissionsGranted: () -> Unit = {}) {
+    val context = LocalContext.current
+    var allPermissionsGranted by remember {
+        mutableStateOf(Permissions.hasAllRequiredPermissions(context))
+    }
+    LaunchedEffect(allPermissionsGranted) {
+        if (allPermissionsGranted) {
+            onAllPermissionsGranted() // Automatically navigate to home when all permissions are granted
+        }
+    }
     Scaffold(
         topBar = { TopAppBar(title = { Text("Permissions Screen") }) }
     ) {
@@ -63,50 +71,44 @@ fun PermissionsScreen(navController: NavHostController) {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            if (isSheetVisible) {
-                BottomSheetDialog(
-                    onDismissRequest = { isSheetVisible = false },
-                    sheetState = sheetState
-                ) {
-                    ProfileBottomSheet(
-                        onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion {
-                                isSheetVisible = false
-                            }
-                        }
-                    )
-                }
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-//                Button(onClick = { isSheetVisible = true }) {
-//                    Text("Show Bottom Sheet")
-//                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { navController.navigateWithState(route = Screens.Home.name) }) {
-                    Text("Take me Home")
-                }
-                PermissionsManager()
-            }
-        }
-    }
-}
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Composable
-fun PermissionsManager() {
-    Column {
-        permissionMap.forEach { (permissionName, _) ->
-            PermissionsManagerCard(permissionName = permissionName)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(modifier = Modifier.height(16.dp))
+                permissionMap.forEach { (permissionName, _) ->
+                    PermissionsManagerCard(
+                        permissionName = permissionName,
+                        onPermissionStatusChanged = { isGranted ->
+                            allPermissionsGranted = isGranted && Permissions.hasAllRequiredPermissions(context)
+                        })
+                }
+            }
         }
     }
 }
 
 @SuppressLint("InlinedApi")
 @Composable
-fun PermissionsManagerCard(permissionName: String = "Notifications") {
+fun PermissionsManagerCard(
+    permissionName: String = "Notifications",
+    onPermissionStatusChanged: (Boolean) -> Unit
+) {
     val context = LocalContext.current
-    var hasPermission by remember { mutableStateOf(Permissions.isPermissionGranted(context, permissionName)) }
-    var permanentlyDenied by remember { mutableStateOf(Permissions.isPermissionPermanentlyDenied(context, permissionName)) }
+    var hasPermission by remember {
+        mutableStateOf(
+            Permissions.isPermissionGranted(
+                context,
+                permissionName
+            )
+        )
+    }
+    var permanentlyDenied by remember {
+        mutableStateOf(
+            Permissions.isPermissionPermanentlyDenied(
+                context,
+                permissionName
+            )
+        )
+    }
     var permissionsText by remember {
         mutableStateOf(
             if (hasPermission) "$permissionName Permission Granted" else "Request $permissionName Permission"
@@ -119,6 +121,7 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
     ) { isGranted, isPermanentlyDenied ->
         hasPermission = isGranted
         permanentlyDenied = isPermanentlyDenied
+        onPermissionStatusChanged(isGranted)
         permissionsText = when {
             isGranted -> "$permissionName Permission Granted"
             isPermanentlyDenied -> "Request $permissionName Permission, Go to Settings"
@@ -131,7 +134,9 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasPermission = Permissions.isPermissionGranted(context, permissionName)
-                permanentlyDenied = Permissions.isPermissionPermanentlyDenied(context, permissionName)
+                permanentlyDenied =
+                    Permissions.isPermissionPermanentlyDenied(context, permissionName)
+                onPermissionStatusChanged(hasPermission)
                 permissionsText = when {
                     hasPermission -> "$permissionName Permission Granted"
                     permanentlyDenied -> "Request $permissionName Permission, Go to Settings"
@@ -147,7 +152,8 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
 
     PermissionsCard(
         title = "$permissionName Permission",
-        description = permissionMap[permissionName]?.rationale ?: "We need this permission for better functionality.",
+        description = permissionMap[permissionName]?.rationale
+            ?: "We need this permission for better functionality.",
         isPermissionGranted = hasPermission,
         permissionsText = permissionsText,
         onRequestPermission = {
@@ -156,11 +162,16 @@ fun PermissionsManagerCard(permissionName: String = "Notifications") {
                     "Storage" -> {
                         Settings.openAllFilesAccessSettings(context)
                     }
+
                     else -> {
                         if (permanentlyDenied) {
-                            Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
+                            Settings.openSettings(
+                                context,
+                                permissionMap[permissionName]?.action ?: ""
+                            )
                         } else {
-                            val permissions = permissionMap[permissionName]?.permission ?: arrayOf("")
+                            val permissions =
+                                permissionMap[permissionName]?.permission ?: arrayOf("")
                             permissions.forEach { permission ->
                                 // Mark the permission as requested
                                 Permissions.markPermissionAsRequested(context, permissionName)
@@ -185,7 +196,7 @@ fun PreviewLightPermissionsScreen() {
     MaterialTheme(
         colorScheme = lightColorScheme()
     ) {
-        PermissionsScreen(navController = navController)
+        PermissionsScreen()
     }
 }
 
@@ -195,7 +206,7 @@ fun PreviewLightPermissionsScreen() {
 fun PreviewDarkPermissionsScreen() {
     val navController = rememberNavController()
     NikGappsTheme {
-        PermissionsScreen(navController = navController)
+        PermissionsScreen()
     }
 }
 

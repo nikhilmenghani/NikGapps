@@ -21,6 +21,16 @@ object Permissions {
     private const val KEY_PERMISSION_REQUESTED = "requested_"
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun hasAllRequiredPermissions(context: Context): Boolean {
+        permissionMap.forEach { (permissionName) ->
+            if (!isPermissionGranted(context, permissionName)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
         val permissions = permissionMap[permissionName]?.permission ?: return false
         return when (permissionName) {

@@ -8,17 +8,27 @@ import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.navigation.ScreenNavigator
+import com.nikgapps.app.utils.permissions.Permissions
 
 class MainActivity : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.P)
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            NikGappsTheme {
-                // Your composable content
-                ScreenNavigator()
+
+        if (Permissions.hasAllRequiredPermissions(this)) {
+            setContent {
+                NikGappsTheme {
+                    // Your composable content
+                    ScreenNavigator()
+                }
             }
+        } else {
+            // Launch PermissionsActivity if any permissions are missing
+            startActivity(Intent(this, PermissionsActivity::class.java))
+            finish()
         }
+
     }
 
     fun restartActivity() {

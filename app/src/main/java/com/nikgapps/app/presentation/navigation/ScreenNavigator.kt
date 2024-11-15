@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -21,7 +23,6 @@ import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
-import com.nikgapps.app.presentation.ui.screen.PermissionsScreen
 import com.nikgapps.app.utils.extensions.navigateWithState
 
 
@@ -44,6 +45,7 @@ enum class Screens {
 
 val excludedScreens = listOf(Screens.Settings.name, Screens.Permissions.name)
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun ScreenNavigator() {
     val navController: NavHostController = rememberNavController()
@@ -84,11 +86,12 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun NavigationHost(navController: NavHostController, modifier: Modifier) {
     NavHost(
         navController = navController,
-        startDestination = Screens.Permissions.name,
+        startDestination = Screens.Home.name,
         modifier = modifier
     ) {
         composable(route = Screens.Home.name) {
@@ -105,9 +108,6 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier) {
         }
         composable(route = Screens.Settings.name) {
             SettingsScreen(navController = navController)
-        }
-        composable(route = Screens.Permissions.name) {
-            PermissionsScreen(navController = navController)
         }
     }
 }
