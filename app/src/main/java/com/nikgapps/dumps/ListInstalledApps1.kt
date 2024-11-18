@@ -1,4 +1,4 @@
-package com.nikgapps.ui.examples
+package com.nikgapps.dumps
 
 import android.annotation.SuppressLint
 import android.content.Context

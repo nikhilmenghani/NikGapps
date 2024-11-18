@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
-import com.nikgapps.app.presentation.theme.ThemePreference
+import com.nikgapps.app.data.model.ThemePreference
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.managers.emptyString
 

@@ -1,4 +1,4 @@
-package com.nikgapps.app.utils.managers
+package com.nikgapps.dumps
 
 import android.Manifest
 import android.content.Intent
@@ -11,7 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.nikgapps.App.Companion.globalClass
+import com.nikgapps.App
 import com.nikgapps.R
 
 abstract class PermissionsManager : ComponentActivity() {
@@ -23,7 +23,7 @@ abstract class PermissionsManager : ComponentActivity() {
             if (canAccessStorage()) {
                 onPermissionGranted()
             } else {
-                globalClass.showMsg(R.string.storage_permission_required)
+                App.Companion.globalClass.showMsg(R.string.storage_permission_required)
                 finish()
             }
         }

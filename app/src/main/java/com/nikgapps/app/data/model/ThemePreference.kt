@@ -1,4 +1,4 @@
-package com.nikgapps.app.presentation.theme
+package com.nikgapps.app.data.model
 
 enum class ThemePreference {
     LIGHT,

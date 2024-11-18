@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.cards
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -45,6 +46,7 @@ fun GetRootAccessCard() {
                 CoroutineScope(Dispatchers.IO).launch {
                     // Always perform a fresh check for root access
                     val rootAccess = RootUtility.hasRootAccess()
+                    Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
                     App.hasRootAccess = rootAccess
 
                     // Update the state variable to trigger recomposition
