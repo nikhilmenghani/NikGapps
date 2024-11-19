@@ -113,7 +113,7 @@ class FileDownloadStrategy() : DownloadStrategy {
                             notificationBuilder
                                 .setContentTitle("Downloading Complete")
                                 .setContentText("Download complete")
-                                .setProgress(100, 0, false)
+                                .setProgress(0, 0, false)
                                 .setSmallIcon(R.drawable.stat_sys_download_done)
                             NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
                             Log.d("FileDownloadStrategy", "Notification complete")
@@ -125,6 +125,7 @@ class FileDownloadStrategy() : DownloadStrategy {
                     }
                 })
             } catch (e: Exception) {
+                Log.e("FileDownloadStrategy", "Error downloading file", e)
                 e.printStackTrace()
                 continuation.resume(false)
             }
