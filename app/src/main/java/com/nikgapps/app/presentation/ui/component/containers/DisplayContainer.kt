@@ -14,8 +14,8 @@ import com.nikgapps.app.utils.managers.emptyString
 
 @Composable
 fun DisplayContainer() {
-    val manager = globalClass.preferencesManager
-    val preferences = manager.displayPrefs
+    val dialog = globalClass.singleChoiceDialog
+    val preferences = globalClass.preferencesManager.displayPrefs
 
     Container(title = stringResource(R.string.display)) {
         val columnCount = arrayListOf(
@@ -27,7 +27,7 @@ fun DisplayContainer() {
             supportingText = if (preferences.fileListColumnCount == -1) columnCount[4] else preferences.fileListColumnCount.toString(),
             icon = Icons.AutoMirrored.Rounded.ManageSearch,
             onClick = {
-                manager.singleChoiceDialog.show(
+                dialog.show(
                     title = globalClass.getString(R.string.files_list_column_count),
                     description = globalClass.getString(R.string.choose_number_of_columns),
                     choices = columnCount,
@@ -63,7 +63,7 @@ fun DisplayContainer() {
                 },
                 icon = Icons.Rounded.Nightlight,
                 onClick = {
-                    manager.singleChoiceDialog.show(
+                    dialog.show(
                         title = globalClass.getString(R.string.theme),
                         description = globalClass.getString(R.string.select_theme_preference),
                         choices = listOf(

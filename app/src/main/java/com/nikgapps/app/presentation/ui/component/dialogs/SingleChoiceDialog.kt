@@ -24,7 +24,7 @@ import com.nikgapps.app.utils.extensions.Space
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SingleChoiceDialog() {
-    val dialog = globalClass.preferencesManager.singleChoiceDialog
+    val dialog = globalClass.singleChoiceDialog
     if (dialog.show) {
         var currentSelectedChoice by remember { mutableIntStateOf(dialog.selectedChoice) }
 
