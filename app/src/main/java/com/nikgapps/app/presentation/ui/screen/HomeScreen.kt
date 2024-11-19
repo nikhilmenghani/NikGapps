@@ -37,9 +37,10 @@ import androidx.work.workDataOf
 import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
+import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
 import com.nikgapps.app.presentation.ui.component.cards.RootAccessCard
-import com.nikgapps.app.presentation.ui.component.cards.getCurrentVersion
-import com.nikgapps.app.presentation.ui.component.cards.installApk
+import com.nikgapps.dumps.getCurrentVersion
+import com.nikgapps.dumps.installApk
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.fetchLatestVersion
 import com.nikgapps.app.utils.worker.DownloadWorker
@@ -141,6 +142,7 @@ fun HomeScreen(navController: NavHostController) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 RootAccessCard()
+                InstallZipCard()
             }
         }
     )

@@ -1,4 +1,4 @@
-package com.nikgapps.app.presentation.ui.component.cards
+package com.nikgapps.dumps
 
 import android.annotation.SuppressLint
 import android.content.Context
