@@ -40,7 +40,7 @@ object NotificationUtility {
         progressText: String = "Download in progress",
         channelId: String = CHANNEL_ID,
         contentTitle: String = "File Download",
-        priority: Int = NotificationCompat.PRIORITY_MAX,
+        priority: Int = NotificationCompat.PRIORITY_LOW,
         completeText: String = "Download complete",
         notificationId: Int = NOTIFICATION_ID
     ) {
@@ -69,7 +69,7 @@ object NotificationUtility {
         context: Context = App.globalClass,
         name: String = "Progress Channel",
         descriptionText: String = "Notification channel for progress updates",
-        importance: Int = NotificationManager.IMPORTANCE_HIGH,
+        importance: Int = NotificationManager.IMPORTANCE_LOW,
         channelId: String = CHANNEL_ID
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
