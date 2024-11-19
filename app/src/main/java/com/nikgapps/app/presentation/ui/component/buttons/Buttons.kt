@@ -1,36 +1,49 @@
 package com.nikgapps.app.presentation.ui.component.buttons
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.R
+import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.NotificationUtility.startFileDownload
 
@@ -221,43 +234,6 @@ fun LongTapTextButton(
     }
 }
 
-@SuppressLint("InlinedApi")
-@Composable
-fun RequestNotificationPermission(context: Context) {
-    // Define the launcher to request permissions
-    val requestPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted: Boolean ->
-            if (isGranted) {
-                // Permission granted, proceed to show notifications
-                Toast.makeText(context, "Notifications Permission Granted", Toast.LENGTH_SHORT).show()
-            } else {
-                // Permission denied, show an explanation or alternative
-                Toast.makeText(context, "Notifications Permission Denied", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-
-    // Check if we have the permission already
-    val hasPermission = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.POST_NOTIFICATIONS
-    ) == PackageManager.PERMISSION_GRANTED
-
-    if (!hasPermission) {
-        // UI to request permission
-        Button(onClick = {
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }) {
-            Text("Request Notifications Permission")
-        }
-    } else {
-        // Permission already granted, you can start showing notifications
-        Text("Notification Permission Granted")
-    }
-}
-
-
 @Composable
 fun DownloadButton(context: Context) {
     Button(onClick = {
@@ -271,7 +247,7 @@ fun DownloadButton(context: Context) {
 @Composable
 @Preview
 fun Preview() {
-    NikGappsThemePreview() {
+    NikGappsThemePreview {
         Surface {
             Column {
                 PreferenceSubtitle(text = "Preview")
@@ -283,22 +259,22 @@ fun Preview() {
                 TextButtonWithIcon(
                     onClick = { /* Do something */ },
                     icon = Icons.Default.FavoriteBorder,
-                    text = "Click Me"
+                    text = "Test Me"
                 )
                 FilledTonalButtonWithIcon(
                     onClick = {},
-                    icon = Icons.Default.Favorite,
+                    icon = Icons.Default.FavoriteBorder,
                     text = "Click Me"
                 )
                 FilledButtonWithIcon(
                     onClick = {},
                     icon = Icons.Default.Favorite,
-                    text = "Click Me"
+                    text = "Test Me"
                 )
                 ConfirmButton(
                     onClick = {}
                 )
-                DismissButton(){}
+                DismissButton{}
                 LinkButton()
                 LongTapTextButton(
                     onClick = {},
