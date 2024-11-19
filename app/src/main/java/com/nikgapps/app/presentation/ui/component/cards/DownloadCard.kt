@@ -14,6 +14,7 @@ import androidx.compose.material.icons.rounded.Adb
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,12 +49,11 @@ import java.io.File
 fun DownloadNikGappsCard() {
     val downloadPrefs = globalClass.downloadManager.downloadPrefs
     val dialog = globalClass.singleChoiceDialog
-    var isProcessing by remember { mutableStateOf(false) }
-    var variant by remember { mutableStateOf("") }
+    var variant by remember { mutableStateOf(GappsVariantPreference.entries[downloadPrefs.gappsVariant].toVariantString()) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val workManager = WorkManager.getInstance(context)
-    variant = GappsVariantPreference.entries[downloadPrefs.gappsVariant].toVariantString()
+    var isDownloading by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -90,70 +90,75 @@ fun DownloadNikGappsCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Spacer(modifier = Modifier.weight(1f))
-                Button(onClick = {
-                    isProcessing = true
-                    val downloadUrl =
-                        ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
-                    val zipFileName = downloadUrl.split("/").lastOrNull { it.endsWith(".zip") }
-                        ?: throw IllegalArgumentException("No .zip file found in URL")
-                    Log.d("NikGapps-DownloadNikGappsCard", "Zip file name: $zipFileName")
+                if (isDownloading) {
+                    CircularProgressIndicator()
+                } else {
+                    Button(onClick = {
+                        isDownloading = true
+                        val downloadUrl =
+                            ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
+                        val zipFileName = downloadUrl.split("/").lastOrNull { it.endsWith(".zip") }
+                            ?: throw IllegalArgumentException("No .zip file found in URL")
+                        Log.d("NikGapps-DownloadNikGappsCard", "Zip file name: $zipFileName")
 
-                    val zipFileNameWithoutExtension = zipFileName.removeSuffix(".zip")
-                    val destFilePath =
-                        "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileNameWithoutExtension.zip"
+                        val zipFileNameWithoutExtension = zipFileName.removeSuffix(".zip")
+                        val destFilePath =
+                            "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileNameWithoutExtension.zip"
 
-                    val zipFile = File(destFilePath)
+                        val zipFile = File(destFilePath)
 
-                    if (zipFile.exists()) {
-                        zipFile.delete()
-                        Toast.makeText(context, "Deleted existing file before proceeding", Toast.LENGTH_LONG).show()
-                    }
+                        if (zipFile.exists()) {
+                            zipFile.delete()
+                            Toast.makeText(context, "Deleted existing file before proceeding", Toast.LENGTH_LONG).show()
+                        }
 
-                    if (!zipFile.exists()) {
-                        val inputData = workDataOf(
-                            DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
-                            DownloadWorker.DEST_FILE_PATH_KEY to destFilePath,
-                            DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_FILE
-                        )
-
-                        val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                            .setInputData(inputData)
-                            .setConstraints(
-                                Constraints.Builder()
-                                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                                    .build()
+                        if (!zipFile.exists()) {
+                            val inputData = workDataOf(
+                                DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
+                                DownloadWorker.DEST_FILE_PATH_KEY to destFilePath,
+                                DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_FILE
                             )
-                            .build()
 
-                        workManager.enqueue(downloadRequest)
+                            val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
+                                .setInputData(inputData)
+                                .setConstraints(
+                                    Constraints.Builder()
+                                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                                        .build()
+                                )
+                                .build()
 
-                        workManager.getWorkInfoByIdLiveData(downloadRequest.id)
-                            .observe(lifecycleOwner) { workInfo ->
-                                if (workInfo != null && workInfo.state.isFinished) {
-                                    if (workInfo.state == WorkInfo.State.SUCCEEDED) {
-                                        Log.d(
-                                            "NikGapps-DownloadNikGappsCard",
-                                            "File downloaded successfully"
-                                        )
-                                    } else if (workInfo.state == WorkInfo.State.FAILED) {
-                                        Log.e(
-                                            "NikGapps-DownloadNikGappsCard",
-                                            "Failed to download file"
-                                        )
-                                        Toast.makeText(
-                                            context,
-                                            "Failed to download file",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                        isProcessing = false
+                            workManager.enqueue(downloadRequest)
+
+                            workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                .observe(lifecycleOwner) { workInfo ->
+                                    if (workInfo != null && workInfo.state.isFinished) {
+                                        if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                            Log.d(
+                                                "NikGapps-DownloadNikGappsCard",
+                                                "File downloaded successfully"
+                                            )
+                                        } else if (workInfo.state == WorkInfo.State.FAILED) {
+                                            Log.e(
+                                                "NikGapps-DownloadNikGappsCard",
+                                                "Failed to download file"
+                                            )
+                                            Toast.makeText(
+                                                context,
+                                                "Failed to download file",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                        isDownloading = false
                                     }
                                 }
-                            }
-                    } else {
-                        Log.d("NikGapps-DownloadNikGappsCard", "File already downloaded")
+                        } else {
+                            Log.d("NikGapps-DownloadNikGappsCard", "File already downloaded")
+                            isDownloading = false
+                        }
+                    }) {
+                        Text(text = stringResource(R.string.download) + " NikGapps $variant")
                     }
-                }) {
-                    Text(text = stringResource(R.string.download) + " NikGapps $variant")
                 }
             }
         }
