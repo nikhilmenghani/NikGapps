@@ -91,7 +91,7 @@ fun BottomNavigationBar(navController: NavHostController) {
 fun NavigationHost(navController: NavHostController, modifier: Modifier) {
     NavHost(
         navController = navController,
-        startDestination = Screens.Download.name,
+        startDestination = Screens.Home.name,
         modifier = modifier
     ) {
         composable(route = Screens.Home.name) {
