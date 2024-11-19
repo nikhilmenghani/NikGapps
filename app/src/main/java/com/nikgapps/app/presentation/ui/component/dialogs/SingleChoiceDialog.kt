@@ -46,7 +46,7 @@ fun SingleChoiceDialog() {
                     fontSize = 14.sp
                 )
 
-                Space(size = 8.dp)
+                Space(size = 16.dp)
 
                 HorizontalDivider()
 

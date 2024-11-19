@@ -37,6 +37,7 @@ import androidx.work.workDataOf
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.model.GappsVariantPreference
+import com.nikgapps.app.data.model.toVariantString
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.constants.ApplicationConstants
@@ -52,16 +53,7 @@ fun DownloadNikGappsCard() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val workManager = WorkManager.getInstance(context)
-
-    // Update the variant string based on the selected gappsVariant
-    variant = when (downloadPrefs.gappsVariant) {
-        GappsVariantPreference.CORE.ordinal -> stringResource(R.string.core)
-        GappsVariantPreference.BASIC.ordinal -> stringResource(R.string.basic)
-        GappsVariantPreference.OMNI.ordinal -> stringResource(R.string.omni)
-        GappsVariantPreference.STOCK.ordinal -> stringResource(R.string.stock)
-        GappsVariantPreference.FULL.ordinal -> stringResource(R.string.full)
-        else -> stringResource(R.string.core)
-    }
+    variant = GappsVariantPreference.entries[downloadPrefs.gappsVariant].toVariantString()
 
     Card(
         modifier = Modifier
@@ -83,23 +75,10 @@ fun DownloadNikGappsCard() {
                     dialog.show(
                         title = globalClass.getString(R.string.gapps_variant),
                         description = globalClass.getString(R.string.select_variant_preference),
-                        choices = listOf(
-                            globalClass.getString(R.string.core),
-                            globalClass.getString(R.string.basic),
-                            globalClass.getString(R.string.omni),
-                            globalClass.getString(R.string.stock),
-                            globalClass.getString(R.string.full)
-                        ),
+                        choices = GappsVariantPreference.entries.map { it.toVariantString() },
                         selectedChoice = downloadPrefs.gappsVariant,
                         onSelect = {
-                            variant = when (it) {
-                                GappsVariantPreference.CORE.ordinal -> "Core"
-                                GappsVariantPreference.BASIC.ordinal -> "Basic"
-                                GappsVariantPreference.OMNI.ordinal -> "Omni"
-                                GappsVariantPreference.STOCK.ordinal -> "Stock"
-                                GappsVariantPreference.FULL.ordinal -> "Full"
-                                else -> "Core"
-                            }
+                            variant = GappsVariantPreference.entries[it].toVariantString()
                             downloadPrefs.gappsVariant = it
                         }
                     )
