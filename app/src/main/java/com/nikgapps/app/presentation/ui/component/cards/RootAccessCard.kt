@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun GetRootAccessCard() {
+fun RootAccessCard() {
     var rootAccessState by remember { mutableStateOf(App.hasRootAccess) }
 
     Card(
@@ -73,5 +73,5 @@ fun GetRootAccessCard() {
 @Preview
 @Composable
 fun PreviewGetRootAccessCard() {
-    GetRootAccessCard()
+    RootAccessCard()
 }
