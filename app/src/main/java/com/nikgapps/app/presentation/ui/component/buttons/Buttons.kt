@@ -32,7 +32,7 @@ import androidx.core.content.ContextCompat
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.R
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
-import com.nikgapps.app.utils.startFileDownload
+import com.nikgapps.app.utils.NotificationUtility.startFileDownload
 
 @Composable
 fun OutlinedButtonWithIcon(

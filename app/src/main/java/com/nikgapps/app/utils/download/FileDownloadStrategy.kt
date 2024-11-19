@@ -1,18 +1,16 @@
 package com.nikgapps.app.utils.download
 
 //noinspection SuspiciousImport
-import android.R
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
-import android.os.Build
 import android.os.Environment
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import com.nikgapps.App
-import okhttp3.*
+import com.nikgapps.app.utils.NotificationUtility.createNotificationChannel
+import com.nikgapps.app.utils.NotificationUtility.showProgressNotification
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okio.Buffer
 import okio.buffer
 import okio.sink
@@ -23,30 +21,10 @@ import kotlin.coroutines.suspendCoroutine
 
 class FileDownloadStrategy() : DownloadStrategy {
 
-    companion object {
-        const val CHANNEL_ID = "download_channel"
-        const val NOTIFICATION_ID = 1
-    }
-
     private val client = OkHttpClient()
 
     override suspend fun download(downloadUrl: String, destFilePath: String): Boolean {
-        createNotificationChannel()
         return downloadFileWithProgress(downloadUrl, destFilePath)
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Download Channel"
-            val descriptionText = "Channel for file download progress"
-            val importance = NotificationManager.IMPORTANCE_LOW
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager: NotificationManager =
-                App.globalClass.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
     }
 
     private suspend fun downloadFileWithProgress(url: String, destFilePath: String?): Boolean {
@@ -57,7 +35,8 @@ class FileDownloadStrategy() : DownloadStrategy {
                     ?: throw IllegalArgumentException("No .zip file found in URL")
 
                 // Determine the destination file path
-                val destinationPath = destFilePath ?: "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileName"
+                val destinationPath = destFilePath
+                    ?: "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileName"
 
                 val request = Request.Builder().url(url).build()
                 client.newCall(request).enqueue(object : Callback {
@@ -82,16 +61,7 @@ class FileDownloadStrategy() : DownloadStrategy {
                         try {
                             val contentLength = responseBody.contentLength()
                             var totalBytesRead: Long = 0
-
-                            val notificationBuilder = NotificationCompat.Builder(App.globalClass, CHANNEL_ID)
-                                .setSmallIcon(R.drawable.stat_sys_download)
-                                .setContentTitle("Downloading $zipFileName")
-                                .setContentText("Download in progress")
-                                .setPriority(NotificationCompat.PRIORITY_LOW)
-                                .setProgress(100, 0, false)
-
-                            NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
-
+                            createNotificationChannel()
                             file.sink().buffer().use { bufferedSink ->
                                 val source = responseBody.source()
                                 var bytesRead: Long
@@ -99,23 +69,16 @@ class FileDownloadStrategy() : DownloadStrategy {
                                 while (source.read(buffer, 8192).also { bytesRead = it } != -1L) {
                                     bufferedSink.write(buffer, bytesRead)
                                     totalBytesRead += bytesRead
-
-                                    // Update progress
                                     val progress = (totalBytesRead * 100 / contentLength).toInt()
-                                    notificationBuilder
-                                        .setContentText("Download in progress: $progress%")
-                                        .setProgress(100, progress, false)
-                                    NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
+                                    showProgressNotification(
+                                        progress = progress,
+                                        contentTitle = "Downloading NikGapps Build",
+                                        progressText = "Downloading $zipFileName",
+                                        completeText = "$zipFileName downloaded successfully"
+                                    )
                                 }
                             }
                             Log.d("FileDownloadStrategy", "Download complete")
-                            // Mark the download as complete
-                            notificationBuilder
-                                .setContentTitle("Downloading Complete")
-                                .setContentText("Download complete")
-                                .setProgress(0, 0, false)
-                                .setSmallIcon(R.drawable.stat_sys_download_done)
-                            NotificationManagerCompat.from(App.globalClass).notify(NOTIFICATION_ID, notificationBuilder.build())
                             Log.d("FileDownloadStrategy", "Notification complete")
                             continuation.resume(true)
                         } catch (e: Exception) {

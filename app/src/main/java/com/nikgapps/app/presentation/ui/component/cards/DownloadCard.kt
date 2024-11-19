@@ -38,6 +38,7 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.model.GappsVariantPreference
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.ui.component.buttons.DownloadButton
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker
@@ -113,7 +114,8 @@ fun DownloadNikGappsCard() {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(onClick = {
                     isProcessing = true
-                    val downloadUrl = ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
+                    val downloadUrl =
+                        ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
                     val zipFileName = downloadUrl.split("/").lastOrNull { it.endsWith(".zip") }
                         ?: throw IllegalArgumentException("No .zip file found in URL")
                     Log.d("NikGapps-DownloadNikGappsCard", "Zip file name: $zipFileName")
@@ -123,6 +125,11 @@ fun DownloadNikGappsCard() {
                         "${Environment.getExternalStorageDirectory().absolutePath}/Download/$zipFileNameWithoutExtension.zip"
 
                     val zipFile = File(destFilePath)
+
+                    if (zipFile.exists()) {
+                        zipFile.delete()
+                        Toast.makeText(context, "Deleted existing file before proceeding", Toast.LENGTH_LONG).show()
+                    }
 
                     if (!zipFile.exists()) {
                         val inputData = workDataOf(
@@ -142,17 +149,28 @@ fun DownloadNikGappsCard() {
 
                         workManager.enqueue(downloadRequest)
 
-                        workManager.getWorkInfoByIdLiveData(downloadRequest.id).observe(lifecycleOwner) { workInfo ->
-                            if (workInfo != null && workInfo.state.isFinished) {
-                                if (workInfo.state == WorkInfo.State.SUCCEEDED) {
-                                    Log.d("NikGapps-DownloadNikGappsCard", "File downloaded successfully")
-                                } else if (workInfo.state == WorkInfo.State.FAILED) {
-                                    Log.e("NikGapps-DownloadNikGappsCard", "Failed to download file")
-                                    Toast.makeText(context, "Failed to download file", Toast.LENGTH_LONG).show()
-                                    isProcessing = false
+                        workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                            .observe(lifecycleOwner) { workInfo ->
+                                if (workInfo != null && workInfo.state.isFinished) {
+                                    if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                        Log.d(
+                                            "NikGapps-DownloadNikGappsCard",
+                                            "File downloaded successfully"
+                                        )
+                                    } else if (workInfo.state == WorkInfo.State.FAILED) {
+                                        Log.e(
+                                            "NikGapps-DownloadNikGappsCard",
+                                            "Failed to download file"
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Failed to download file",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        isProcessing = false
+                                    }
                                 }
                             }
-                        }
                     } else {
                         Log.d("NikGapps-DownloadNikGappsCard", "File already downloaded")
                     }
