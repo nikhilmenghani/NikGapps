@@ -62,7 +62,7 @@ fun RootAccessCard() {
                 })
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "Root Access: ${if (rootAccessState) "Granted" else "Denied"}",
+                text = "Access ${if (rootAccessState) "Granted" else "Not Granted"}",
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (rootAccessState) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
             )
