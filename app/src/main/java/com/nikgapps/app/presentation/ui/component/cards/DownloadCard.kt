@@ -38,7 +38,6 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.model.GappsVariantPreference
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
-import com.nikgapps.app.presentation.ui.component.buttons.DownloadButton
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker

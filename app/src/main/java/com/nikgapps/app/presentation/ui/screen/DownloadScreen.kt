@@ -29,7 +29,6 @@ fun DownloadScreen() {
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(16.dp), // Apply padding from Scaffold to avoid overlap
-                contentAlignment = Alignment.Center
             ) {
                 SingleChoiceDialog()
                 DownloadNikGappsCard()

@@ -34,16 +34,16 @@ data class NavItem(
 
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.Home.name),
-    NavItem("Profile", Icons.Default.Person, Screens.Profile.name),
+//    NavItem("Profile", Icons.Default.Person, Screens.Profile.name),
     NavItem("Download", Icons.Default.Download, Screens.Download.name),
-    NavItem("Apps", Icons.Default.Apps, Screens.Apps.name)
+//    NavItem("Apps", Icons.Default.Apps, Screens.Apps.name)
 )
 
 enum class Screens {
     Home, Profile, Download, Settings, Apps
 }
 
-val excludedScreens = listOf(Screens.Settings.name)
+val excludedScreens = listOf(Screens.Settings.name, Screens.Profile.name, Screens.Apps.name)
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
