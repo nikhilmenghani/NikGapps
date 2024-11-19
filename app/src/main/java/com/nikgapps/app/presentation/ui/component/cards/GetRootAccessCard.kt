@@ -3,6 +3,8 @@ package com.nikgapps.app.presentation.ui.component.cards
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nikgapps.App
+import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.utils.RootUtility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,21 +45,21 @@ fun GetRootAccessCard() {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = {
-                CoroutineScope(Dispatchers.IO).launch {
-                    // Always perform a fresh check for root access
-                    val rootAccess = RootUtility.hasRootAccess()
-                    Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
-                    App.hasRootAccess = rootAccess
+            FilledTonalButtonWithIcon(
+                icon = Icons.Default.LockOpen, text = "Get Root Access",
+                onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        // Always perform a fresh check for root access
+                        val rootAccess = RootUtility.hasRootAccess()
+                        Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
+                        App.hasRootAccess = rootAccess
 
-                    // Update the state variable to trigger recomposition
-                    withContext(Dispatchers.Main) {
-                        rootAccessState = rootAccess
+                        // Update the state variable to trigger recomposition
+                        withContext(Dispatchers.Main) {
+                            rootAccessState = rootAccess
+                        }
                     }
-                }
-            }) {
-                Text("Get Root Access")
-            }
+                })
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = "Root Access: ${if (rootAccessState) "Granted" else "Denied"}",

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
@@ -108,22 +109,25 @@ fun TextButtonWithIcon(
 fun FilledTonalButtonWithIcon(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    icon: ImageVector,
-    text: String,
+    icon: ImageVector? = null,
+    text: String = "Click Me",
     colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    shape: Shape = RoundedCornerShape(10.dp)
 ) {
     FilledTonalButton(
         modifier = modifier,
         onClick = onClick,
         contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-        colors = colors
-    )
-    {
-        Icon(
-            modifier = Modifier.size(18.dp),
-            imageVector = icon,
-            contentDescription = null
-        )
+        colors = colors,
+        shape = shape
+    ) {
+        if (icon != null) {
+            Icon(
+                modifier = Modifier.size(18.dp),
+                imageVector = icon,
+                contentDescription = null
+            )
+        }
         Text(
             modifier = Modifier.padding(start = 8.dp),
             text = text

@@ -79,7 +79,6 @@ class FileDownloadStrategy() : DownloadStrategy {
                                 }
                             }
                             Log.d("FileDownloadStrategy", "Download complete")
-                            Log.d("FileDownloadStrategy", "Notification complete")
                             continuation.resume(true)
                         } catch (e: Exception) {
                             e.printStackTrace()

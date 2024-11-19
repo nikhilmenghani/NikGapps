@@ -10,18 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.rounded.Adb
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +39,7 @@ import com.nikgapps.R
 import com.nikgapps.app.data.model.GappsVariantPreference
 import com.nikgapps.app.data.model.toVariantString
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker
@@ -93,7 +93,9 @@ fun DownloadNikGappsCard() {
                 if (isDownloading) {
                     CircularProgressIndicator()
                 } else {
-                    Button(onClick = {
+                    FilledTonalButtonWithIcon(text = stringResource(R.string.download) + " NikGapps $variant",
+                        icon = Icons.Default.Download,
+                        onClick = {
                         isDownloading = true
                         val downloadUrl =
                             ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
@@ -156,9 +158,7 @@ fun DownloadNikGappsCard() {
                             Log.d("NikGapps-DownloadNikGappsCard", "File already downloaded")
                             isDownloading = false
                         }
-                    }) {
-                        Text(text = stringResource(R.string.download) + " NikGapps $variant")
-                    }
+                    })
                 }
             }
         }
