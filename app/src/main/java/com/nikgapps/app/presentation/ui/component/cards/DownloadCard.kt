@@ -107,11 +107,6 @@ fun DownloadNikGappsCard() {
 
                         val zipFile = File(destFilePath)
 
-                        if (zipFile.exists()) {
-                            zipFile.delete()
-                            Toast.makeText(context, "Deleted existing file before proceeding", Toast.LENGTH_LONG).show()
-                        }
-
                         if (!zipFile.exists()) {
                             val inputData = workDataOf(
                                 DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
@@ -153,6 +148,11 @@ fun DownloadNikGappsCard() {
                                     }
                                 }
                         } else {
+                            Toast.makeText(
+                                context,
+                                "${zipFile.name} already present!",
+                                Toast.LENGTH_LONG
+                            ).show()
                             Log.d("NikGapps-DownloadNikGappsCard", "File already downloaded")
                             isDownloading = false
                         }
