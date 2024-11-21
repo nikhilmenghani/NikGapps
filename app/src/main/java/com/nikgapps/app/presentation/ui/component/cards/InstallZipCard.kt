@@ -25,9 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import com.nikgapps.app.data.model.logProgress
+import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.utils.ZipUtility.extractZip
+import com.nikgapps.app.utils.extensions.navigateWithState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -35,7 +39,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
-fun InstallZipCard() {
+fun InstallZipCard(navController: NavHostController) {
     var isProcessing by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -48,6 +52,9 @@ fun InstallZipCard() {
                     inputStream.copyTo(outputStream)
                 }
             }
+            navController.navigateWithState(
+                route = Screens.Logs.name
+            )
             CoroutineScope(Dispatchers.IO).launch {
                 installZipFile(context, file, progressCallback = { progress ->
                     isProcessing = progress
@@ -99,6 +106,8 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
+    logProgress("Extraction Complete")
+    logProgress("Installing NikGapps...")
     progressCallback(false)
 }
 
@@ -106,6 +115,8 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
 @Composable
 fun PreviewInstallZipCard() {
     NikGappsThemePreview {
-        InstallZipCard()
+        InstallZipCard(
+            navController = TODO()
+        )
     }
 }

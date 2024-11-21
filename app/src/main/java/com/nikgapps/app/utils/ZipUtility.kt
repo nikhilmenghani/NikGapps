@@ -29,7 +29,9 @@ object ZipUtility {
             }
 
             val deferreds = mutableListOf<Deferred<Boolean>>()
-            logProgress("Extracting zip file: $zipFilePath to $outputDirPath")
+            if (zipFile.extension == "zip") {
+                logProgress("Extracting: ${zipFile.name}")
+            }
             ZipInputStream(zipFile.inputStream()).use { zipStream ->
                 var entry = zipStream.nextEntry
                 while (entry != null) {
