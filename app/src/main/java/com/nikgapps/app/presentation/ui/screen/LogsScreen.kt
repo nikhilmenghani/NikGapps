@@ -7,6 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +52,7 @@ fun LogsScreen() {
                         Toast.makeText(context, "Failed to save logs: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Text("Save Logs")
+                    Icon(imageVector = Icons.Default.Save, contentDescription = "Save Logs")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -57,7 +60,7 @@ fun LogsScreen() {
                 FloatingActionButton(onClick = {
                     LogManager.clearLogs()
                 }) {
-                    Text("Clear Logs")
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Clear Logs")
                 }
             }
         }
