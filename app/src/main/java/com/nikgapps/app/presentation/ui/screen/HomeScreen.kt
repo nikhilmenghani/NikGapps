@@ -143,7 +143,7 @@ fun HomeScreen(navController: NavHostController) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 RootAccessCard()
-                InstallZipCard(navController)
+                InstallZipCard()
             }
         }
     )
