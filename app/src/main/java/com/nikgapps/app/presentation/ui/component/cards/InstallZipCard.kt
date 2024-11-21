@@ -26,16 +26,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.nikgapps.app.data.model.logProgress
+import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.utils.ZipUtility.extractZip
+import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
 import com.nikgapps.app.utils.extensions.navigateWithState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
@@ -46,15 +47,14 @@ fun InstallZipCard(navController: NavHostController) {
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val file = File(context.cacheDir, "selected_file.zip")
+            navController.navigateWithState(route = Screens.Logs.name)
+            val displayName = getFileNameFromUri(context, it)
+            val file = File(context.cacheDir, displayName)
             context.contentResolver.openInputStream(it)?.use { inputStream ->
                 file.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
             }
-            navController.navigateWithState(
-                route = Screens.Logs.name
-            )
             CoroutineScope(Dispatchers.IO).launch {
                 installZipFile(context, file, progressCallback = { progress ->
                     isProcessing = progress
@@ -86,7 +86,6 @@ fun InstallZipCard(navController: NavHostController) {
                         text = "Install NikGapps",
                         icon = Icons.Default.Download,
                         onClick = {
-                            isProcessing = true
                             filePickerLauncher.launch("application/zip")
                         })
                 }
@@ -96,7 +95,9 @@ fun InstallZipCard(navController: NavHostController) {
 }
 
 suspend fun installZipFile(context: Context, file: File, progressCallback: (Boolean) -> Unit = {}) {
-    progressCallback(true)
+    withContext(Dispatchers.Main) {
+        progressCallback(true)
+    }
     Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.absolutePath}")
     Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.parentFile?.absolutePath}")
     extractZip(
@@ -106,9 +107,11 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
-    logProgress("Extraction Complete")
-    logProgress("Installing NikGapps...")
-    progressCallback(false)
+    log("Extraction Complete", context)
+    log("Installing NikGapps...", context)
+    withContext(Dispatchers.Main) {
+        progressCallback(false)
+    }
 }
 
 @Preview

@@ -1,6 +1,9 @@
 package com.nikgapps.app.utils.constants
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 
 object ApplicationConstants {
 //    const val DOWNLOAD_URL = "https://sourceforge.net/projects/nikgapps/files/Releases/Android-15/04-Nov-2024/Addons/NikGapps-Addon-15-PixelSpecifics-20241104-signed.zip/downloadhttps://sourceforge.net/projects/nikgapps/files/Releases/Android-15/04-Nov-2024/Addons/NikGapps-Addon-15-PixelSpecifics-20241104-signed.zip/download"
@@ -22,5 +25,17 @@ object ApplicationConstants {
 
     fun getExternalStorageDir(): String {
         return android.os.Environment.getExternalStorageDirectory().absolutePath
+    }
+
+    @SuppressLint("Range")
+    fun getFileNameFromUri(context: Context, uri: Uri): String {
+        var displayName = "selected_file.zip"
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                displayName = it.getString(it.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+            }
+        }
+        return displayName
     }
 }

@@ -29,6 +29,9 @@ import java.io.IOException
 @Composable
 fun LogsScreen() {
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        LogManager.loadLogs(context)
+    }
     val logs by remember { derivedStateOf { LogManager.logs } }
     val scrollState = rememberScrollState()
 
@@ -58,7 +61,7 @@ fun LogsScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 FloatingActionButton(onClick = {
-                    LogManager.clearLogs()
+                    LogManager.clearLogs(context)
                 }) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Clear Logs")
                 }
