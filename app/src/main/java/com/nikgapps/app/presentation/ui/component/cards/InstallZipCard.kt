@@ -96,7 +96,8 @@ fun InstallZipCard() {
 
     if (showBottomSheet) {
         InstallZipProgressBottomSheet(
-            onDismiss = { showBottomSheet = false }
+            onDismiss = { showBottomSheet = false },
+            isProcessing = isProcessing
         )
     }
 }

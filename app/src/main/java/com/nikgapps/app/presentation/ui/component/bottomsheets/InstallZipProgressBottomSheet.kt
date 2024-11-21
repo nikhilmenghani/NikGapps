@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -26,6 +27,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -36,7 +38,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
+fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
@@ -67,24 +69,26 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
                 .padding(16.dp)
         ) {
             Column(modifier = Modifier.verticalScroll(scrollState)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(onClick = {
-                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                            onDismiss()
-                        }
-                    }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close Bottom Sheet", tint = Color.White)
-                    }
-                }
                 logs.forEach { log ->
                     Text(
                         text = log,
                         color = Color.White,
                         fontSize = 14.sp
                     )
+                }
+            }
+            if (!isProcessing) {
+                FloatingActionButton(
+                    onClick = {
+                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close Bottom Sheet")
                 }
             }
         }
