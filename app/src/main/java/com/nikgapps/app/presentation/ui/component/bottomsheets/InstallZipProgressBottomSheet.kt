@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.bottomsheets
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) {
+fun InstallZipProgressBottomSheet(context: Context, onDismiss: () -> Unit, isProcessing: Boolean) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
@@ -55,6 +56,7 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) 
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val minHeight = screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
     val maxHeight = screenHeight * 0.6f // Allow the height to grow up to 60% of the screen height
 
     ModalBottomSheet(
@@ -64,7 +66,7 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) 
         Box(
             modifier = Modifier
                 .wrapContentHeight() // Initially wrap the content height
-                .heightIn(max = maxHeight)
+                .heightIn(min = minHeight, max = maxHeight)
                 .background(Color.Black)
                 .padding(16.dp)
         ) {
@@ -81,6 +83,7 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) 
                 FloatingActionButton(
                     onClick = {
                         scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                            LogManager.clearLogs(context)
                             onDismiss()
                         }
                     },

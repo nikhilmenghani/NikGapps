@@ -38,4 +38,16 @@ object ApplicationConstants {
         }
         return displayName
     }
+
+    fun getFilePathFromUri(context: Context, uri: Uri): String? {
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val columnIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATA)
+            if (cursor.moveToFirst()) {
+                return cursor.getString(columnIndex)
+            }
+        }
+
+        return null
+    }
 }
