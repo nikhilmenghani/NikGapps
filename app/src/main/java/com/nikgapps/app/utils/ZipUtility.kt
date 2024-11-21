@@ -88,40 +88,4 @@ object ZipUtility {
             false
         }
     }
-
-    suspend fun extractNestedZips(directory: File): Boolean {
-        var allSuccess = true
-        directory.listFiles()?.forEach { file ->
-            if (file.isDirectory) {
-                // Recursively call extractNestedZips for subdirectories
-                val success = extractNestedZips(file)
-                if (!success) {
-                    allSuccess = false
-                }
-            } else if (file.extension == "zip") {
-                // Create a folder with the same name as the zip file (without extension)
-                val extractDir = File(file.parentFile, file.nameWithoutExtension)
-                if (!extractDir.exists()) {
-                    extractDir.mkdirs()
-                }
-                // Extract zip into the newly created directory
-                val nestedExtractSuccessful = extractZip(
-                    file.absolutePath,
-                    extractDir.absolutePath,
-                    progressCallback = { progress ->
-                        Log.d("ZipUtility", "Progress: $progress")
-                    })
-                if (nestedExtractSuccessful) {
-                    Log.d(
-                        "ZipUtility",
-                        "Nested zip file ${file.name} extracted successfully into ${extractDir.path}"
-                    )
-                } else {
-                    Log.e("ZipUtility", "Failed to extract nested zip file ${file.name}")
-                    allSuccess = false
-                }
-            }
-        }
-        return allSuccess
-    }
 }
