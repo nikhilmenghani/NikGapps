@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
     val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false,
+        skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
     )
     val scope = rememberCoroutineScope()
@@ -48,12 +48,11 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .wrapContentHeight() // Allow the height to adjust to content
                 .background(Color.Black)
                 .padding(16.dp)
-                .verticalScroll(scrollState)
         ) {
-            Column {
+            Column(modifier = Modifier.verticalScroll(scrollState)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
