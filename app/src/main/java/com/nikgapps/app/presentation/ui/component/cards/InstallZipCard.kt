@@ -27,12 +27,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.model.LogManager.log
-import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
-import com.nikgapps.app.utils.extensions.navigateWithState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,14 +39,14 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-fun InstallZipCard(navController: NavHostController) {
+fun InstallZipCard() {
     var isProcessing by remember { mutableStateOf(false) }
+    var showBottomSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            navController.navigateWithState(route = Screens.Logs.name)
             val displayName = getFileNameFromUri(context, it)
             val file = File(context.cacheDir, displayName)
             context.contentResolver.openInputStream(it)?.use { inputStream ->
@@ -55,10 +54,12 @@ fun InstallZipCard(navController: NavHostController) {
                     inputStream.copyTo(outputStream)
                 }
             }
+            showBottomSheet = true
             CoroutineScope(Dispatchers.IO).launch {
                 installZipFile(context, file, progressCallback = { progress ->
                     isProcessing = progress
                 })
+                isProcessing = false
             }
         }
     }
@@ -92,6 +93,12 @@ fun InstallZipCard(navController: NavHostController) {
             }
         }
     }
+
+    if (showBottomSheet) {
+        InstallZipProgressBottomSheet(
+            onDismiss = { showBottomSheet = false }
+        )
+    }
 }
 
 suspend fun installZipFile(context: Context, file: File, progressCallback: (Boolean) -> Unit = {}) {
@@ -118,8 +125,6 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
 @Composable
 fun PreviewInstallZipCard() {
     NikGappsThemePreview {
-        InstallZipCard(
-            navController = TODO()
-        )
+        InstallZipCard()
     }
 }

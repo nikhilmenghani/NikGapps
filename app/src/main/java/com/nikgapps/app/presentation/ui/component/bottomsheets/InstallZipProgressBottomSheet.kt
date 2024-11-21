@@ -1,0 +1,79 @@
+package com.nikgapps.app.presentation.ui.component.bottomsheets
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nikgapps.app.data.model.LogManager
+import kotlinx.coroutines.launch
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { false } // Prevent dismissing unless explicitly allowed
+    )
+    val scope = rememberCoroutineScope()
+    val logs by remember { derivedStateOf { LogManager.logs } }
+    val scrollState = rememberScrollState()
+
+    ModalBottomSheet(
+        onDismissRequest = {}, // Prevent dismissing by clicking outside
+        sheetState = bottomSheetState
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(16.dp)
+                .verticalScroll(scrollState)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = {
+                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close Bottom Sheet", tint = Color.White)
+                    }
+                }
+                logs.forEach { log ->
+                    Text(
+                        text = log,
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}

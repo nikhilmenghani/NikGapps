@@ -3,8 +3,6 @@ package com.nikgapps.app.presentation.ui.screen
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -19,19 +17,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nikgapps.app.presentation.ui.component.bottomsheets.ProfileBottomSheet
 import com.nikgapps.app.presentation.ui.component.dialogs.BottomSheetDialog
-import com.nikgapps.app.utils.extensions.Space
 import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen() {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { false } // Prevent dismissing unless explicitly allowed
+    )
     val scope = rememberCoroutineScope()
     var isSheetVisible by remember { mutableStateOf(false) }
     Scaffold(
@@ -41,9 +38,9 @@ fun ProfileScreen() {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            if (isSheetVisible){
+            if (isSheetVisible) {
                 BottomSheetDialog(
-                    onDismissRequest = { isSheetVisible = false },
+                    onDismissRequest = { /* Do nothing to prevent dismissing by clicking outside */ },
                     sheetState = sheetState
                 ) {
                     ProfileBottomSheet(
@@ -61,5 +58,3 @@ fun ProfileScreen() {
         }
     }
 }
-
-
