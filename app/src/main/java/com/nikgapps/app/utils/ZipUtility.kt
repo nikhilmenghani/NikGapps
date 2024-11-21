@@ -9,6 +9,7 @@ import java.util.zip.ZipInputStream
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import com.nikgapps.app.data.model.logProgress
 
 object ZipUtility {
     suspend fun extractZip(
@@ -28,7 +29,7 @@ object ZipUtility {
             }
 
             val deferreds = mutableListOf<Deferred<Boolean>>()
-
+            logProgress("Extracting zip file: $zipFilePath to $outputDirPath")
             ZipInputStream(zipFile.inputStream()).use { zipStream ->
                 var entry = zipStream.nextEntry
                 while (entry != null) {

@@ -5,22 +5,28 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
+import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -34,13 +40,12 @@ data class NavItem(
 
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.Home.name),
-//    NavItem("Profile", Icons.Default.Person, Screens.Profile.name),
     NavItem("Download", Icons.Default.Download, Screens.Download.name),
-//    NavItem("Apps", Icons.Default.Apps, Screens.Apps.name)
+    NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name)
 )
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps
+    Home, Profile, Download, Settings, Apps, Logs
 }
 
 val excludedScreens = listOf(Screens.Settings.name, Screens.Profile.name, Screens.Apps.name)
@@ -108,6 +113,9 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier) {
         }
         composable(route = Screens.Settings.name) {
             SettingsScreen(navController = navController)
+        }
+        composable(route = Screens.Logs.name) {
+            LogsScreen()
         }
     }
 }
