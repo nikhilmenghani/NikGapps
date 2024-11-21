@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.component.cards
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
+import com.nikgapps.app.utils.ZipUtility.extractZip
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
@@ -36,15 +42,17 @@ fun InstallZipCard() {
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            // Process the selected zip file
             val file = File(context.cacheDir, "selected_file.zip")
             context.contentResolver.openInputStream(it)?.use { inputStream ->
                 file.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
             }
-            // Handle the file (e.g., install it)
-            installZipFile(context, file)
+            CoroutineScope(Dispatchers.IO).launch {
+                installZipFile(context, file, progressCallback = { progress ->
+                    isProcessing = progress
+                })
+            }
         }
     }
 
@@ -71,7 +79,7 @@ fun InstallZipCard() {
                         text = "Install NikGapps",
                         icon = Icons.Default.Download,
                         onClick = {
-//                            isProcessing = true
+                            isProcessing = true
                             filePickerLauncher.launch("application/zip")
                         })
                 }
@@ -80,9 +88,18 @@ fun InstallZipCard() {
     }
 }
 
-fun installZipFile(context: Context, file: File) {
-    // Implement the logic to install the zip file
-    // For example, you can unzip the file and process its contents
+suspend fun installZipFile(context: Context, file: File, progressCallback: (Boolean) -> Unit = {}) {
+    progressCallback(true)
+    Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.absolutePath}")
+    Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.parentFile?.absolutePath}")
+    extractZip(
+        file.absolutePath,
+        file.parentFile?.absolutePath.toString(),
+        extractNestedZips = true,
+        deleteZipAfterExtract = true,
+        progressCallback = { }
+    )
+    progressCallback(false)
 }
 
 @Preview

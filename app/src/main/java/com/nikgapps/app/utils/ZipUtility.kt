@@ -16,6 +16,7 @@ object ZipUtility {
         outputDirPath: String,
         includeExtn: List<String> = emptyList(),
         extractNestedZips: Boolean = false,
+        deleteZipAfterExtract: Boolean = false,
         progressCallback: (String) -> Unit
     ): Boolean = coroutineScope {
         try {
@@ -60,6 +61,7 @@ object ZipUtility {
                                         extractedFile.absolutePath,
                                         nestedOutputDir.absolutePath,
                                         extractNestedZips = true,
+                                        deleteZipAfterExtract = true,
                                         progressCallback = progressCallback
                                     )
                                 }
@@ -77,7 +79,9 @@ object ZipUtility {
             if (nestedResults.any { !it }) {
                 return@coroutineScope false
             }
-
+            if (deleteZipAfterExtract) {
+                zipFile.delete()
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
