@@ -1,7 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
-import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,11 +38,13 @@ import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
 import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
 import com.nikgapps.app.presentation.ui.component.cards.RootAccessCard
-import com.nikgapps.dumps.getCurrentVersion
-import com.nikgapps.dumps.installApk
+import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
+import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.fetchLatestVersion
 import com.nikgapps.app.utils.worker.DownloadWorker
+import com.nikgapps.dumps.getCurrentVersion
+import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -79,8 +80,8 @@ fun HomeScreen(navController: NavHostController) {
                                 onClick = {
                                     isDownloading = true
 
-                                    val downloadUrl = "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
-                                    val destFilePath = "${Environment.getExternalStorageDirectory().absolutePath}/Download/NikGapps-v$latestVersion.apk"
+                                    val downloadUrl = getNikGappsAppDownloadUrl(latestVersion)
+                                    val destFilePath = "${getExternalStorageDir()}/Download/NikGapps.apk"
 
                                     val inputData = workDataOf(
                                         DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
