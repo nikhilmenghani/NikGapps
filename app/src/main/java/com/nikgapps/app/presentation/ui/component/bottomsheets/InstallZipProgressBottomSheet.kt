@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -30,13 +31,12 @@ import androidx.compose.ui.unit.sp
 import com.nikgapps.app.data.model.LogManager
 import kotlinx.coroutines.launch
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InstallZipProgressBottomSheet(onDismiss: () -> Unit) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
-        confirmValueChange = { false } // Prevent dismissing unless explicitly allowed
+        confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
     )
     val scope = rememberCoroutineScope()
     val logs by remember { derivedStateOf { LogManager.logs } }
