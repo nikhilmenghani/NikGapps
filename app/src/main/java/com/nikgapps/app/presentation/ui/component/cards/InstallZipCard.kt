@@ -25,8 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import com.nikgapps.app.data.model.LogManager.log
+import com.nikgapps.app.data.model.ProgressLogManager.clearLogs
+import com.nikgapps.app.data.model.ProgressLogManager.log
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
@@ -96,7 +96,6 @@ fun InstallZipCard() {
 
     if (showBottomSheet) {
         InstallZipProgressBottomSheet(
-            context = context,
             onDismiss = { showBottomSheet = false },
             isProcessing = isProcessing
         )
@@ -116,8 +115,9 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
-    log("Extraction Complete", context)
-    log("Installing NikGapps...", context)
+    log("Extraction Complete")
+    clearLogs()
+    log("Installing NikGapps...")
     withContext(Dispatchers.Main) {
         progressCallback(false)
     }

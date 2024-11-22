@@ -1,11 +1,8 @@
 package com.nikgapps.app.presentation.ui.component.bottomsheets
 
-import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -17,7 +14,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -34,29 +30,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nikgapps.app.data.model.LogManager
+import com.nikgapps.app.data.model.ProgressLogManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstallZipProgressBottomSheet(context: Context, onDismiss: () -> Unit, isProcessing: Boolean) {
+fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
     )
     val scope = rememberCoroutineScope()
-    val logs by remember { derivedStateOf { LogManager.logs } }
+    val progressLogs by remember { derivedStateOf { ProgressLogManager.progressLogs } }
     val scrollState = rememberScrollState()
 
     // Automatically scroll to the bottom when new logs are added
-    LaunchedEffect(logs.size) {
+    LaunchedEffect(progressLogs.size) {
         scope.launch {
             scrollState.animateScrollTo(scrollState.maxValue)
         }
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val minHeight = screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
+    val minHeight =
+        screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
     val maxHeight = screenHeight * 0.6f // Allow the height to grow up to 60% of the screen height
 
     ModalBottomSheet(
@@ -65,13 +62,18 @@ fun InstallZipProgressBottomSheet(context: Context, onDismiss: () -> Unit, isPro
     ) {
         Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .wrapContentHeight() // Initially wrap the content height
                 .heightIn(min = minHeight, max = maxHeight)
                 .background(Color.Black)
                 .padding(16.dp)
         ) {
-            Column(modifier = Modifier.verticalScroll(scrollState)) {
-                logs.forEach { log ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+            ) {
+                progressLogs.forEach { log ->
                     Text(
                         text = log,
                         color = Color.White,
@@ -83,7 +85,7 @@ fun InstallZipProgressBottomSheet(context: Context, onDismiss: () -> Unit, isPro
                 FloatingActionButton(
                     onClick = {
                         scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                            LogManager.clearLogs(context)
+                            ProgressLogManager.clearLogs()
                             onDismiss()
                         }
                     },
@@ -91,7 +93,10 @@ fun InstallZipProgressBottomSheet(context: Context, onDismiss: () -> Unit, isPro
                         .align(Alignment.BottomEnd)
                         .padding(16.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close Bottom Sheet")
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Bottom Sheet"
+                    )
                 }
             }
         }
