@@ -12,7 +12,7 @@ import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 
 object ZipUtility {
     suspend fun extractZip(
-        viewModel: ProgressLogViewModel,
+        progressLogViewModel: ProgressLogViewModel,
         zipFilePath: String,
         outputDirPath: String,
         includeExtn: List<String> = emptyList(),
@@ -30,7 +30,7 @@ object ZipUtility {
 
             val deferreds = mutableListOf<Deferred<Boolean>>()
             if (zipFile.extension == "zip") {
-                viewModel.addLog("Extracting: ${zipFile.name}")
+                progressLogViewModel.addLog("Extracting: ${zipFile.name}")
             }
             ZipInputStream(zipFile.inputStream()).use { zipStream ->
                 var entry = zipStream.nextEntry
@@ -61,7 +61,7 @@ object ZipUtility {
                                 }
                                 val deferred = async(Dispatchers.IO) {
                                     extractZip(
-                                        viewModel,
+                                        progressLogViewModel,
                                         extractedFile.absolutePath,
                                         nestedOutputDir.absolutePath,
                                         extractNestedZips = false,

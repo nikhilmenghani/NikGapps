@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavHostController) {
+fun HomeScreen(navController: NavHostController, progressLogViewModel: ProgressLogViewModel) {
     val context = LocalContext.current as MainActivity
     val workManager = WorkManager.getInstance(context)
     var currentVersion by remember { mutableStateOf(getCurrentVersion(context)) }
@@ -144,7 +144,7 @@ fun HomeScreen(navController: NavHostController) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 RootAccessCard()
-                InstallZipCard(ProgressLogViewModel())
+                InstallZipCard(progressLogViewModel)
             }
         }
     )

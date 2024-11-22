@@ -17,7 +17,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,9 +38,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-fun InstallZipCard(viewModel: ProgressLogViewModel) {
-    var isProcessing by remember { mutableStateOf(false) }
-    var showBottomSheet by remember { mutableStateOf(false) }
+fun InstallZipCard(progressLogViewModel: ProgressLogViewModel) {
+    var isProcessing by rememberSaveable { mutableStateOf(false) }
+    var showBottomSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -55,7 +55,7 @@ fun InstallZipCard(viewModel: ProgressLogViewModel) {
             }
             showBottomSheet = true
             CoroutineScope(Dispatchers.IO).launch {
-                installZipFile(context, viewModel, file, progressCallback = { progress ->
+                installZipFile(context, progressLogViewModel, file, progressCallback = { progress ->
                     isProcessing = progress
                 })
                 isProcessing = false
@@ -95,29 +95,29 @@ fun InstallZipCard(viewModel: ProgressLogViewModel) {
 
     if (showBottomSheet) {
         InstallZipProgressBottomSheet(
-            viewModel = viewModel,
+            viewModel = progressLogViewModel,
             onDismiss = { showBottomSheet = false },
             isProcessing = isProcessing
         )
     }
 }
 
-suspend fun installZipFile(context: Context, viewModel: ProgressLogViewModel, file: File, progressCallback: (Boolean) -> Unit = {}) {
+suspend fun installZipFile(context: Context, progressLogViewModel: ProgressLogViewModel, file: File, progressCallback: (Boolean) -> Unit = {}) {
     withContext(Dispatchers.Main) {
         progressCallback(true)
     }
     log("Installing zip file: ${file.name}", context)
     extractZip(
-        viewModel,
+        progressLogViewModel,
         file.absolutePath,
         file.parentFile?.absolutePath.toString(),
         extractNestedZips = true,
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
-    viewModel.clearLogs()
-    viewModel.addLog("Extraction Successful!")
-    viewModel.addLog("Installing NikGapps...")
+    progressLogViewModel.clearLogs()
+    progressLogViewModel.addLog("Extraction Successful!")
+    progressLogViewModel.addLog("Installing NikGapps...")
     withContext(Dispatchers.Main) {
         progressCallback(false)
     }

@@ -29,6 +29,7 @@ import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.extensions.navigateWithState
 
 
@@ -52,13 +53,13 @@ val excludedScreens = listOf(Screens.Settings.name, Screens.Profile.name, Screen
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun ScreenNavigator() {
+fun ScreenNavigator(progressLogViewModel: ProgressLogViewModel) {
     val navController: NavHostController = rememberNavController()
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
         contentWindowInsets = WindowInsets(left = 0, top = 0, right = 0, bottom = 0)
     ) { innerPadding ->
-        NavigationHost(navController = navController, modifier = Modifier.padding(innerPadding))
+        NavigationHost(navController = navController, progressLogViewModel, modifier = Modifier.padding(innerPadding))
     }
 }
 
@@ -93,14 +94,14 @@ fun BottomNavigationBar(navController: NavHostController) {
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun NavigationHost(navController: NavHostController, modifier: Modifier) {
+fun NavigationHost(navController: NavHostController, progressLogViewModel: ProgressLogViewModel, modifier: Modifier) {
     NavHost(
         navController = navController,
         startDestination = Screens.Home.name,
         modifier = modifier
     ) {
         composable(route = Screens.Home.name) {
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController, progressLogViewModel = progressLogViewModel)
         }
         composable(route = Screens.Profile.name) {
             ProfileScreen()
