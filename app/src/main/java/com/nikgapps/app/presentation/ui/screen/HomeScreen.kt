@@ -62,7 +62,7 @@ fun HomeScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             latestVersion = fetchLatestVersion()
-            isLatestVersion = (currentVersion == latestVersion)
+            isLatestVersion = (currentVersion == latestVersion) || (latestVersion == "Unknown")
         }
     }
 
