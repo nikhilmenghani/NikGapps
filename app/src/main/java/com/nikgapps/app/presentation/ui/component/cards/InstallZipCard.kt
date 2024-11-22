@@ -2,7 +2,6 @@ package com.nikgapps.app.presentation.ui.component.cards
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -26,11 +25,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nikgapps.app.data.model.LogManager.log
-import com.nikgapps.app.data.model.ProgressLogManager.clearLogs
-import com.nikgapps.app.data.model.ProgressLogManager.progressLog
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +38,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-fun InstallZipCard() {
+fun InstallZipCard(viewModel: ProgressLogViewModel) {
     var isProcessing by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -57,7 +55,7 @@ fun InstallZipCard() {
             }
             showBottomSheet = true
             CoroutineScope(Dispatchers.IO).launch {
-                installZipFile(context, file, progressCallback = { progress ->
+                installZipFile(context, viewModel, file, progressCallback = { progress ->
                     isProcessing = progress
                 })
                 isProcessing = false
@@ -97,27 +95,29 @@ fun InstallZipCard() {
 
     if (showBottomSheet) {
         InstallZipProgressBottomSheet(
+            viewModel = viewModel,
             onDismiss = { showBottomSheet = false },
             isProcessing = isProcessing
         )
     }
 }
 
-suspend fun installZipFile(context: Context, file: File, progressCallback: (Boolean) -> Unit = {}) {
+suspend fun installZipFile(context: Context, viewModel: ProgressLogViewModel, file: File, progressCallback: (Boolean) -> Unit = {}) {
     withContext(Dispatchers.Main) {
         progressCallback(true)
     }
     log("Installing zip file: ${file.name}", context)
     extractZip(
+        viewModel,
         file.absolutePath,
         file.parentFile?.absolutePath.toString(),
         extractNestedZips = true,
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
-    clearLogs()
-    progressLog("Extraction Successful!")
-    progressLog("Installing NikGapps...")
+    viewModel.clearLogs()
+    viewModel.addLog("Extraction Successful!")
+    viewModel.addLog("Installing NikGapps...")
     withContext(Dispatchers.Main) {
         progressCallback(false)
     }
@@ -127,6 +127,6 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
 @Composable
 fun PreviewInstallZipCard() {
     NikGappsThemePreview {
-        InstallZipCard()
+        InstallZipCard(ProgressLogViewModel())
     }
 }

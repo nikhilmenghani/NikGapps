@@ -17,6 +17,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.App
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.ZipUtility
 import com.nikgapps.app.utils.RootUtility
 import com.nikgapps.app.utils.constants.ApplicationConstants
@@ -115,6 +116,7 @@ fun DownloadAndExtractButton() {
 }
 
 private fun handleExtractionAndCopy(
+    viewModel: ProgressLogViewModel = ProgressLogViewModel(),
     context: Context,
     destFilePath: String,
     outputDirPath: String,
@@ -126,6 +128,7 @@ private fun handleExtractionAndCopy(
             updateProgressText("Extracting file...")
             val extractionTime = measureTimeMillis {
                 val extractSuccessful = ZipUtility.extractZip(
+                    viewModel,
                     destFilePath,
                     outputDirPath,
                     extractNestedZips = true,

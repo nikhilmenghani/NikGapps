@@ -38,6 +38,7 @@ import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
 import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
 import com.nikgapps.app.presentation.ui.component.cards.RootAccessCard
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -143,7 +144,7 @@ fun HomeScreen(navController: NavHostController) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 RootAccessCard()
-                InstallZipCard()
+                InstallZipCard(ProgressLogViewModel())
             }
         }
     )

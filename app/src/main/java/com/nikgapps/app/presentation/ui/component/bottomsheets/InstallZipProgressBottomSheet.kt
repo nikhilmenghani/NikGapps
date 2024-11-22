@@ -20,9 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,18 +29,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nikgapps.app.data.model.ProgressLogManager
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) {
+fun InstallZipProgressBottomSheet(viewModel: ProgressLogViewModel, onDismiss: () -> Unit, isProcessing: Boolean) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
     )
     val scope = rememberCoroutineScope()
-    val progressLogs by remember { derivedStateOf { ProgressLogManager.progressLogs } }
+    val progressLogs by viewModel.progressLogs.collectAsState()
     val scrollState = rememberScrollState()
 
     // Automatically scroll to the bottom when new logs are added
@@ -85,7 +84,7 @@ fun InstallZipProgressBottomSheet(onDismiss: () -> Unit, isProcessing: Boolean) 
                 FloatingActionButton(
                     onClick = {
                         scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                            ProgressLogManager.clearLogs()
+                            viewModel.clearLogs()
                             onDismiss()
                         }
                     },
