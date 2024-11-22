@@ -1,6 +1,5 @@
 package com.nikgapps.app.utils
 
-import com.nikgapps.app.data.model.ProgressLogManager.log
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import java.io.File
@@ -9,6 +8,7 @@ import java.util.zip.ZipInputStream
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import com.nikgapps.app.data.model.ProgressLogManager.progressLog
 
 object ZipUtility {
     suspend fun extractZip(
@@ -29,7 +29,7 @@ object ZipUtility {
 
             val deferreds = mutableListOf<Deferred<Boolean>>()
             if (zipFile.extension == "zip") {
-                log("Extracting: ${zipFile.name}")
+                progressLog("Extracting: ${zipFile.name}")
             }
             ZipInputStream(zipFile.inputStream()).use { zipStream ->
                 var entry = zipStream.nextEntry
@@ -62,7 +62,7 @@ object ZipUtility {
                                     extractZip(
                                         extractedFile.absolutePath,
                                         nestedOutputDir.absolutePath,
-                                        extractNestedZips = true,
+                                        extractNestedZips = false,
                                         deleteZipAfterExtract = true,
                                         progressCallback = progressCallback
                                     )

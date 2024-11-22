@@ -6,7 +6,7 @@ object ProgressLogManager {
     private val _progressLogs = mutableStateListOf<String>()
     val progressLogs: List<String> get() = _progressLogs
 
-    fun log(message: String) {
+    fun progressLog(message: String) {
         _progressLogs.add(message)
     }
 

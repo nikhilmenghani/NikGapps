@@ -25,8 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.data.model.ProgressLogManager.clearLogs
-import com.nikgapps.app.data.model.ProgressLogManager.log
+import com.nikgapps.app.data.model.ProgressLogManager.progressLog
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
@@ -106,8 +107,7 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
     withContext(Dispatchers.Main) {
         progressCallback(true)
     }
-    Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.absolutePath}")
-    Log.d("NikGapps-InstallZipFile", "Installing zip file: ${file.parentFile?.absolutePath}")
+    log("Installing zip file: ${file.name}", context)
     extractZip(
         file.absolutePath,
         file.parentFile?.absolutePath.toString(),
@@ -115,9 +115,9 @@ suspend fun installZipFile(context: Context, file: File, progressCallback: (Bool
         deleteZipAfterExtract = true,
         progressCallback = { }
     )
-    log("Extraction Complete")
     clearLogs()
-    log("Installing NikGapps...")
+    progressLog("Extraction Successful!")
+    progressLog("Installing NikGapps...")
     withContext(Dispatchers.Main) {
         progressCallback(false)
     }
