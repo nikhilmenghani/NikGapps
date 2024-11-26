@@ -34,7 +34,11 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstallZipProgressBottomSheet(viewModel: ProgressLogViewModel, onDismiss: () -> Unit, isProcessing: Boolean) {
+fun InstallZipProgressBottomSheet(
+    viewModel: ProgressLogViewModel,
+    onDismiss: () -> Unit,
+    isProcessing: Boolean
+) {
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden } // Prevent dismissing by swipe
@@ -51,12 +55,20 @@ fun InstallZipProgressBottomSheet(viewModel: ProgressLogViewModel, onDismiss: ()
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val minHeight =
-        screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
+    val minHeight = screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
     val maxHeight = screenHeight * 0.6f // Allow the height to grow up to 60% of the screen height
 
     ModalBottomSheet(
-        onDismissRequest = {}, // Prevent dismissing by clicking outside
+        onDismissRequest = {
+            if (isProcessing) {
+                scope.launch { bottomSheetState.show() }
+            } else {
+                scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                    viewModel.clearLogs()
+                    onDismiss()
+                }
+            }
+        },
         sheetState = bottomSheetState
     ) {
         Box(
