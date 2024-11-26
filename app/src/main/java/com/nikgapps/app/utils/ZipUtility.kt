@@ -14,15 +14,20 @@ object ZipUtility {
     suspend fun extractZip(
         progressLogViewModel: ProgressLogViewModel,
         zipFilePath: String,
-        outputDirPath: String,
         includeExtn: List<String> = emptyList(),
         extractNestedZips: Boolean = false,
         deleteZipAfterExtract: Boolean = false,
+        cleanExtract: Boolean = false,
         progressCallback: (String) -> Unit
     ): Boolean = coroutineScope {
         try {
             val zipFile = File(zipFilePath)
-            val outputDir = File(outputDirPath)
+            val outputDir = File(zipFile.parentFile?.absolutePath, zipFile.nameWithoutExtension)
+
+            if(cleanExtract && outputDir.exists()) {
+                outputDir.deleteRecursively()
+                outputDir.mkdirs()
+            }
 
             if (!outputDir.exists()) {
                 outputDir.mkdirs()
@@ -63,7 +68,6 @@ object ZipUtility {
                                     extractZip(
                                         progressLogViewModel,
                                         extractedFile.absolutePath,
-                                        nestedOutputDir.absolutePath,
                                         extractNestedZips = false,
                                         deleteZipAfterExtract = true,
                                         progressCallback = progressCallback

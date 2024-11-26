@@ -130,7 +130,6 @@ private fun handleExtractionAndCopy(
                 val extractSuccessful = ZipUtility.extractZip(
                     viewModel,
                     destFilePath,
-                    outputDirPath,
                     extractNestedZips = true,
                     progressCallback = { progress ->
                         updateProgressText(progress)

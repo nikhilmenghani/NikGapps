@@ -12,8 +12,10 @@ object BuildUtility {
     ): List<AppSet> {
         val appSets = mutableListOf<AppSet>()
 
-        val dir = File(directory)
-        if (!dir.exists() || !dir.isDirectory) {
+        val nwe = File(directory).nameWithoutExtension
+        val parentDir = File(directory).parentFile
+        val dir = parentDir?.resolve(nwe)
+        if (dir == null || !dir.exists() || !dir.isDirectory) {
             progressLogViewModel.addLog("Directory does not exist or is not a directory: $directory")
             return appSets
         }

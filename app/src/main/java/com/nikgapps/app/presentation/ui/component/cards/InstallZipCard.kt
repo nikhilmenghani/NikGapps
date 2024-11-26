@@ -56,17 +56,22 @@ fun InstallZipCard(
                     inputStream.copyTo(outputStream)
                 }
             }
-            showBottomSheet = true
-            CoroutineScope(Dispatchers.IO).launch {
-                installZipFile(
-                    context,
-                    progressLogViewModel,
-                    file,
-                    progressCallback = { progress ->
-                        isProcessing = progress
-                    })
-                isProcessing = false
+            if (file.exists()){
+                showBottomSheet = true
+                CoroutineScope(Dispatchers.IO).launch {
+                    installZipFile(
+                        context,
+                        progressLogViewModel,
+                        file,
+                        progressCallback = { progress ->
+                            isProcessing = progress
+                        })
+                    isProcessing = false
+                }
+            } else {
+                log("Failed to copy file to cache directory", context)
             }
+
         }
     }
 
@@ -119,41 +124,44 @@ suspend fun installZipFile(
         progressCallback(true)
     }
     log("Installing zip file: ${file.name}", context)
-    extractZip(
-        progressLogViewModel,
-        file.absolutePath,
-        file.parentFile?.absolutePath.toString(),
-        extractNestedZips = true,
-        deleteZipAfterExtract = true,
-        progressCallback = { }
-    )
-    progressLogViewModel.clearLogs()
-    progressLogViewModel.addLog("Extraction Successful!")
-    progressLogViewModel.addLog("Building NikGapps...")
-    val appsets = scanForApps(progressLogViewModel, file.parentFile?.absolutePath.toString())
-    progressLogViewModel.addLog("Installing NikGapps...")
-    appsets.forEach { appSet ->
-        appSet.packages.forEach { pkg ->
-            progressLogViewModel.addLog("Installing ${pkg.packageTitle}")
-            progressLogViewModel.addLog("Installing Files:")
-            pkg.fileList.forEach { file ->
-                progressLogViewModel.addLog("- $file")
-            }
-            progressLogViewModel.addLog("Installing Overlay:")
-            pkg.overlayList.forEach { overlay ->
-                progressLogViewModel.addLog("- $overlay")
-            }
-            progressLogViewModel.addLog("Installing Other Files:")
-            pkg.otherFilesList.forEach { otherFile ->
-                progressLogViewModel.addLog("- $otherFile")
-            }
-            progressLogViewModel.addLog("Removing AOSP Apps:")
-            pkg.removeAospAppsList.forEach { aospApp ->
-                progressLogViewModel.addLog("- Removing $aospApp...")
+    if (file.exists()){
+        extractZip(
+            progressLogViewModel,
+            file.absolutePath,
+            extractNestedZips = true,
+            deleteZipAfterExtract = true,
+            cleanExtract = true,
+            progressCallback = { }
+        )
+        progressLogViewModel.clearLogs()
+        progressLogViewModel.addLog("Extraction Successful!")
+        progressLogViewModel.addLog("Building NikGapps...")
+        val appsets = scanForApps(progressLogViewModel, file.absolutePath.toString())
+        progressLogViewModel.addLog("Installing NikGapps...")
+        appsets.forEach { appSet ->
+            appSet.packages.forEach { pkg ->
+                progressLogViewModel.addLog("Installing ${pkg.packageTitle}")
+                progressLogViewModel.addLog("Installing Files:")
+                pkg.fileList.forEach { file ->
+                    progressLogViewModel.addLog("- $file")
+                }
+                progressLogViewModel.addLog("Installing Overlay:")
+                pkg.overlayList.forEach { overlay ->
+                    progressLogViewModel.addLog("- $overlay")
+                }
+                progressLogViewModel.addLog("Installing Other Files:")
+                pkg.otherFilesList.forEach { otherFile ->
+                    progressLogViewModel.addLog("- $otherFile")
+                }
+                progressLogViewModel.addLog("Removing AOSP Apps:")
+                pkg.removeAospAppsList.forEach { aospApp ->
+                    progressLogViewModel.addLog("- Removing $aospApp...")
+                }
             }
         }
+        progressLogViewModel.addLog("Installed NikGapps...")
     }
-    progressLogViewModel.addLog("Installed NikGapps...")
+
     withContext(Dispatchers.Main) {
         progressCallback(false)
     }
