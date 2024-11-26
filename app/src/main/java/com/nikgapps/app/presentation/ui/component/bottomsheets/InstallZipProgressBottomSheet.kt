@@ -85,10 +85,22 @@ fun InstallZipProgressBottomSheet(
                     .verticalScroll(scrollState)
             ) {
                 progressLogs.forEach { log ->
+                    val textColor = when {
+                        log.contains("Extracting zip file...", ignoreCase = true) -> Color.Green
+                        log.contains("Successful!", ignoreCase = true) -> Color.Green
+                        else -> Color.White
+                    }
+
+                    val fontSize = when {
+                        log.contains("Extracting zip file...", ignoreCase = true) -> 16.sp
+                        log.contains("Successful!", ignoreCase = true) -> 16.sp
+                        else -> 14.sp
+                    }
+
                     Text(
                         text = log,
-                        color = Color.White,
-                        fontSize = 14.sp
+                        color = textColor,
+                        fontSize = fontSize
                     )
                 }
             }
