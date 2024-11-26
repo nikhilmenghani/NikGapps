@@ -51,6 +51,7 @@ object BuildUtility {
         val removeAospAppsList = mutableListOf<String>()
         val overlayList = mutableListOf<String>()
         val otherFilesList = mutableListOf<String>()
+        var appType = ""
 
         files.forEach { file ->
             if (file.equals("installer.sh", ignoreCase = true)) {
@@ -58,36 +59,32 @@ object BuildUtility {
                 var isAospApps = false
                 File(directory, file).readLines().forEach { line ->
                     when {
-                        line.startsWith("title=") -> packageInfo["title"] = line.substringAfter("title=\"").trim().dropLast(1)
-                        line.startsWith("package_title=") -> packageInfo["packageTitle"] = line.substringAfter("package_title=\"").trim().dropLast(1)
-                        line.startsWith("package_name=") -> packageInfo["packageName"] = line.substringAfter("package_name=\"").trim().dropLast(1)
-                        line.startsWith("pkg_size=") -> packageInfo["packageSize"] = line.substringAfter("pkg_size=\"").trim().dropLast(1)
-                        line.startsWith("default_partition=") -> packageInfo["packagePartition"] = line.substringAfter("default_partition=\"").trim().dropLast(1)
-                        line.startsWith("clean_flash=") -> packageInfo["cleanFlash"] = line.substringAfter("clean_flash=\"").trim().dropLast(1)
-                        line.startsWith("remove_aosp_apps_from_rom=\"") -> {
-                            isAospApps = true
-                        }
+                        line.startsWith("title=") -> packageInfo["title"] = line.extractValue()
+                        line.startsWith("package_title=") -> packageInfo["packageTitle"] = line.extractValue()
+                        line.startsWith("package_name=") -> packageInfo["packageName"] = line.extractValue()
+                        line.startsWith("pkg_size=") -> packageInfo["packageSize"] = line.extractValue()
+                        line.startsWith("default_partition=") -> packageInfo["packagePartition"] = line.extractValue()
+                        line.startsWith("clean_flash=") -> packageInfo["cleanFlash"] = line.extractValue()
+                        line.startsWith("remove_aosp_apps_from_rom=\"") -> isAospApps = true
                         isAospApps -> {
-                            if (line.endsWith("\"")) {
-                                isAospApps = false
-                            }
-                            else{
-                                removeAospAppsList.add(line.trim())
-                            }
+                            if (line.endsWith("\"")) isAospApps = false
+                            else removeAospAppsList.add(line.trim())
                         }
-                        line.startsWith("file_list=\"") -> {
-                            isFileList = true
-                        }
+                        line.startsWith("file_list=\"") -> isFileList = true
                         isFileList -> {
-                            if (line.endsWith("\"")) {
-                                isFileList = false
-                            } else {
-                                if (line.startsWith("___overlay")) {
-                                    overlayList.add(line.trim())
-                                } else if (line.startsWith("___priv-app") || line.startsWith("___app")) {
-                                    fileList.add(line.trim())
-                                } else {
-                                    otherFilesList.add(line.trim())
+                            if (line.endsWith("\"")) isFileList = false
+                            else {
+                                when {
+                                    line.startsWith("___overlay") -> overlayList.add(line.trim())
+                                    line.startsWith("___priv-app") -> {
+                                        fileList.add(line.trim())
+                                        appType = "priv-app"
+                                    }
+                                    line.startsWith("___app") -> {
+                                        fileList.add(line.trim())
+                                        appType = "app"
+                                    }
+                                    else -> otherFilesList.add(line.trim())
                                 }
                             }
                         }
@@ -101,11 +98,15 @@ object BuildUtility {
             partition = packageInfo["packagePartition"] ?: "",
             title = packageInfo["title"] ?: "",
             packageTitle = packageInfo["packageTitle"] ?: "",
-            appType = "appType", // Replace with actual value if needed
+            appType = appType,
             fileList = fileList,
             overlayList = overlayList,
             otherFilesList = otherFilesList,
             removeAospAppsList = removeAospAppsList
         )
+    }
+
+    private fun String.extractValue(): String {
+        return this.substringAfter("=\"").trim().dropLast(1)
     }
 }
