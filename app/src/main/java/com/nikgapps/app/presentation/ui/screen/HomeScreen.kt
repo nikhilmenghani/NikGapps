@@ -52,7 +52,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavHostController, progressLogViewModel: ProgressLogViewModel) {
+fun HomeScreen(
+    navController: NavHostController,
+    progressLogViewModel: ProgressLogViewModel
+) {
     val context = LocalContext.current as MainActivity
     val workManager = WorkManager.getInstance(context)
     var currentVersion by remember { mutableStateOf(getCurrentVersion(context)) }
@@ -82,7 +85,8 @@ fun HomeScreen(navController: NavHostController, progressLogViewModel: ProgressL
                                     isDownloading = true
 
                                     val downloadUrl = getNikGappsAppDownloadUrl(latestVersion)
-                                    val destFilePath = "${getExternalStorageDir()}/Download/NikGapps.apk"
+                                    val destFilePath =
+                                        "${getExternalStorageDir()}/Download/NikGapps.apk"
 
                                     val inputData = workDataOf(
                                         DownloadWorker.DOWNLOAD_URL_KEY to downloadUrl,
@@ -90,32 +94,38 @@ fun HomeScreen(navController: NavHostController, progressLogViewModel: ProgressL
                                         DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_APK
                                     )
 
-                                    val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                                        .setInputData(inputData)
-                                        .setConstraints(
-                                            Constraints.Builder()
-                                                .setRequiredNetworkType(NetworkType.CONNECTED)
-                                                .build()
-                                        )
-                                        .build()
+                                    val downloadRequest =
+                                        OneTimeWorkRequestBuilder<DownloadWorker>()
+                                            .setInputData(inputData)
+                                            .setConstraints(
+                                                Constraints.Builder()
+                                                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                                                    .build()
+                                            )
+                                            .build()
 
                                     // Enqueue the download request using WorkManager
                                     workManager.enqueue(downloadRequest)
 
                                     // Observe the WorkManager status
-                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id).observeForever { info ->
-                                        if (info?.state == WorkInfo.State.SUCCEEDED) {
-                                            isDownloading = false
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                if (context.packageManager.canRequestPackageInstalls()) {
-                                                    installApk(context, destFilePath)
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .observeForever { info ->
+                                            if (info?.state == WorkInfo.State.SUCCEEDED) {
+                                                isDownloading = false
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                    if (context.packageManager.canRequestPackageInstalls()) {
+                                                        installApk(context, destFilePath)
+                                                    }
                                                 }
+                                            } else if (info?.state == WorkInfo.State.FAILED) {
+                                                isDownloading = false
+                                                Toast.makeText(
+                                                    context,
+                                                    "Failed to download update",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
                                             }
-                                        } else if (info?.state == WorkInfo.State.FAILED) {
-                                            isDownloading = false
-                                            Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
                                         }
-                                    }
                                 }
                             )
                         }
