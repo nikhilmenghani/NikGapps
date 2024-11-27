@@ -18,7 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nikgapps.App
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
-import com.nikgapps.app.utils.root.RootUtility
+import com.nikgapps.dumps.RootUtility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

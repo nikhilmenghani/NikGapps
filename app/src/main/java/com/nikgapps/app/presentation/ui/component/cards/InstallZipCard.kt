@@ -35,7 +35,6 @@ import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithI
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.BuildUtility.installAppSet
 import com.nikgapps.app.utils.BuildUtility.scanForApps
-import com.nikgapps.app.utils.root.RootUtility
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
 import com.nikgapps.app.utils.root.RootManager

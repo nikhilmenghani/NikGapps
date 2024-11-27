@@ -1,10 +1,8 @@
 package com.nikgapps.app.utils
 
-import com.nikgapps.R
 import com.nikgapps.app.data.model.AppSet
 import com.nikgapps.app.data.model.Package
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
-import com.nikgapps.app.utils.root.RootUtility
 import java.io.File
 
 object BuildUtility {
