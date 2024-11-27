@@ -2,6 +2,8 @@ package com.nikgapps.app.presentation.ui.component.cards
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -24,14 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nikgapps.App
+import com.nikgapps.R
 import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import com.nikgapps.app.utils.BuildUtility.installAppSet
 import com.nikgapps.app.utils.BuildUtility.scanForApps
+import com.nikgapps.app.utils.root.RootUtility
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
+import com.nikgapps.app.utils.root.RootManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,28 +57,33 @@ fun InstallZipCard(
     ) { uri: Uri? ->
         uri?.let {
             val displayName = getFileNameFromUri(context, it)
-            val file = File(context.cacheDir, displayName)
-            context.contentResolver.openInputStream(it)?.use { inputStream ->
-                file.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
+            if (App.hasRootAccess) {
+                val file = File(context.cacheDir, displayName)
+                context.contentResolver.openInputStream(it)?.use { inputStream ->
+                    file.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
                 }
-            }
-            if (file.exists()){
-                showBottomSheet = true
-                CoroutineScope(Dispatchers.IO).launch {
-                    installZipFile(
-                        context,
-                        progressLogViewModel,
-                        file,
-                        progressCallback = { progress ->
-                            isProcessing = progress
-                        })
-                    isProcessing = false
+                if (file.exists()){
+                    showBottomSheet = true
+                    CoroutineScope(Dispatchers.IO).launch {
+                        installZipFile(
+                            context,
+                            progressLogViewModel,
+                            file,
+                            progressCallback = { progress ->
+                                isProcessing = progress
+                            })
+                        isProcessing = false
+                    }
+                } else {
+                    log("Failed to copy file to cache directory", context)
                 }
             } else {
-                log("Failed to copy file to cache directory", context)
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(context, "Root access required to install $displayName", Toast.LENGTH_LONG).show()
+                }
             }
-
         }
     }
 
@@ -125,6 +137,7 @@ suspend fun installZipFile(
     }
     log("Installing zip file: ${file.name}", context)
     if (file.exists()){
+        progressLogViewModel.addLog("Extracting zip file...")
         extractZip(
             progressLogViewModel,
             file.absolutePath,
@@ -135,29 +148,21 @@ suspend fun installZipFile(
         )
         progressLogViewModel.clearLogs()
         progressLogViewModel.addLog("Extraction Successful!")
-        progressLogViewModel.addLog("Building NikGapps...")
         val appsets = scanForApps(progressLogViewModel, file.absolutePath.toString())
         progressLogViewModel.addLog("Installing NikGapps...")
-        appsets.forEach { appSet ->
-            appSet.packages.forEach { pkg ->
-                progressLogViewModel.addLog("Installing ${pkg.packageTitle}")
-                progressLogViewModel.addLog("Installing Files:")
-                pkg.fileList.forEach { file ->
-                    progressLogViewModel.addLog("- $file")
-                }
-                progressLogViewModel.addLog("Installing Overlay:")
-                pkg.overlayList.forEach { overlay ->
-                    progressLogViewModel.addLog("- $overlay")
-                }
-                progressLogViewModel.addLog("Installing Other Files:")
-                pkg.otherFilesList.forEach { otherFile ->
-                    progressLogViewModel.addLog("- $otherFile")
-                }
-                progressLogViewModel.addLog("Removing AOSP Apps:")
-                pkg.removeAospAppsList.forEach { aospApp ->
-                    progressLogViewModel.addLog("- Removing $aospApp...")
-                }
+        var rootManager = RootManager(context)
+        var isSuccess = rootManager.executeScript(R.raw.mount , "/system")
+        Log.d("RootManager", "Mount /system result: $isSuccess")
+        isSuccess = rootManager.executeScript(R.raw.mount , "/product")
+        Log.d("RootManager", "Mount /product result: $isSuccess")
+        isSuccess = rootManager.executeScript(R.raw.mount , "/system_ext")
+        Log.d("RootManager", "Mount /system_ext result: $isSuccess")
+        if (isSuccess.success) {
+            appsets.forEach { appSet ->
+                installAppSet(progressLogViewModel, appSet)
             }
+        } else {
+            Log.e("RootManager", "Failed to execute mount script")
         }
         progressLogViewModel.addLog("Installed NikGapps...")
     }

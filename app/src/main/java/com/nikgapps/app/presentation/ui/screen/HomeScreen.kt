@@ -1,15 +1,18 @@
 package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -23,9 +26,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.work.Constraints
 import androidx.work.NetworkType
@@ -33,7 +39,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.nikgapps.App
 import com.nikgapps.MainActivity
+import com.nikgapps.R
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
 import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
@@ -43,12 +51,15 @@ import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageD
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.fetchLatestVersion
+import com.nikgapps.app.utils.root.RootManager
 import com.nikgapps.app.utils.worker.DownloadWorker
 import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,15 +158,123 @@ fun HomeScreen(
             )
         },
         content = { paddingValues ->
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                RootAccessCard()
-                InstallZipCard(progressLogViewModel)
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { RootAccessCard() }
+                item { InstallZipCard(progressLogViewModel) }
+                item { MountSystemPartition() }
+                item { DeviceStats() }
             }
         }
     )
+}
+
+@Composable
+fun MountSystemPartition() {
+    var mountResult by remember { mutableStateOf<Boolean?>(null) }
+    var resulttext by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(onClick = {
+            var rootManager = RootManager(App.globalClass)
+            var result = rootManager.executeScript(R.raw.mount)
+            resulttext = result.output
+            Log.d("MountSystemPartition", "Mount result: $result")
+            mountResult = result.success
+        }) {
+            Text(text = "Execute mount.sh")
+        }
+
+        Button(onClick = {
+            var rootManager = RootManager(App.globalClass)
+            var result = rootManager.executeScript(R.raw.test)
+            resulttext = result.output
+            Log.d("MountSystemPartition", "Test result: $result")
+            mountResult = result.success
+        }) {
+            Text(text = "Execute test.sh")
+        }
+
+        mountResult?.let { result ->
+            Text(
+                text = resulttext,
+                color = if (result) Color.Green else Color.Red,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun DeviceStats() {
+    var isABDevice by remember { mutableStateOf(false) }
+    var activeSlot by remember { mutableStateOf("unknown") }
+    var hasDynamicPartitions by remember { mutableStateOf(false) }
+    val currentVersion = Build.VERSION.RELEASE
+
+    LaunchedEffect(Unit) {
+        isABDevice = isABDevice()
+        activeSlot = getActiveSlot()
+        hasDynamicPartitions = hasDynamicPartitions()
+    }
+
+    Column {
+        Text(
+            text = "Android Version: $currentVersion"
+        )
+        Text(
+            text = if (isABDevice) "Device uses A/B partitions" else "Device does not use A/B partitions"
+        )
+        Text(
+            text = "Active slot: $activeSlot"
+        )
+        Text(
+            text = if (hasDynamicPartitions) "Device has dynamic partitions" else "Device does not have dynamic partitions"
+        )
+    }
+}
+
+fun hasDynamicPartitions(): Boolean {
+    return try {
+        val process = Runtime.getRuntime().exec("getprop ro.boot.dynamic_partitions")
+        val reader = BufferedReader(InputStreamReader(process.inputStream))
+        val result = reader.readLine()
+        process.waitFor()
+        result == "true"
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+
+fun isABDevice(): Boolean {
+    return try {
+        val process = Runtime.getRuntime().exec("getprop ro.build.ab_update")
+        val reader = BufferedReader(InputStreamReader(process.inputStream))
+        val result = reader.readLine()
+        process.waitFor()
+        result == "true"
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+
+fun getActiveSlot(): String {
+    return try {
+        val process = Runtime.getRuntime().exec("getprop ro.boot.slot_suffix")
+        val reader = BufferedReader(InputStreamReader(process.inputStream))
+        val result = reader.readLine()
+        process.waitFor()
+        result
+    } catch (e: Exception) {
+        e.printStackTrace()
+        "unknown"
+    }
 }

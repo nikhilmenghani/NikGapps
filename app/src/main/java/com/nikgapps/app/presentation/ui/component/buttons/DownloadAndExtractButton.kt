@@ -19,7 +19,7 @@ import androidx.work.workDataOf
 import com.nikgapps.App
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.ZipUtility
-import com.nikgapps.app.utils.RootUtility
+import com.nikgapps.app.utils.root.RootUtility
 import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope

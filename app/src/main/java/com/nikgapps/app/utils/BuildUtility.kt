@@ -1,8 +1,10 @@
 package com.nikgapps.app.utils
 
+import com.nikgapps.R
 import com.nikgapps.app.data.model.AppSet
 import com.nikgapps.app.data.model.Package
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import com.nikgapps.app.utils.root.RootUtility
 import java.io.File
 
 object BuildUtility {
@@ -10,6 +12,7 @@ object BuildUtility {
         progressLogViewModel: ProgressLogViewModel,
         directory: String
     ): List<AppSet> {
+        progressLogViewModel.addLog("Building NikGapps...")
         val appSets = mutableListOf<AppSet>()
 
         val nwe = File(directory).nameWithoutExtension
@@ -28,7 +31,8 @@ object BuildUtility {
                 }
             }
         }
-
+        progressLogViewModel.clearLogs()
+        progressLogViewModel.addLog("Building Successful!")
         return appSets
     }
 
@@ -108,5 +112,30 @@ object BuildUtility {
 
     private fun String.extractValue(): String {
         return this.substringAfter("=\"").trim().dropLast(1)
+    }
+
+    suspend fun installAppSet(
+        progressLogViewModel: ProgressLogViewModel,
+        appSet: AppSet,
+    ) {
+        appSet.packages.forEach { pkg ->
+            progressLogViewModel.addLog("Installing ${pkg.packageTitle}")
+            progressLogViewModel.addLog("Installing Files:")
+            pkg.fileList.forEach { file ->
+                progressLogViewModel.addLog("- $file")
+            }
+            progressLogViewModel.addLog("Installing Overlay:")
+            pkg.overlayList.forEach { overlay ->
+                progressLogViewModel.addLog("- $overlay")
+            }
+            progressLogViewModel.addLog("Installing Other Files:")
+            pkg.otherFilesList.forEach { otherFile ->
+                progressLogViewModel.addLog("- $otherFile")
+            }
+            progressLogViewModel.addLog("Removing AOSP Apps:")
+            pkg.removeAospAppsList.forEach { aospApp ->
+                progressLogViewModel.addLog("- Removing $aospApp...")
+            }
+        }
     }
 }
