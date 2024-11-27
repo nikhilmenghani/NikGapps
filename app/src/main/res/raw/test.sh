@@ -118,16 +118,49 @@ check_and_remount_partition() {
 mount_partition() {
   partition_name="$1"
   mount_point="$2"
+  fallback_path="/system/$partition_name"
+  derived_path="$mount_point"
 
   echo_message "- Attempting to find and mount $partition_name partition"
+
+  # Detect device path or symlink
   device_path=`get_device_path "$partition_name"`
+
   if [ -z "$device_path" ]; then
-    echo_message "- Unable to find $partition_name partition. Skipping."
-    return 1
+    echo_message "- Unable to find $partition_name partition. Checking for symlink."
+    if [ -L "$mount_point" ]; then
+      target=$(readlink "$mount_point")
+      echo_message "- $mount_point is a symlink to $target. Proceeding with target."
+      if [ ! -d "$target" ]; then
+        echo_message "- Target $target does not exist. Skipping."
+        return 1
+      fi
+    else
+      echo_message "- $mount_point is not a symlink. Checking fallback path $fallback_path."
+
+      # Check if fallback path exists
+      if [ -d "$fallback_path" ] && [ -d "$fallback_path/app" ]; then
+        echo_message "- Fallback path $fallback_path exists. Using fallback."
+        mount_point="/system"
+        derived_path="$fallback_path"
+      else
+        echo_message "- Neither $partition_name partition nor fallback path found. Skipping."
+        return 1
+      fi
+    fi
   fi
 
-  check_and_remount_partition "$mount_point" "$mount_point"
+  # If /partition is not in /proc/mounts, adjust mount_point and derived_path
+  if ! grep -q "[[:blank:]]$mount_point[[:blank:]]" /proc/mounts; then
+    echo_message "- $mount_point is not mounted. Using /system as mount point for fallback."
+    mount_point="/system"
+    derived_path="$fallback_path"
+  fi
+
+  # Remount the mount point (or fallback) and check writability
+  check_and_remount_partition "$mount_point" "$derived_path"
 }
+
 
 mount_additional_partitions() {
   for partition in product system_ext; do
