@@ -6,16 +6,22 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Repartition
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,9 +29,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nikgapps.App
 import com.nikgapps.R
 import com.nikgapps.app.data.model.LogManager.log
@@ -50,6 +58,8 @@ fun InstallZipCard(
 ) {
     var isProcessing by rememberSaveable { mutableStateOf(false) }
     var showBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var mountResult by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var resultText by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -99,8 +109,11 @@ fun InstallZipCard(
                 .padding(16.dp),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 if (isProcessing) {
                     CircularProgressIndicator()
@@ -112,8 +125,27 @@ fun InstallZipCard(
                             filePickerLauncher.launch("application/zip")
                         })
                 }
+                Spacer(modifier = Modifier.width(16.dp))
+                FilledTonalButtonWithIcon(
+                    text = "Execute Mount",
+                    icon = Icons.Default.Repartition,
+                    onClick = {
+                        val rootManager = RootManager(App.globalClass)
+                        val result = rootManager.executeScript(R.raw.mount)
+                        resultText = result.output
+                        Log.d("InstallZipCard", "Mount result: $result")
+                        mountResult = result.success
+                    })
             }
         }
+    }
+
+    mountResult?.let { result ->
+        Text(
+            text = resultText,
+            color = if (result) Color.Green else Color.Red,
+            fontSize = 11.sp
+        )
     }
 
     if (showBottomSheet) {

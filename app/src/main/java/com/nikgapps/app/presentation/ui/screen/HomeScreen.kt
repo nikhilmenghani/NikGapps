@@ -154,12 +154,9 @@ fun HomeScreen(
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(16.dp)) }
                 item { DeviceStats() }
                 item { RootAccessCard() }
                 item { InstallZipCard(progressLogViewModel) }
-                item { MountSystemPartition() }
-
             }
         }
     )
