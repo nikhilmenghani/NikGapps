@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Repartition
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nikgapps.App
 import com.nikgapps.R
 import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
@@ -133,7 +131,7 @@ fun InstallZipCard(
                     text = "Execute Mount",
                     icon = Icons.Default.Repartition,
                     onClick = {
-                        val rootManager = RootManager(App.globalClass)
+                        val rootManager = RootManager(context)
                         val result = rootManager.executeScript(R.raw.mount)
                         resultText = result.output
                         Log.d("InstallZipCard", "Mount result: $result")
