@@ -1,5 +1,8 @@
 #!/system/bin/sh
 
+DYNAMIC_PARTITIONS=false
+ACTIVE_SLOT=""
+
 # Utility function for logging
 log_message() {
   message="$1"
@@ -75,7 +78,7 @@ detect_system_mount_point() {
 
 get_device_path() {
   partition_name="$1"
-  ls /dev/block/mapper/"$partition_name" 2>/dev/null || ls /dev/block/by-name/"$partition_name" 2>/dev/null
+  ls /dev/block/mapper/"$partition_name$ACTIVE_SLOT" 2>/dev/null || ls /dev/block/by-name/"$partition_name$ACTIVE_SLOT" 2>/dev/null
 }
 
 check_and_remount_partition() {
@@ -160,11 +163,44 @@ mount_additional_partitions() {
   done
 }
 
+# Function to check for dynamic partitions
+check_dynamic_partitions() {
+  if [ -f /dev/block/by-name/super ]; then
+    DYNAMIC_PARTITIONS=true
+    log_message "Dynamic partitions detected."
+  else
+    [ $(getprop ro.boot.dynamic_partitions) = true ] && DYNAMIC_PARTITIONS=true
+    [ $(getprop ro.boot.dynamic_partitions) = true ] && log_message "Dynamic partitions detected." || log_message "Dynamic partitions not detected."
+  fi
+}
+
+# Function to fetch the active slot
+fetch_active_slot() {
+  if [ -d /sys/firmware/efi ]; then
+    ACTIVE_SLOT=$(getprop ro.boot.slot_suffix)
+  else
+    ACTIVE_SLOT=$(getprop ro.boot.slot)
+  fi
+
+  if [ -z "$ACTIVE_SLOT" ]; then
+    ACTIVE_SLOT=$(getprop ro.boot.slot_suffix)
+  fi
+
+  if [ -z "$ACTIVE_SLOT" ]; then
+    ACTIVE_SLOT=""  # Default to slot A if not found
+  fi
+
+  log_message "Active slot: $ACTIVE_SLOT"
+}
+
 main() {
-  log_message "   "
-  log_message "   "
   rotate_logs
+  log_message "   "
   echo_message "Starting partition mounting process"
+  # Check for dynamic partitions
+  check_dynamic_partitions
+  # Fetch the active slot
+  fetch_active_slot
 
   # Detect the system partition
   system_info=`detect_system_mount_point`
