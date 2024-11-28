@@ -9,11 +9,13 @@ log_message() {
 
 echo_message() {
   message="$1"
+  log_message "$message"
   echo "$message"
 }
 
 rotate_logs() {
   log_file="/data/local/tmp/mount_script.log"
+  mv "$log_file" "${log_file}.old" 2>/dev/null
   max_size=102400 # 100 KB
   if [ -f "$log_file" ] && [ "$(stat -c%s "$log_file")" -gt "$max_size" ]; then
     mv "$log_file" "${log_file}.old"
@@ -169,6 +171,8 @@ mount_additional_partitions() {
 }
 
 main() {
+  log_message "   "
+  log_message "   "
   rotate_logs
   echo_message "Starting partition mounting process"
 

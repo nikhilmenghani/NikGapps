@@ -20,6 +20,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nikgapps.app.data.model.LogManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -29,9 +31,16 @@ import java.io.IOException
 @Composable
 fun LogsScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        LogManager.loadLogs(context)
+        scope.launch {
+            while (true) {
+                LogManager.loadLogs(context)
+                delay(3000) // Poll every second
+            }
+        }
     }
+
     val logs by remember { derivedStateOf { LogManager.logs } }
     val scrollState = rememberScrollState()
 
@@ -41,7 +50,6 @@ fun LogsScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 FloatingActionButton(onClick = {
-                    // Save logs to SD card
                     val directory = Environment.getExternalStorageDirectory()
                     val file = File(directory, "logs.txt")
                     try {
@@ -61,7 +69,9 @@ fun LogsScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 FloatingActionButton(onClick = {
-                    LogManager.clearLogs(context)
+                    scope.launch {
+                        LogManager.clearLogs(context)
+                    }
                 }) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Clear Logs")
                 }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,20 @@ import kotlinx.coroutines.withContext
 @Composable
 fun RootAccessCard() {
     var rootAccessState by remember { mutableStateOf(App.hasRootAccess) }
+
+    LaunchedEffect(Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            // Always perform a fresh check for root access
+            val rootAccess = RootUtility.hasRootAccess()
+            Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
+            App.hasRootAccess = rootAccess
+
+            // Update the state variable to trigger recomposition
+            withContext(Dispatchers.Main) {
+                rootAccessState = rootAccess
+            }
+        }
+    }
 
     Card(
         modifier = Modifier

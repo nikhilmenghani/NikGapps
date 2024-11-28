@@ -37,4 +37,14 @@ class RootManager(private val context: Context) {
             "Exception: ${e.message}"
         }
     }
+
+    fun hasRootAccess(): Boolean {
+        return try {
+            val process = Runtime.getRuntime().exec("su")
+            process.waitFor() == 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
