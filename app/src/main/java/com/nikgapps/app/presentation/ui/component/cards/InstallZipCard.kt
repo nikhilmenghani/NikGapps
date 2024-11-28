@@ -46,6 +46,7 @@ import com.nikgapps.app.utils.BuildUtility.scanForApps
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
 import com.nikgapps.app.utils.root.RootManager
+import com.nikgapps.dumps.RootUtility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,16 +67,16 @@ fun InstallZipCard(
     ) { uri: Uri? ->
         uri?.let {
             val displayName = getFileNameFromUri(context, it)
-            if (App.hasRootAccess) {
-                val file = File(context.cacheDir, displayName)
-                context.contentResolver.openInputStream(it)?.use { inputStream ->
-                    file.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
+            val file = File(context.cacheDir, displayName)
+            context.contentResolver.openInputStream(it)?.use { inputStream ->
+                file.outputStream().use { outputStream ->
+                    inputStream.copyTo(outputStream)
                 }
-                if (file.exists()){
-                    showBottomSheet = true
-                    CoroutineScope(Dispatchers.IO).launch {
+            }
+            if (file.exists()){
+                CoroutineScope(Dispatchers.IO).launch {
+                    if (RootUtility.hasRootAccess()) {
+                        showBottomSheet = true
                         installZipFile(
                             context,
                             progressLogViewModel,
@@ -85,13 +86,15 @@ fun InstallZipCard(
                             })
                         isProcessing = false
                     }
-                } else {
-                    log("Failed to copy file to cache directory", context)
+                    else{
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(context, "Root access required to install $displayName", Toast.LENGTH_LONG).show()
+                        }
+                    }
+
                 }
             } else {
-                CoroutineScope(Dispatchers.Main).launch {
-                    Toast.makeText(context, "Root access required to install $displayName", Toast.LENGTH_LONG).show()
-                }
+                log("Failed to copy file to cache directory", context)
             }
         }
     }

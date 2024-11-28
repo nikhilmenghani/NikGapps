@@ -155,7 +155,6 @@ fun HomeScreen(
                     .padding(16.dp)
             ) {
                 item { DeviceStats() }
-                item { RootAccessCard() }
                 item { InstallZipCard(progressLogViewModel) }
             }
         }

@@ -5,15 +5,15 @@ import java.io.File
 
 data class ScriptResult(val success: Boolean, val output: String)
 
-class RootManager(private val context: Context) {
+class RootManager(private val context: Context? = null) {
 
     fun executeScript(scriptId: Int, vararg args: String): ScriptResult {
-        val resourceName = context.resources.getResourceEntryName(scriptId)
-        val scriptFile = File(context.filesDir, "$resourceName.sh")
-        val inputStream = context.resources.openRawResource(scriptId)
+        val resourceName = context?.resources?.getResourceEntryName(scriptId)
+        val scriptFile = File(context?.filesDir, "$resourceName.sh")
+        val inputStream = context?.resources?.openRawResource(scriptId)
         return try {
             scriptFile.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
+                inputStream?.copyTo(outputStream)
             }
             val process = Runtime.getRuntime().exec("su -c chmod +x $scriptFile.absolutePath")
             process.waitFor()
