@@ -89,7 +89,6 @@ fun InstallZipCard(
                             Toast.makeText(context, "Root access required to install $displayName", Toast.LENGTH_LONG).show()
                         }
                     }
-
                 }
             } else {
                 log("Failed to copy file to cache directory", context)
@@ -183,12 +182,8 @@ suspend fun installZipFile(
         val appsets = scanForApps(progressLogViewModel, file.absolutePath.toString())
         progressLogViewModel.addLog("Installing NikGapps...")
         var rootManager = RootManager(context)
-        var isSuccess = rootManager.executeScript(R.raw.mount , "/system")
+        var isSuccess = rootManager.executeScript(R.raw.mount)
         Log.d("RootManager", "Mount /system result: $isSuccess")
-        isSuccess = rootManager.executeScript(R.raw.mount , "/product")
-        Log.d("RootManager", "Mount /product result: $isSuccess")
-        isSuccess = rootManager.executeScript(R.raw.mount , "/system_ext")
-        Log.d("RootManager", "Mount /system_ext result: $isSuccess")
         if (isSuccess.success) {
             appsets.forEach { appSet ->
                 installAppSet(progressLogViewModel, appSet)
