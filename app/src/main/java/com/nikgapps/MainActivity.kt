@@ -19,8 +19,7 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        if (Permissions.hasAllRequiredPermissions(this)) {
+        if (Build.VERSION.RELEASE.toInt()  <= 12 || Permissions.hasAllRequiredPermissions(this)) {
             setContent {
                 NikGappsTheme {
                     // Your composable content
@@ -32,7 +31,6 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(this, PermissionsActivity::class.java))
             finish()
         }
-
     }
 
     fun restartActivity() {
