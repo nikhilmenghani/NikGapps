@@ -36,6 +36,7 @@ import androidx.work.workDataOf
 import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
+import com.nikgapps.app.presentation.ui.component.cards.ExecuteMountCard
 import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
 import com.nikgapps.app.presentation.ui.component.cards.RootAccessCard
 import com.nikgapps.app.presentation.ui.component.layouts.MountSystemPartition
@@ -156,6 +157,7 @@ fun HomeScreen(
             ) {
                 item { DeviceStats() }
                 item { InstallZipCard(progressLogViewModel) }
+                item { ExecuteMountCard() }
             }
         }
     )

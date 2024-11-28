@@ -6,38 +6,19 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Repartition
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nikgapps.R
 import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
-import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.BuildUtility.installAppSet
 import com.nikgapps.app.utils.BuildUtility.scanForApps
@@ -57,8 +38,6 @@ fun InstallZipCard(
 ) {
     var isProcessing by rememberSaveable { mutableStateOf(false) }
     var showBottomSheet by rememberSaveable { mutableStateOf(false) }
-    var mountResult by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    var resultText by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -71,7 +50,7 @@ fun InstallZipCard(
                     inputStream.copyTo(outputStream)
                 }
             }
-            if (file.exists()){
+            if (file.exists()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     if (RootUtility.hasRootAccess()) {
                         showBottomSheet = true
@@ -83,10 +62,13 @@ fun InstallZipCard(
                                 isProcessing = progress
                             })
                         isProcessing = false
-                    }
-                    else{
+                    } else {
                         CoroutineScope(Dispatchers.Main).launch {
-                            Toast.makeText(context, "Root access required to install $displayName", Toast.LENGTH_LONG).show()
+                            Toast.makeText(
+                                context,
+                                "Root access required to install $displayName",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 }
@@ -96,57 +78,16 @@ fun InstallZipCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(16.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                if (isProcessing) {
-                    CircularProgressIndicator()
-                } else {
-                    FilledTonalButtonWithIcon(
-                        text = "Install NikGapps",
-                        icon = Icons.Default.Download,
-                        onClick = {
-                            filePickerLauncher.launch("application/zip")
-                        })
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                FilledTonalButtonWithIcon(
-                    text = "Execute Mount",
-                    icon = Icons.Default.Repartition,
-                    onClick = {
-                        val rootManager = RootManager(context)
-                        val result = rootManager.executeScript(R.raw.mount)
-                        resultText = result.output
-                        Log.d("InstallZipCard", "Mount result: $result")
-                        mountResult = result.success
-                    })
-            }
+    ActionCard(
+        title = "Install NikGapps",
+        description = "Pick a NikGapps ZIP file and install it on your device. Requires root access.",
+        buttonText = "Install ZIP",
+        icon = Icons.Default.Download,
+        isProcessing = isProcessing,
+        onClick = {
+            filePickerLauncher.launch("application/zip")
         }
-    }
-
-    mountResult?.let { result ->
-        Text(
-            text = resultText,
-            color = if (result) Color.Green else Color.Red,
-            fontSize = 11.sp
-        )
-    }
+    )
 
     if (showBottomSheet) {
         InstallZipProgressBottomSheet(
