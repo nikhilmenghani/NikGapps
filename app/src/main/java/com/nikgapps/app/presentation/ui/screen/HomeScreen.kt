@@ -40,11 +40,7 @@ import androidx.work.workDataOf
 import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
-import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
-import com.nikgapps.app.presentation.ui.component.cards.ExecuteMountCard
-import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
-import com.nikgapps.app.presentation.ui.component.layouts.DeviceStats
-import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import com.nikgapps.app.presentation.ui.component.cards.DeviceStatsCard
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -181,7 +177,7 @@ fun HomeScreen(
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                item { DeviceStats() }
+                item { DeviceStatsCard() }
             }
         }
     )

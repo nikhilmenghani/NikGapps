@@ -1,71 +1,181 @@
 package com.nikgapps.app.presentation.ui.component.cards
 
+import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DynamicFeed
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.jaredrummler.android.device.DeviceName
+import com.nikgapps.App
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.utils.deviceinfo.getActiveSlot
+import com.nikgapps.app.utils.deviceinfo.hasDynamicPartitions
+import com.nikgapps.app.utils.deviceinfo.isABDevice
+import com.nikgapps.dumps.RootUtility
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
-fun DeviceStatCard(
-    icon: ImageVector,
-    title: String,
-    value: String
-) {
+fun DeviceStatsCard() {
+    var isABDevice by remember { mutableStateOf(false) }
+    var activeSlot by remember { mutableStateOf("unknown") }
+    var hasDynamicPartitions by remember { mutableStateOf(false) }
+    var deviceName by remember { mutableStateOf(Build.MODEL) }
+    var deviceCode by remember { mutableStateOf(Build.DEVICE) }
+    val currentVersion = Build.VERSION.RELEASE
+    var rootAccessState by remember { mutableStateOf(App.hasRootAccess) }
+
+    LaunchedEffect(Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            isABDevice = isABDevice()
+            activeSlot = getActiveSlot()
+            hasDynamicPartitions = hasDynamicPartitions()
+            deviceName = DeviceName.getDeviceName(deviceCode, Build.MODEL)
+            if (deviceName == deviceCode) {
+                deviceName = Build.MODEL
+            }
+            // Check root access
+            val rootAccess = RootUtility.hasRootAccess()
+            Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
+            App.hasRootAccess = rootAccess
+
+            withContext(Dispatchers.Main) {
+                rootAccessState = rootAccess
+            }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 80.dp),
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = Color(0xFF6200EA),
-                modifier = Modifier.size(40.dp)
+            // Title
+            Text(
+                text = "Device Information",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF6200EA),
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 16.sp,
-                    color = Color.Black
+
+            // Android Version
+            DeviceInfoRow(
+                label = "Android Version",
+                value = currentVersion,
+                icon = Icons.Default.Android
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Device Name Row
+            DeviceInfoRow(
+                icon = Icons.Default.Memory,
+                label = "Device Name",
+                value = "$deviceName | $deviceCode"
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Partition Scheme
+            DeviceInfoRow(
+                label = "Partition Scheme",
+                value = if (isABDevice) "A/B Partitions" else "Non-A/B Partitions",
+                icon = Icons.Default.SwapHoriz
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Active Slot
+            if (activeSlot.isNotEmpty()) {
+                DeviceInfoRow(
+                    label = "Active Slot",
+                    value = activeSlot,
+                    icon = Icons.Default.Memory
                 )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+            }
+
+            // Dynamic Partitions
+            DeviceInfoRow(
+                label = "Dynamic Partitions",
+                value = if (hasDynamicPartitions) "Supported" else "Not Supported",
+                icon = Icons.Default.DynamicFeed
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Root Access
+            DeviceInfoRow(
+                label = "Root Access",
+                value = if (rootAccessState) "Granted" else "Not Granted",
+                icon = if (rootAccessState) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                valueColor = if (rootAccessState) Color(0xFF388E3C) else Color(0xFFD32F2F)
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Refresh Button
+            Button(
+                onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val rootAccess = RootUtility.hasRootAccess()
+                        Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
+                        App.hasRootAccess = rootAccess
+
+                        withContext(Dispatchers.Main) {
+                            rootAccessState = rootAccess
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
+            ) {
+                Text(text = "Refresh Root Access")
             }
         }
     }
@@ -73,9 +183,10 @@ fun DeviceStatCard(
 
 @Composable
 fun DeviceInfoRow(
-    icon: ImageVector,
     label: String,
-    value: String
+    value: String,
+    icon: ImageVector,
+    valueColor: Color = Color.Black
 ) {
     Row(
         modifier = Modifier
@@ -89,19 +200,17 @@ fun DeviceInfoRow(
             tint = Color(0xFF6200EA),
             modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black
+                color = Color.Gray
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.Gray
+                color = valueColor
             )
         }
     }
@@ -111,10 +220,6 @@ fun DeviceInfoRow(
 @Composable
 fun DeviceStatCardPreview() {
     NikGappsThemePreview {
-        DeviceStatCard(
-            icon = Icons.Default.Android,
-            title = "Android Version",
-            value = "12"
-        )
+        DeviceStatsCard()
     }
 }
