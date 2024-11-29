@@ -1,8 +1,5 @@
 #!/system/bin/sh
 
-DYNAMIC_PARTITIONS=false
-ACTIVE_SLOT=""
-
 # Utility function for logging
 log_message() {
   message="$1"
@@ -121,12 +118,12 @@ mount_partition() {
 
   # Detect device path or symlink
   device_path=`get_device_path "$partition_name"`
-
+  echo_message "- Device path: $device_path"
   if [ -z "$device_path" ]; then
     echo_message "- Unable to find $partition_name partition. Checking for symlink."
     if [ -L "$mount_point" ]; then
       target=$(readlink "$mount_point")
-      echo_message "- $mount_point is a symlink to $target. Proceeding with target."
+      echo_message "- $mount_point is a symlink to $target. Proceeding with $target."
       if [ ! -d "$target" ]; then
         echo_message "- Target $target does not exist. Skipping."
         return 1
@@ -165,32 +162,21 @@ mount_additional_partitions() {
 
 # Function to check for dynamic partitions
 check_dynamic_partitions() {
-  if [ -f /dev/block/by-name/super ]; then
-    DYNAMIC_PARTITIONS=true
-    log_message "Dynamic partitions detected."
+  DYNAMIC_PARTITIONS=$(getprop ro.boot.dynamic_partitions)
+  if [ "$DYNAMIC_PARTITIONS" = "true" ]; then
+    log_message "- Dynamic partitions detected."
   else
-    [ $(getprop ro.boot.dynamic_partitions) = true ] && DYNAMIC_PARTITIONS=true
-    [ $(getprop ro.boot.dynamic_partitions) = true ] && log_message "Dynamic partitions detected." || log_message "Dynamic partitions not detected."
+    log_message "- Dynamic partitions not detected."
   fi
 }
 
 # Function to fetch the active slot
 fetch_active_slot() {
-  if [ -d /sys/firmware/efi ]; then
-    ACTIVE_SLOT=$(getprop ro.boot.slot_suffix)
-  else
+  ACTIVE_SLOT=$(getprop ro.boot.slot_suffix)
+  if [ -z "$ACTIVE_SLOT" ]; then
     ACTIVE_SLOT=$(getprop ro.boot.slot)
   fi
-
-  if [ -z "$ACTIVE_SLOT" ]; then
-    ACTIVE_SLOT=$(getprop ro.boot.slot_suffix)
-  fi
-
-  if [ -z "$ACTIVE_SLOT" ]; then
-    ACTIVE_SLOT=""  # Default to slot A if not found
-  fi
-
-  log_message "Active slot: $ACTIVE_SLOT"
+  log_message "- Active slot: $ACTIVE_SLOT"
 }
 
 main() {
@@ -201,7 +187,6 @@ main() {
   check_dynamic_partitions
   # Fetch the active slot
   fetch_active_slot
-
   # Detect the system partition
   system_info=`detect_system_mount_point`
   if [ "$system_info" = "ERROR" ]; then
@@ -222,4 +207,6 @@ main() {
   echo_message "Partition mounting process complete"
 }
 
+DYNAMIC_PARTITIONS=false
+ACTIVE_SLOT=""
 main

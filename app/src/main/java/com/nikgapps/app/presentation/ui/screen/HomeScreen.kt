@@ -2,8 +2,6 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,8 +36,6 @@ import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.ui.component.buttons.UpdateIconButton
 import com.nikgapps.app.presentation.ui.component.cards.ExecuteMountCard
 import com.nikgapps.app.presentation.ui.component.cards.InstallZipCard
-import com.nikgapps.app.presentation.ui.component.cards.RootAccessCard
-import com.nikgapps.app.presentation.ui.component.layouts.MountSystemPartition
 import com.nikgapps.app.presentation.ui.component.layouts.DeviceStats
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
