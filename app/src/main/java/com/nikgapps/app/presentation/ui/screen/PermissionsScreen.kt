@@ -173,7 +173,12 @@ fun PermissionsManagerCard(
 @Composable
 fun PreviewDarkPermissionsScreen() {
     NikGappsThemePreview() {
-        PermissionsScreen()
+        PermissionsCard(
+            title = "Permission Title",
+            description = "Permission Description",
+            isPermissionGranted = false,
+            permissionsText = "Request Permission",
+            onRequestPermission = {})
     }
 }
 
