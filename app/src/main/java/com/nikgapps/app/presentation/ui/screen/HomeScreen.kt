@@ -183,8 +183,6 @@ fun HomeScreen(
                     .padding(16.dp)
             ) {
                 item { DeviceStats() }
-                item { InstallZipCard(progressLogViewModel) }
-                item { ExecuteMountCard() }
             }
         }
     )

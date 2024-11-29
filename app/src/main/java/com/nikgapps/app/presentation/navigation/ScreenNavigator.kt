@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -26,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
+import com.nikgapps.app.presentation.ui.screen.InstallScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
@@ -42,11 +44,12 @@ data class NavItem(
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.Home.name),
     NavItem("Download", Icons.Default.Download, Screens.Download.name),
+    NavItem("Install", Icons.Default.InstallMobile, Screens.Install.name),
     NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name)
 )
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps, Logs
+    Home, Profile, Download, Settings, Apps, Logs, Install
 }
 
 val excludedScreens = listOf(Screens.Settings.name, Screens.Profile.name, Screens.Apps.name)
@@ -130,6 +133,9 @@ fun NavigationHost(
         }
         composable(route = Screens.Logs.name) {
             LogsScreen()
+        }
+        composable(route = Screens.Install.name) {
+            InstallScreen(progressLogViewModel)
         }
     }
 }
