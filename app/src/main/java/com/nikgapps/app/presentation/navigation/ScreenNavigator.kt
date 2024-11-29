@@ -115,8 +115,7 @@ fun NavigationHost(
     ) {
         composable(route = Screens.Home.name) {
             HomeScreen(
-                navController = navController,
-                progressLogViewModel = progressLogViewModel
+                navController = navController
             )
         }
         composable(route = Screens.Profile.name) {

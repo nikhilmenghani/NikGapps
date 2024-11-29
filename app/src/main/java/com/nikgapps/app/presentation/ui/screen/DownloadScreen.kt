@@ -1,8 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -23,15 +22,14 @@ fun DownloadScreen() {
             )
         },
         content = { paddingValues ->
-            Box(
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp), // Apply padding from Scaffold to avoid overlap
+                    .padding(16.dp)
             ) {
-                SingleChoiceDialog()
-                DownloadNikGappsCard()
+                item { DownloadNikGappsCard() }
             }
+            SingleChoiceDialog()
         }
     )
 }

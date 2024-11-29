@@ -59,8 +59,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavHostController,
-    progressLogViewModel: ProgressLogViewModel
+    navController: NavHostController
 ) {
     val context = LocalContext.current as MainActivity
     val workManager = WorkManager.getInstance(context)
