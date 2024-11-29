@@ -18,10 +18,4 @@ object DisplayPrefs {
         defaultValue = true,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
-
-    var fileListColumnCount by prefMutableState(
-        keyName = "fileListColumnCount",
-        defaultValue = 1,
-        getPreferencesKey = { intPreferencesKey(it) }
-    )
 }

@@ -18,33 +18,6 @@ fun DisplayContainer() {
     val preferences = globalClass.preferencesManager.displayPrefs
 
     Container(title = stringResource(R.string.display)) {
-        val columnCount = arrayListOf(
-            "1", "2", "3", "4", "Auto"
-        )
-
-        PreferenceItem(
-            label = stringResource(R.string.files_list_column_count),
-            supportingText = if (preferences.fileListColumnCount == -1) columnCount[4] else preferences.fileListColumnCount.toString(),
-            icon = Icons.AutoMirrored.Rounded.ManageSearch,
-            onClick = {
-                dialog.show(
-                    title = globalClass.getString(R.string.files_list_column_count),
-                    description = globalClass.getString(R.string.choose_number_of_columns),
-                    choices = columnCount,
-                    selectedChoice = if (preferences.fileListColumnCount == -1) 4 else columnCount.indexOf(
-                        preferences.fileListColumnCount.toString()
-                    ),
-                    onSelect = {
-                        val limit = when (columnCount[it]) {
-                            columnCount[4] -> -1
-                            else -> columnCount[it].toIntOrNull() ?: -1
-                        }
-                        preferences.fileListColumnCount = limit
-                    }
-                )
-            }
-        )
-
         PreferenceItem(
             label = stringResource(R.string.use_dynamic_color),
             supportingText = emptyString,
@@ -77,6 +50,5 @@ fun DisplayContainer() {
                 }
             )
         }
-
     }
 }
