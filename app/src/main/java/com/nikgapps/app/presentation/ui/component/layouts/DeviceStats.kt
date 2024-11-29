@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.jaredrummler.android.device.DeviceName
+import com.nikgapps.App
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.cards.DeviceInfoRow
 import com.nikgapps.app.utils.deviceinfo.getActiveSlot
@@ -38,12 +40,19 @@ fun DeviceStats() {
     var isABDevice by remember { mutableStateOf(false) }
     var activeSlot by remember { mutableStateOf("unknown") }
     var hasDynamicPartitions by remember { mutableStateOf(false) }
+    var deviceName by remember { mutableStateOf(Build.MODEL) }
+    var deviceCode by remember { mutableStateOf(Build.DEVICE) }
     val currentVersion = Build.VERSION.RELEASE
 
     LaunchedEffect(Unit) {
         isABDevice = isABDevice()
         activeSlot = getActiveSlot()
         hasDynamicPartitions = hasDynamicPartitions()
+        DeviceName.with(App.globalClass).request { info, error ->
+            if (error == null) {
+                deviceName = info.marketName ?: Build.MODEL
+            }
+        }
     }
 
     Card(
@@ -72,6 +81,15 @@ fun DeviceStats() {
                 icon = Icons.Default.Android,
                 label = "Android Version",
                 value = currentVersion
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Device Name Row
+            DeviceInfoRow(
+                icon = Icons.Default.Memory,
+                label = "Device Name",
+                value = "$deviceName | $deviceCode"
             )
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
