@@ -40,7 +40,7 @@ object NotificationUtility {
         progressText: String = "Download in progress",
         channelId: String = CHANNEL_ID,
         contentTitle: String = "File Download",
-        priority: Int = NotificationCompat.PRIORITY_LOW,
+        priority: Int = NotificationCompat.PRIORITY_HIGH,
         completeText: String = "Download complete",
         notificationId: Int = NOTIFICATION_ID
     ) {
@@ -51,6 +51,8 @@ object NotificationUtility {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setPriority(priority)
             .setOnlyAlertOnce(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL) // Ensures sound, vibration, etc.
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS) // Explicitly set category
 
         if (progress < 100) {
             builder.setContentText("$progressText: $progress%")
@@ -69,15 +71,16 @@ object NotificationUtility {
         context: Context = App.globalClass,
         name: String = "Progress Channel",
         descriptionText: String = "Notification channel for progress updates",
-        importance: Int = NotificationManager.IMPORTANCE_LOW,
+        importance: Int = NotificationManager.IMPORTANCE_HIGH,
         channelId: String = CHANNEL_ID
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = name
-            val descriptionText = descriptionText
-            val importance = importance
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
+                setSound(null, null)
+                enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                enableVibration(true)
             }
             val notificationManager: NotificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
