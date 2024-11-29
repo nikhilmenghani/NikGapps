@@ -1,5 +1,8 @@
 package com.nikgapps.app.utils
 
+import android.os.Build
+import android.widget.Toast
+import com.nikgapps.app.data.model.LogManager
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import java.io.File
@@ -9,6 +12,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import java.io.FileInputStream
+import java.io.IOException
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 object ZipUtility {
     suspend fun extractZip(
@@ -94,6 +101,52 @@ object ZipUtility {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    fun saveLogs(filename: String) : Boolean{
+        val file = File(LogManager.APP_LOGS_FILE_NAME)
+        val parentDir = file.parentFile
+        val zipFile = File(parentDir, filename)
+
+        try {
+            ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+                // Add specified files to the zip
+                val filesToZip = listOf("NikGapps_logs.log") // Specify the files you want to zip
+                filesToZip.forEach { fileName ->
+                    val fileToZip = File(parentDir, fileName)
+                    if (fileToZip.exists()) {
+                        FileInputStream(fileToZip).use { fis ->
+                            zos.putNextEntry(ZipEntry(fileToZip.name))
+                            fis.copyTo(zos)
+                            zos.closeEntry()
+                        }
+                    }
+                }
+
+                // Write new text files with device information
+                val deviceInfo = """
+            Device Name: ${Build.MODEL}
+            Device Code: ${Build.DEVICE}
+            Android Version: ${Build.VERSION.RELEASE}
+        """.trimIndent()
+                zos.putNextEntry(ZipEntry("device_info.txt"))
+                zos.write(deviceInfo.toByteArray())
+                zos.closeEntry()
+
+                // Execute commands and store their output in the zip file
+                val commands = listOf("uname -a", "df -h")
+                commands.forEach { command ->
+                    val process = Runtime.getRuntime().exec(command)
+                    val output = process.inputStream.bufferedReader().use { it.readText() }
+                    zos.putNextEntry(ZipEntry("${command.replace(" ", "_")}.txt"))
+                    zos.write(output.toByteArray())
+                    zos.closeEntry()
+                }
+            }
+            return true
+        } catch (e: IOException) {
+            return false
         }
     }
 }

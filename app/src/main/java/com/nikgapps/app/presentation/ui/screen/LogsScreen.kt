@@ -1,6 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -20,11 +21,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nikgapps.app.data.model.LogManager
+import com.nikgapps.app.utils.ZipUtility
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +40,7 @@ fun LogsScreen() {
     LaunchedEffect(Unit) {
         scope.launch {
             while (true) {
-                LogManager.loadLogs(context)
+                LogManager.loadLogs()
                 delay(3000) // Poll every second
             }
         }
@@ -50,17 +55,12 @@ fun LogsScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 FloatingActionButton(onClick = {
-                    val directory = Environment.getExternalStorageDirectory()
-                    val file = File(directory, "logs.txt")
-                    try {
-                        FileOutputStream(file).use { fos ->
-                            logs.forEach { log ->
-                                fos.write((log + "\n").toByteArray())
-                            }
-                        }
-                        Toast.makeText(context, "Logs saved to ${file.absolutePath}", Toast.LENGTH_SHORT).show()
-                    } catch (e: IOException) {
-                        Toast.makeText(context, "Failed to save logs: ${e.message}", Toast.LENGTH_SHORT).show()
+                    val filename = "NikGapps_logs_${System.currentTimeMillis()}.zip"
+                    val result = ZipUtility.saveLogs(filename)
+                    if (result) {
+                        Toast.makeText(context, "Logs saved successfully to $filename", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Failed to save logs", Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Icon(imageVector = Icons.Default.Save, contentDescription = "Save Logs")
@@ -70,7 +70,7 @@ fun LogsScreen() {
 
                 FloatingActionButton(onClick = {
                     scope.launch {
-                        LogManager.clearLogs(context)
+                        LogManager.clearLogs()
                     }
                 }) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Clear Logs")

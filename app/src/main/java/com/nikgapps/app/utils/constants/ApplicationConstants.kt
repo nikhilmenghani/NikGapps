@@ -15,6 +15,10 @@ object ApplicationConstants {
         return DOWNLOAD_URL.replace("variant", variant)
     }
 
+    fun getNikGappsDirectory(): String {
+        return "${getExternalStorageDir()}/NikGapps"
+    }
+
     fun getCacheDir(context: Context): String {
         return context.cacheDir.absolutePath
     }

@@ -73,7 +73,7 @@ fun InstallZipCard(
                     }
                 }
             } else {
-                log("Failed to copy file to cache directory", context)
+                log("Failed to copy file to cache directory")
             }
         }
     }
@@ -107,7 +107,7 @@ suspend fun installZipFile(
     withContext(Dispatchers.Main) {
         progressCallback(true)
     }
-    log("Installing zip file: ${file.name}", context)
+    log("Installing zip file: ${file.name}")
     if (file.exists()){
         progressLogViewModel.addLog("Extracting zip file...")
         extractZip(

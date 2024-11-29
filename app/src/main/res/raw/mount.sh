@@ -3,8 +3,7 @@
 # Utility function for logging
 log_message() {
   message="$1"
-  log_file="/data/local/tmp/mount_script.log"
-  echo "$message" >> "$log_file"
+  echo "$message" >> "$LOG_FILE"
 }
 
 echo_message() {
@@ -14,13 +13,12 @@ echo_message() {
 }
 
 rotate_logs() {
-  log_file="/data/local/tmp/mount_script.log"
-  mv "$log_file" "${log_file}.old" 2>/dev/null
+  mkdir -p "$(dirname "$LOG_FILE")"
   max_size=102400 # 100 KB
-  if [ -f "$log_file" ] && [ "$(stat -c%s "$log_file")" -gt "$max_size" ]; then
-    mv "$log_file" "${log_file}.old"
-    echo_message "Log file rotated"
-  fi
+    if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE")" -gt "$max_size" ]; then
+      mv "$LOG_FILE" "$(dirname "$LOG_FILE")/$(basename "$LOG_FILE" .log)_$CURRENT_DATE_TIME.log" 2>/dev/null
+      echo_message "Log file rotated"
+    fi
 }
 
 detect_system_mount_point() {
@@ -183,6 +181,8 @@ fetch_active_slot() {
 main() {
   rotate_logs
   log_message "   "
+  log_message "$CURRENT_DATE_TIME"
+  log_message "   "
   echo_message "Starting partition mounting process"
   # Check for dynamic partitions
   check_dynamic_partitions
@@ -208,6 +208,8 @@ main() {
   echo_message "Partition mounting process complete"
 }
 
+CURRENT_DATE_TIME=$(date +%Y_%m_%d_%H_%M_%S)
 DYNAMIC_PARTITIONS=false
 ACTIVE_SLOT=""
+LOG_FILE="/sdcard/NikGapps/NikGapps_logs.log"
 main
