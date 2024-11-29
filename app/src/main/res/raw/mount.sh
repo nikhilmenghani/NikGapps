@@ -111,6 +111,7 @@ check_and_remount_partition() {
 mount_partition() {
   partition_name="$1"
   mount_point="$2"
+  system_mount_point="$3"
   fallback_path="/system/$partition_name"
   derived_path="$mount_point"
 
@@ -133,9 +134,9 @@ mount_partition() {
 
       # Check if fallback path exists
       if [ -d "$fallback_path" ] && [ -d "$fallback_path/app" ]; then
-        echo_message "- Fallback path $fallback_path exists. Using fallback."
-        mount_point="/system"
-        derived_path="$fallback_path"
+        echo_message "- Fallback path $fallback_path exists. Using fallback with $system_mount_point."
+        mount_point=$system_mount_point
+        derived_path=$fallback_path
       else
         echo_message "- Neither $partition_name partition nor fallback path found. Skipping."
         return 1
@@ -145,9 +146,9 @@ mount_partition() {
 
   # If /partition is not in /proc/mounts, adjust mount_point and derived_path
   if ! grep -q "[[:blank:]]$mount_point[[:blank:]]" /proc/mounts; then
-    echo_message "- $mount_point is not mounted. Using /system as mount point for fallback."
-    mount_point="/system"
-    derived_path="$fallback_path"
+    echo_message "- $mount_point is not mounted. Using $system_mount_point as mount point for fallback."
+    mount_point=$system_mount_point
+    derived_path=$fallback_path
   fi
 
   # Remount the mount point (or fallback) and check writability
@@ -156,7 +157,7 @@ mount_partition() {
 
 mount_additional_partitions() {
   for partition in product system_ext; do
-    mount_partition "$partition" "/$partition"
+    mount_partition "$partition" "/$partition" "$1"
   done
 }
 
@@ -203,7 +204,7 @@ main() {
   check_and_remount_partition "$system_mount_point" "$system_derived_path"
 
   # Handle additional partitions
-  mount_additional_partitions
+  mount_additional_partitions "$system_mount_point"
   echo_message "Partition mounting process complete"
 }
 
