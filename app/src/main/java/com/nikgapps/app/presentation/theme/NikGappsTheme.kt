@@ -59,18 +59,20 @@ fun NikGappsTheme(
     }
 
     // Override specific colors only if dynamicColor is false
-    val customColorScheme = if (!(useDynamicColor)) {
+    val customColorScheme = if (!useDynamicColor) {
         colorScheme.copy(
-            primary = if (darkTheme) DarkGrey else LightGrey,
-            secondary = if (darkTheme) DarkGrey else LightGrey,
-            tertiary = if (darkTheme) DarkGrey else LightGrey,
-            background = if (darkTheme) DarkGrey else LightGrey,
-            surface = if (darkTheme) DarkGrey else LightGrey,
-            onPrimary = if (darkTheme) Color.White else Color.Black,
-            onSecondary = if (darkTheme) Color.White else Color.Black,
-            onTertiary = if (darkTheme) Color.White else Color.Black,
-            onBackground = Pink40,
-            onSurface = if (darkTheme) Color.White else Color.Black
+            primary = if (darkTheme) Color(0xFF1E88E5) else Color(0xFF1976D2),
+            secondary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF03DAC6),
+            tertiary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF018786),
+            background = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
+            surface = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
+            surfaceVariant = if (darkTheme) Color(0xFF2C2C2C) else Color(0xFFE0E0E0),
+            onPrimary = if (darkTheme) Color.Black else Color.White,
+            onSecondary = if (darkTheme) Color.Black else Color.White,
+            onTertiary = if (darkTheme) Color.Black else Color.White,
+            onBackground = if (darkTheme) Color.White else Color.Black,
+            onSurface = if (darkTheme) Color.White else Color.Black,
+            onSurfaceVariant = if (darkTheme) Color.LightGray else Color.Black
         )
     } else {
         colorScheme

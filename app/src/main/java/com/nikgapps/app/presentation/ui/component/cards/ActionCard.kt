@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 
 @Composable
 fun ActionCard(
@@ -39,7 +41,7 @@ fun ActionCard(
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
@@ -50,13 +52,16 @@ fun ActionCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF6200EA)
+                color = MaterialTheme.colorScheme.primary
             )
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -65,18 +70,23 @@ fun ActionCard(
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = "Processing...",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             } else {
                 Button(
                     onClick = onClick,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Icon(imageVector = icon, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -90,11 +100,13 @@ fun ActionCard(
 @Preview(name = "Dark Theme", showBackground = true)
 @Composable
 fun ActionCardPreview() {
-    ActionCard(
-        title = "Backup",
-        description = "Backup your data to keep it safe",
-        buttonText = "Backup Now",
-        icon = Icons.Default.Backup,
-        onClick = {}
-    )
+    NikGappsThemePreview {
+        ActionCard(
+            title = "Backup",
+            description = "Backup your data to keep it safe",
+            buttonText = "Backup Now",
+            icon = Icons.Default.Backup,
+            onClick = {}
+        )
+    }
 }

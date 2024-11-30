@@ -66,7 +66,7 @@ fun DownloadNikGappsCard() {
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
@@ -77,7 +77,7 @@ fun DownloadNikGappsCard() {
             Text(
                 text = "Download NikGapps",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF6200EA),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -104,23 +104,26 @@ fun DownloadNikGappsCard() {
                 Text(
                     text = "Gapps Variant",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = variant,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = null,
-                        tint = Color.Black
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Download Action Section
             if (isDownloading) {
@@ -128,7 +131,7 @@ fun DownloadNikGappsCard() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    color = Color(0xFF6200EA)
+                    color = MaterialTheme.colorScheme.primary
                 )
             } else {
                 Button(
@@ -190,7 +193,11 @@ fun DownloadNikGappsCard() {
                             isDownloading = false
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,

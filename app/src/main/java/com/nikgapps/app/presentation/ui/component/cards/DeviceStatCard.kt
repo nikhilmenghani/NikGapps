@@ -85,7 +85,7 @@ fun DeviceStatsCard() {
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
@@ -96,7 +96,7 @@ fun DeviceStatsCard() {
             Text(
                 text = "Device Information",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF6200EA),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -104,57 +104,87 @@ fun DeviceStatsCard() {
             DeviceInfoRow(
                 label = "Android Version",
                 value = currentVersion,
-                icon = Icons.Default.Android
+                icon = Icons.Default.Android,
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Device Name Row
             DeviceInfoRow(
                 icon = Icons.Default.Memory,
                 label = "Device Name",
-                value = "$deviceName | $deviceCode"
+                value = "$deviceName | $deviceCode",
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Partition Scheme
             DeviceInfoRow(
                 label = "Partition Scheme",
                 value = if (isABDevice) "A/B Partitions" else "Non-A/B Partitions",
-                icon = Icons.Default.SwapHoriz
+                icon = Icons.Default.SwapHoriz,
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Active Slot
             if (activeSlot.isNotEmpty()) {
                 DeviceInfoRow(
                     label = "Active Slot",
                     value = activeSlot,
-                    icon = Icons.Default.Memory
+                    icon = Icons.Default.Memory,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    iconColor = MaterialTheme.colorScheme.primary
                 )
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Divider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
             }
 
             // Dynamic Partitions
             DeviceInfoRow(
                 label = "Dynamic Partitions",
                 value = if (hasDynamicPartitions) "Supported" else "Not Supported",
-                icon = Icons.Default.DynamicFeed
+                icon = Icons.Default.DynamicFeed,
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Root Access
             DeviceInfoRow(
                 label = "Root Access",
                 value = if (rootAccessState) "Granted" else "Not Granted",
                 icon = if (rootAccessState) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                valueColor = if (rootAccessState) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                valueColor = if (rootAccessState) Color(0xFF388E3C) else Color(0xFFD32F2F),
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = if (rootAccessState) Color(0xFF388E3C) else Color(0xFFD32F2F)
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
 
             // Refresh Button
             Button(
@@ -186,7 +216,9 @@ fun DeviceInfoRow(
     label: String,
     value: String,
     icon: ImageVector,
-    valueColor: Color = Color.Black
+    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    iconColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Row(
         modifier = Modifier
@@ -197,7 +229,7 @@ fun DeviceInfoRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF6200EA),
+            tint = iconColor,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -205,7 +237,7 @@ fun DeviceInfoRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = labelColor
             )
             Text(
                 text = value,
