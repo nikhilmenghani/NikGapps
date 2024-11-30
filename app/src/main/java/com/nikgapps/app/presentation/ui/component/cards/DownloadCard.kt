@@ -190,11 +190,7 @@ fun DownloadNikGappsCard() {
                             isDownloading = false
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6200EA),
-                        contentColor = Color.White
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
