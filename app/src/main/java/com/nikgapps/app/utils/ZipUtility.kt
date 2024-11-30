@@ -2,6 +2,7 @@ package com.nikgapps.app.utils
 
 import android.os.Build
 import android.widget.Toast
+import com.jaredrummler.android.device.DeviceName
 import com.nikgapps.app.data.model.LogManager
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +32,7 @@ object ZipUtility {
             val zipFile = File(zipFilePath)
             val outputDir = File(zipFile.parentFile?.absolutePath, zipFile.nameWithoutExtension)
 
-            if(cleanExtract && outputDir.exists()) {
+            if (cleanExtract && outputDir.exists()) {
                 outputDir.deleteRecursively()
                 outputDir.mkdirs()
             }
@@ -104,7 +105,7 @@ object ZipUtility {
         }
     }
 
-    fun saveLogs(filename: String) : Boolean{
+    fun saveLogs(filename: String): Boolean {
         val file = File(LogManager.APP_LOGS_FILE_NAME)
         val parentDir = file.parentFile
         val zipFile = File(parentDir, filename)
@@ -126,20 +127,26 @@ object ZipUtility {
 
                 // Write new text files with device information
                 val deviceInfo = """
-            Device Name: ${Build.MODEL}
-            Device Code: ${Build.DEVICE}
-            Android Version: ${Build.VERSION.RELEASE}
-        """.trimIndent()
+                    Device Name: ${DeviceName.getDeviceName(Build.DEVICE, Build.MODEL)}
+                    Device Code: ${Build.DEVICE}
+                    Android Version: ${Build.VERSION.RELEASE}
+                """.trimIndent()
                 zos.putNextEntry(ZipEntry("device_info.txt"))
                 zos.write(deviceInfo.toByteArray())
                 zos.closeEntry()
 
                 // Execute commands and store their output in the zip file
-                val commands = listOf("uname -a", "df -h")
+                val commands = listOf("df", "cat /proc/mounts")
                 commands.forEach { command ->
                     val process = Runtime.getRuntime().exec(command)
                     val output = process.inputStream.bufferedReader().use { it.readText() }
-                    zos.putNextEntry(ZipEntry("${command.replace(" ", "_")}.txt"))
+                    val fileName = command
+                        .toString()
+                        .trim()
+                        .replace(" ", "")
+                        .replace("-", "_")
+                        .replace("/", "_")
+                    zos.putNextEntry(ZipEntry("${fileName}.txt"))
                     zos.write(output.toByteArray())
                     zos.closeEntry()
                 }
