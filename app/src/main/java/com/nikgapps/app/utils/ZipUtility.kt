@@ -105,10 +105,9 @@ object ZipUtility {
         }
     }
 
-    fun saveLogs(filename: String): Boolean {
-        val file = File(LogManager.APP_LOGS_FILE_NAME)
-        val parentDir = file.parentFile
-        val zipFile = File(parentDir, filename)
+    fun saveLogs(filePath: String): Boolean {
+        val zipFile = File(filePath)
+        val parentDir = zipFile.parentFile
 
         try {
             ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
