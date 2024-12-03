@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.nikgapps.app.data.model.LogManager
 import com.nikgapps.app.utils.ZipUtility
+import com.nikgapps.app.utils.constants.ApplicationConstants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -34,7 +35,7 @@ fun LogsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val fileParent = File(LogManager.APP_LOGS_FILE_NAME).parentFile
-    val filename = fileParent?.absolutePath + "/NikGapps_logs_${System.currentTimeMillis()}.zip"
+    val filename = fileParent?.absolutePath + "/NikGapps_logs_${ApplicationConstants.DATETIME_NOW}.zip"
 
     LaunchedEffect(Unit) {
         scope.launch {

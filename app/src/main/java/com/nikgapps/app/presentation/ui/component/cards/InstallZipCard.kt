@@ -126,8 +126,9 @@ suspend fun installZipFile(
         var isSuccess = rootManager.executeScript(R.raw.mount)
         Log.d("RootManager", "Mount /system result: $isSuccess")
         if (isSuccess.success) {
+            val baseScript = context.resources.openRawResource(R.raw.install_package).bufferedReader().use { it.readText() }
             appsets.forEach { appSet ->
-                installAppSet(progressLogViewModel, appSet)
+                installAppSet(progressLogViewModel, appSet, rootManager, baseScript)
             }
         } else {
             Log.e("RootManager", "Failed to execute mount script")

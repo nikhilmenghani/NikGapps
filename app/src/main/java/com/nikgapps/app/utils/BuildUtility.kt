@@ -2,11 +2,13 @@ package com.nikgapps.app.utils
 
 import com.nikgapps.app.data.model.AppSet
 import com.nikgapps.app.data.model.Package
+import com.nikgapps.app.data.model.getInstallScript
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import com.nikgapps.app.utils.root.RootManager
 import java.io.File
 
 object BuildUtility {
-    suspend fun scanForApps(
+    fun scanForApps(
         progressLogViewModel: ProgressLogViewModel,
         directory: String
     ): List<AppSet> {
@@ -34,7 +36,7 @@ object BuildUtility {
         return appSets
     }
 
-    private suspend fun processAppSet(directory: File): AppSet {
+    private fun processAppSet(directory: File): AppSet {
         val packages = mutableListOf<Package>()
 
         directory.listFiles()?.forEach { subFile ->
@@ -46,7 +48,7 @@ object BuildUtility {
         return AppSet(directory.name, packages)
     }
 
-    private suspend fun processPackage(directory: File): Package {
+    private fun processPackage(directory: File): Package {
         val files = directory.listFiles()?.filter { it.isFile }?.map { it.name } ?: emptyList()
         val packageInfo = mutableMapOf<String, String>()
         val fileList = mutableListOf<String>()
@@ -77,7 +79,7 @@ object BuildUtility {
                             if (line.endsWith("\"")) isFileList = false
                             else {
                                 when {
-                                    line.startsWith("___overlay") -> overlayList.add(line.trim())
+                                    line.startsWith("___overlay") -> fileList.add(line.trim())
                                     line.startsWith("___priv-app") -> {
                                         fileList.add(line.trim())
                                         appType = "priv-app"
@@ -86,7 +88,7 @@ object BuildUtility {
                                         fileList.add(line.trim())
                                         appType = "app"
                                     }
-                                    else -> otherFilesList.add(line.trim())
+                                    else -> fileList.add(line.trim())
                                 }
                             }
                         }
@@ -100,7 +102,10 @@ object BuildUtility {
             partition = packageInfo["packagePartition"] ?: "",
             title = packageInfo["title"] ?: "",
             packageTitle = packageInfo["packageTitle"] ?: "",
+            packageSize = packageInfo["packageSize"] ?: "",
             appType = appType,
+            cleanFlash = packageInfo["cleanFlash"] ?: "",
+            sourceDirectory = directory.absolutePath,
             fileList = fileList,
             overlayList = overlayList,
             otherFilesList = otherFilesList,
@@ -112,28 +117,27 @@ object BuildUtility {
         return this.substringAfter("=\"").trim().dropLast(1)
     }
 
-    suspend fun installAppSet(
+    fun installAppSet(
         progressLogViewModel: ProgressLogViewModel,
         appSet: AppSet,
+        rootManager: RootManager,
+        baseScript: String
     ) {
         appSet.packages.forEach { pkg ->
-            progressLogViewModel.addLog("Installing ${pkg.packageTitle}")
-            progressLogViewModel.addLog("Installing Files:")
-            pkg.fileList.forEach { file ->
-                progressLogViewModel.addLog("- $file")
+            // Create the script file in /sdcard/NikGapps/pkg.packageTitle.sh
+            val scriptFile = File("/sdcard/NikGapps/${pkg.packageTitle}.sh")
+            scriptFile.writeText(pkg.getInstallScript(baseScript))
+            scriptFile.setExecutable(true)
+
+            // Execute the script using rootManager
+            val result = rootManager.executeScript(scriptFile.absolutePath)
+            if (result.success) {
+                progressLogViewModel.addLog("Successfully installed ${pkg.packageTitle}")
+            } else {
+                progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
             }
-            progressLogViewModel.addLog("Installing Overlay:")
-            pkg.overlayList.forEach { overlay ->
-                progressLogViewModel.addLog("- $overlay")
-            }
-            progressLogViewModel.addLog("Installing Other Files:")
-            pkg.otherFilesList.forEach { otherFile ->
-                progressLogViewModel.addLog("- $otherFile")
-            }
-            progressLogViewModel.addLog("Removing AOSP Apps:")
-            pkg.removeAospAppsList.forEach { aospApp ->
-                progressLogViewModel.addLog("- Removing $aospApp...")
-            }
+
+            progressLogViewModel.addLog(result.output)
         }
     }
 }

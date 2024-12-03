@@ -38,14 +38,20 @@ fun ExecuteMountCard() {
             isProcessing = true
             CoroutineScope(Dispatchers.IO).launch {
                 val rootManager = RootManager(context)
-                val result = rootManager.executeScript(R.raw.mount)
-                resultText = result.output
-                if (result.output.equals("Exception: Cannot run program \"su\": error=2, No such file or directory")){
-                    resultText += "\nRoot access is required to execute the script"
-                    resultText += "\nPlease make sure you have root access and permissions granted to the app"
+                val scripts = listOf(R.raw.mount, R.raw.test)
+                for (script in scripts) {
+                    val result = rootManager.executeScript(script)
+                    resultText += result.output
+                    if (result.output == "Exception: Cannot run program \"su\": error=2, No such file or directory") {
+                        resultText += "\nRoot access is required to execute the script"
+                        resultText += "\nPlease make sure you have root access and permissions granted to the app"
+                    }
+                    Log.d("ExecuteMountCard", "Mount result: $result")
+                    mountResult = result.success
+                    if (!result.success) {
+                        break
+                    }
                 }
-                Log.d("ExecuteMountCard", "Mount result: $result")
-                mountResult = result.success
                 isProcessing = false
             }
         }

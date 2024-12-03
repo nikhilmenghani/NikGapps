@@ -3,6 +3,7 @@ package com.nikgapps.app.presentation.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -95,10 +96,39 @@ fun NikGappsTheme(
 }
 
 @Composable
-fun NikGappsThemePreview(content: @Composable () -> Unit) {
-    // Simplified version of NikGappsTheme for previewing
+fun NikGappsThemePreview(useDynamicColor: Boolean = false, content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val darkTheme = isSystemInDarkTheme()
+    val colorScheme = when {
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    val customColorScheme = if (!useDynamicColor) {
+        colorScheme.copy(
+            primary = if (darkTheme) Color(0xFF1E88E5) else Color(0xFF1976D2),
+            secondary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF03DAC6),
+            tertiary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF018786),
+            background = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
+            surface = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
+            surfaceVariant = if (darkTheme) Color(0xFF2C2C2C) else Color(0xFFE0E0E0),
+            onPrimary = if (darkTheme) Color.Black else Color.White,
+            onSecondary = if (darkTheme) Color.Black else Color.White,
+            onTertiary = if (darkTheme) Color.Black else Color.White,
+            onBackground = if (darkTheme) Color.White else Color.Black,
+            onSurface = if (darkTheme) Color.White else Color.Black,
+            onSurfaceVariant = if (darkTheme) Color.LightGray else Color.Black
+        )
+    } else {
+        colorScheme
+    }
+
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = customColorScheme,
         typography = Typography,
         content = content
     )

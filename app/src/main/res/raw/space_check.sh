@@ -6,12 +6,14 @@
 partitions="system product system_ext"
 
 get_mount_point() {
-    eval mount_point=\$${1}_mount_point
+    partition_name="$1"
+    eval mount_point=\$${partition_name}_mount_point
     echo $mount_point
 }
 
 get_derived_path() {
-    eval derived_path=\$${1}_derived_path
+    partition_name="$1"
+    eval derived_path=\$${partition_name}_derived_path
     echo $derived_path
 }
 
