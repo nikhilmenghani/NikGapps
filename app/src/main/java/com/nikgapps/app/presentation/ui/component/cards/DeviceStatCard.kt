@@ -21,7 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -109,7 +109,7 @@ fun DeviceStatsCard() {
                 iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
@@ -123,7 +123,7 @@ fun DeviceStatsCard() {
                 iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
@@ -137,7 +137,7 @@ fun DeviceStatsCard() {
                 iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
@@ -151,7 +151,7 @@ fun DeviceStatsCard() {
                     labelColor = MaterialTheme.colorScheme.onSurface,
                     iconColor = MaterialTheme.colorScheme.primary
                 )
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                 )
@@ -166,7 +166,7 @@ fun DeviceStatsCard() {
                 iconColor = MaterialTheme.colorScheme.primary
             )
 
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
@@ -181,7 +181,7 @@ fun DeviceStatsCard() {
                 iconColor = if (rootAccessState) Color(0xFF388E3C) else Color(0xFFD32F2F)
             )
 
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
