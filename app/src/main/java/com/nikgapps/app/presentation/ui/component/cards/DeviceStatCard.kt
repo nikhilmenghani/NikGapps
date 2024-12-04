@@ -69,13 +69,13 @@ fun DeviceStatsCard() {
                 deviceName = Build.MODEL
             }
             // Check root access
-            val rootAccess = RootUtility.hasRootAccess()
-            Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
-            App.hasRootAccess = rootAccess
-
-            withContext(Dispatchers.Main) {
-                rootAccessState = rootAccess
-            }
+//            val rootAccess = RootUtility.hasRootAccess()
+//            Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
+//            App.hasRootAccess = rootAccess
+//
+//            withContext(Dispatchers.Main) {
+//                rootAccessState = rootAccess
+//            }
         }
     }
 

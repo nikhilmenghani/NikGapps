@@ -1,6 +1,5 @@
 package com.nikgapps.app.presentation.ui.component.cards
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,38 +19,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nikgapps.App
-import com.nikgapps.dumps.RootUtility
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
-fun RootAccessCard() {
-    var rootAccessState by remember { mutableStateOf(App.hasRootAccess) }
-
-    LaunchedEffect(Unit) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val rootAccess = RootUtility.hasRootAccess()
-            Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
-            App.hasRootAccess = rootAccess
-
-            withContext(Dispatchers.Main) {
-                rootAccessState = rootAccess
-            }
-        }
-    }
+fun RootAccessCard(rootAccessState: Boolean, onClick: () -> Unit = {}) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -90,15 +65,7 @@ fun RootAccessCard() {
             // Action Button
             IconButton(
                 onClick = {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val rootAccess = RootUtility.hasRootAccess()
-                        Log.d("NikGapps-RootAccess", "Root Access: $rootAccess")
-                        App.hasRootAccess = rootAccess
-
-                        withContext(Dispatchers.Main) {
-                            rootAccessState = rootAccess
-                        }
-                    }
+                    onClick()
                 }
             ) {
                 Icon(
@@ -117,5 +84,5 @@ fun RootAccessCard() {
 //@Preview(name = "tablet", device = "spec:width=1280dp,height=800dp,dpi=480")
 @Composable
 fun PreviewGetRootAccessCard() {
-    RootAccessCard()
+    RootAccessCard(true, onClick = {})
 }
