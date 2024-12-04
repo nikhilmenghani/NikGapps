@@ -88,6 +88,7 @@ fun InstallZipProgressBottomSheet(
                     val textColor = when {
                         log.contains("Extracting zip file...", ignoreCase = true) -> Color.Green
                         log.contains("Installing NikGapps...", ignoreCase = true) -> Color.Green
+                        log.contains("Installed NikGapps...", ignoreCase = true) -> Color.Green
                         log.contains("Successful!", ignoreCase = true) -> Color.Green
                         else -> Color.White
                     }
@@ -95,6 +96,7 @@ fun InstallZipProgressBottomSheet(
                     val fontSize = when {
                         log.contains("Extracting zip file...", ignoreCase = true) -> 16.sp
                         log.contains("Installing NikGapps...", ignoreCase = true) -> 16.sp
+                        log.contains("Installed NikGapps...", ignoreCase = true) -> 16.sp
                         log.contains("Successful!", ignoreCase = true) -> 16.sp
                         else -> 14.sp
                     }

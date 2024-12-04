@@ -130,14 +130,12 @@ object BuildUtility {
             scriptFile.setExecutable(true)
 
             // Execute the script using rootManager
-            val result = rootManager.executeScript(scriptFile.absolutePath)
+            val result = rootManager.executeScriptAsRoot(scriptFile.absolutePath)
             if (result.success) {
                 progressLogViewModel.addLog("Successfully installed ${pkg.packageTitle}")
             } else {
                 progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
             }
-
-            progressLogViewModel.addLog(result.output)
         }
     }
 }
