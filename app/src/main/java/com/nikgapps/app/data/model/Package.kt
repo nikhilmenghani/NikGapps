@@ -13,6 +13,7 @@ data class Package(
     val overlayList: List<String> = emptyList(),
     val otherFilesList: List<String> = emptyList(),
     val removeAospAppsList: List<String> = emptyList(),
+    val addonIndex: String = "05"
 ) {
     fun addFile(fileName: String): Package {
         val updatedFileList = fileList.toMutableList().apply { add(fileName) }
@@ -46,7 +47,9 @@ data class Package(
         }
     }
 
-//    fun getAddonScript(baseScript: String): String {
-//
-//    }
+    fun getAddonScript(baseScript: String): String {
+        return buildString{
+            appendLine(baseScript)
+        }
+    }
 }

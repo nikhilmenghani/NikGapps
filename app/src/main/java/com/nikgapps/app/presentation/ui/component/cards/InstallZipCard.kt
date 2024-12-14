@@ -127,8 +127,11 @@ suspend fun installZipFile(
         Log.d("RootManager", "Mount /system result: $isSuccess")
         if (isSuccess.success) {
             val baseScript = context.resources.openRawResource(R.raw.install_package).bufferedReader().use { it.readText() }
+            val addonHeader1 = context.resources.openRawResource(R.raw.addon_header_1).bufferedReader().use { it.readText() }
+            val generateFilename = context.resources.openRawResource(R.raw.generate_filename).bufferedReader().use { it.readText() }
+            val copyAddon = context.resources.openRawResource(R.raw.copy_addon).bufferedReader().use { it.readText() }
             appsets.forEach { appSet ->
-                installAppSet(progressLogViewModel, appSet, rootManager, baseScript)
+                installAppSet(progressLogViewModel, appSet, rootManager, baseScript, addonHeader1, generateFilename, copyAddon)
             }
         } else {
             Log.e("RootManager", "Failed to execute mount script")
