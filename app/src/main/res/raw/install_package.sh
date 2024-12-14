@@ -30,6 +30,7 @@ update_prop() {
   dataPath=$1
   dataType=$2
   propFilePath="/system/etc/permissions/$3.prop"
+  sdPropFilePath="/sdcard/NikGapps/prop_files/$3.prop"
   if [ ! -f "$propFilePath" ]; then
     touch "$propFilePath"
     log_message "- Creating $propFilePath"
@@ -43,6 +44,8 @@ update_prop() {
   else
     log_message "- $dataTypePath $dataType-ed already in $propFilePath"
   fi
+  mkdir -p "$(dirname "$sdPropFilePath")"
+  cp -f "$propFilePath" "$sdPropFilePath"
 }
 
 install_file(){
@@ -98,6 +101,7 @@ install_package(){
               echo "- Deleting "$i""
               log_message "- Deleting $i"
               rm -rf "$i"
+              update_prop "$i" "delete" "$title"
           fi
       done
       IFS="$OLD_IFS"
@@ -108,6 +112,8 @@ install_package(){
   for i in $file_list; do
     install_file "$i" "$title"
   done
+
+  update_prop "etc/permissions/$title.prop" "install" "$title"
 }
 
 install_package $title
