@@ -3,18 +3,18 @@ log_message() {
 }
 
 get_derived_path() {
-    eval derived_path=\$${1}_derived_path
-    echo $derived_path
+  eval derived_path=\$${1}_derived_path
+  echo $derived_path
 }
 
 RemoveAospAppsFromRom() {
-    folders_that_exists=""
-    for i in $(find "$system_derived_path" "$product_derived_path" "$system_ext_derived_path" -iname "$1" 2>/dev/null;); do
-        if [ -d "$i" ]; then
-            folders_that_exists="$folders_that_exists":"$i"
-        fi
-    done
-    echo "$folders_that_exists"
+  folders_that_exists=""
+  for i in $(find "$system_derived_path" "$product_derived_path" "$system_ext_derived_path" -iname "$1" 2>/dev/null;); do
+    if [ -d "$i" ]; then
+      folders_that_exists="$folders_that_exists":"$i"
+    fi
+  done
+  echo "$folders_that_exists"
 }
 
 set_perm() {
@@ -93,18 +93,19 @@ install_file(){
 install_package(){
   title="$1"
   for k in $remove_aosp_apps_from_rom; do
-      folders_to_delete="$(RemoveAospAppsFromRom "$k")"
-      OLD_IFS=$IFS
-      IFS=":"
-      for i in $folders_to_delete; do
-          if [ -n "$i" ]; then
-              echo "- Deleting "$i""
-              log_message "- Deleting $i"
-              rm -rf "$i"
-              update_prop "$i" "delete" "$title"
-          fi
-      done
-      IFS="$OLD_IFS"
+    update_prop "$k" "forceDelete" "$title"
+    folders_to_delete="$(RemoveAospAppsFromRom "$k")"
+    OLD_IFS=$IFS
+    IFS=":"
+    for i in $folders_to_delete; do
+      if [ -n "$i" ]; then
+        echo "- Deleting "$i""
+        log_message "- Deleting $i"
+        rm -rf "$i"
+        update_prop "$i" "delete" "$title"
+      fi
+    done
+    IFS="$OLD_IFS"
   done
 
   install_partition=$(get_derived_path $default_partition)
