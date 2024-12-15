@@ -1,10 +1,3 @@
-#!/sbin/sh
-#
-# ADDOND_VERSION=3
-#
-# Addon.d script created from AFZC tool by Nikhil Menghani
-#
-
 ps | grep zygote | grep -v grep >/dev/null && BOOTMODE=true || BOOTMODE=false
 $BOOTMODE || ps -A 2>/dev/null | grep zygote | grep -v grep >/dev/null && BOOTMODE=true
 
@@ -33,10 +26,8 @@ addFileToLog() {
 
 # determine parent output fd and ui_print method
 FD=1
-# update-binary|updater <RECOVERY_API_VERSION> <OUTFD> <ZIPFILE>
 OUTFD=$(ps | grep -v 'grep' | grep -oE 'update(.*) 3 [0-9]+' | cut -d" " -f3)
 [ -z $OUTFD ] && OUTFD=$(ps -Af | grep -v 'grep' | grep -oE 'update(.*) 3 [0-9]+' | cut -d" " -f3)
-# update_engine_sideload --payload=file://<ZIPFILE> --offset=<OFFSET> --headers=<HEADERS> --status_fd=<OUTFD>
 [ -z $OUTFD ] && OUTFD=$(ps | grep -v 'grep' | grep -oE 'status_fd=[0-9]+' | cut -d= -f2)
 [ -z $OUTFD ] && OUTFD=$(ps -Af | grep -v 'grep' | grep -oE 'status_fd=[0-9]+' | cut -d= -f2)
 test "$verbose" -a "$OUTFD" && FD=$OUTFD
@@ -159,9 +150,3 @@ set_build_prop() {
 
 [ -z $execute_config ] && execute_config=$(ReadConfigValue "ExecuteBackupRestore" "$nikgapps_config_file_name")
 [ "$execute_config" != "0" ] && execute_config=1
-
-
-list_build_props() {
-cat <<EOF
-EOF
-}

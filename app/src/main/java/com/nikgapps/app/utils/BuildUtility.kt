@@ -146,7 +146,13 @@ object BuildUtility {
         appSet.packages.forEach { pkg ->
             val installationResult = installPackage(pkg, resManager, rootManager, scriptDir)
             if (installationResult.success) {
-                generateOTAScript(pkg, resManager, rootManager, scriptDir, progressLogViewModel)
+                val generateOTAResult = generateOTAScript(pkg, resManager, rootManager, scriptDir)
+                if (generateOTAResult.success) {
+                    progressLogViewModel.addLog("Successfully generated addon.d for ${pkg.packageTitle}")
+                } else {
+                    progressLogViewModel.addLog("Failed to generate addon.d for ${pkg.packageTitle}: ${generateOTAResult.output}")
+                    return
+                }
                 progressLogViewModel.addLog("Successfully installed ${pkg.packageTitle}")
             } else {
                 progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${installationResult.output}")
@@ -171,46 +177,80 @@ object BuildUtility {
         pkg: Package,
         resManager: ResourceManager,
         rootManager: RootManager,
-        scriptDir: String,
-        progressLogViewModel: ProgressLogViewModel
+        scriptDir: String
     ): ScriptResult {
+        // Create base ota_utility.sh script file
         val otaUtility = createScriptFile(
             "$scriptDir/ota_utility.sh",
             resManager.getScript("ota_utility")
         )
-        val addonFileNameResult = rootManager.executeCommandAsRoot(
+        // Generate ota name
+        val generatedOtaNameResult = rootManager.executeCommandAsRoot(
             "ota_utility.sh",
             "generate_filename",
             "\"/system/addon.d\"",
             "\"${pkg.addonIndex}\"",
             "\"${pkg.packageTitle}\""
         )
-        if (!addonFileNameResult.success) {
-            progressLogViewModel.addLog("Failed to generate filename for ${pkg.packageTitle}: ${addonFileNameResult.output}")
-            return ScriptResult(
-                false,
-                "Failed to generate filename for ${pkg.packageTitle}: ${addonFileNameResult.output}"
-            )
+        if (!generatedOtaNameResult.success) {
+            return generatedOtaNameResult
         }
-        var addonFName: String = addonFileNameResult.output.trim()
-        addonFName = File(addonFName).name
+        var generatedOtaName = File(generatedOtaNameResult.output.trim()).name
+
+        val otaScriptCore = buildString {
+            appendLine(getPropValues(pkg, "install", "list_files", rootManager))
+            appendLine(getPropValues(pkg, "buildprop", "list_build_props", rootManager))
+            appendLine(getPropValues(pkg, "delete", "delete_folders", rootManager))
+            appendLine(getPropValues(pkg, "forceDelete", "force_delete_folders", rootManager))
+            appendLine(getPropValues(pkg, "debloat", "debloat_folders", rootManager))
+            appendLine(getPropValues(pkg, "forceDebloat", "force_debloat_folders", rootManager))
+        }
+
+        // Generate package specific addon script
+        var generatedAddonScript = pkg.getAddonScript(
+            resManager.getScript("addon_header"),
+            otaScriptCore,
+            resManager.getScript("addon_tail")
+        )
         val addonFile = createScriptFile(
-            "$scriptDir/$addonFName",
-            pkg.getAddonScript(resManager.getScript("addon_header_1"))
+            "$scriptDir/$generatedOtaName",
+            generatedAddonScript
         )
         if (!addonFile.exists()) {
-            progressLogViewModel.addLog("Failed to create addon file for ${pkg.packageTitle}")
             return ScriptResult(false, "Failed to create addon file for ${pkg.packageTitle}")
         }
-        val copyAddonFile = createScriptFile(
-            "$scriptDir/copy_addon.sh",
-            resManager.getScript("copy_addon")
+        val copyOtaScriptResult = rootManager.executeCommandAsRoot(
+            "ota_utility.sh",
+            "copy_ota_script",
+            "\"${otaUtility.absolutePath}\""
         )
-        val result = rootManager.executeScriptAsRoot(copyAddonFile.absolutePath, addonFName)
-        if (!result.success) {
-            progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
-            return ScriptResult(false, "Failed to install ${pkg.packageTitle}: ${result.output}")
+        if (!copyOtaScriptResult.output.contains("Addon script copied successfully")) {
+            return copyOtaScriptResult
         }
         return ScriptResult(true, "Successfully generated addon.d for ${pkg.packageTitle}")
+    }
+
+    fun getPropValues(
+        pkg: Package,
+        type: String,
+        folder: String,
+        rootManager: RootManager
+    ): String {
+        val result = rootManager.executeCommandAsRoot(
+            "ota_utility.sh",
+            "read_prop",
+            "\"$type\"",
+            "\"${pkg.packageTitle}\""
+        )
+        val files = result.output.split(" ")
+        return buildString {
+            appendLine("$folder() {")
+            appendLine("cat <<EOF")
+            if (files.size > 1) {
+                append(files.joinToString("\n"))
+            }
+            appendLine("EOF")
+            appendLine("}")
+        }
     }
 }

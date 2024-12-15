@@ -29,3 +29,37 @@ generate_filename() {
   echo "$new_file"
 }
 
+set_perm() {
+  chown "$1:$2" "$4"
+  chmod "$3" "$4"
+}
+
+copy_ota_script() {
+  if [ -f "$1" ]; then
+    file_name=$(basename "$1")
+    mkdir -p /system/addon.d
+    cp "$1" "/system/addon.d/$file_name"
+    set_perm 0 0 0755 "/system/addon.d/$file_name"
+    [ -f "/system/addon.d/$file_name" ] && echo "Addon script copied successfully" || echo "Addon script not copied"
+  else
+    echo "Addon script not found"
+  fi
+}
+
+read_prop() {
+  type="$1"
+  package_title="$2"
+  installSource="/system/etc/permissions/$package_title.prop"
+  if [ -f "$installSource" ]; then
+    OLD_IFS="$IFS"
+    IFS="$(printf '%b_' ' \n')"
+    IFS="${IFS%_}"
+    g=$(grep "$type=" "$installSource" | cut -d= -f2)
+    for i in $g; do
+      if [ -f "/system/$i" ]; then
+        echo "$i"
+      fi
+    done
+    IFS="$OLD_IFS"
+  fi
+}

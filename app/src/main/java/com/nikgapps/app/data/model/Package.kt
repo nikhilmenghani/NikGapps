@@ -49,9 +49,21 @@ data class Package(
         }
     }
 
-    fun getAddonScript(baseScript: String): String {
+    fun getAddonScript(addonHeader: String, addonCore: String, addonTail: String): String {
         return buildString{
-            appendLine(baseScript)
+            appendLine("#!/sbin/sh")
+            appendLine("#")
+            appendLine("# ADDON_VERSION=3")
+            appendLine("#")
+            appendLine("# Addon.d script created from AFZC tool by Nikhil Menghani")
+            appendLine("#")
+            appendLine()
+            appendLine("package_title=\"$packageTitle\"")
+            appendLine()
+            appendLine(addonHeader)
+            appendLine()
+            appendLine(addonCore)
+            appendLine(addonTail)
         }
     }
 }
