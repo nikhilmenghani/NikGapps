@@ -20,7 +20,7 @@ object ApplicationConstants {
     const val REQUEST_INSTALL_UNKNOWN_APPS = 1234
     @SuppressLint("SdCardPath")
     const val NIKGAPPS_HOME_DIR = "/sdcard/NikGapps"
-    const val NIKGAPPS_LOGS_DIR = "$NIKGAPPS_HOME_DIR/app_logs"
+    const val NIKGAPPS_APP_DIR = "$NIKGAPPS_HOME_DIR/app_logs"
 
     var DATETIME_NOW: String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm").withZone(ZoneId.of("UTC")))

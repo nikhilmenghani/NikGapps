@@ -4,10 +4,11 @@ import android.annotation.SuppressLint
 import com.nikgapps.app.data.model.AppSet
 import com.nikgapps.app.data.model.Package
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
-import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_HOME_DIR
+import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
 import com.nikgapps.app.utils.managers.ResourceManager
 import com.nikgapps.app.utils.managers.ScriptManager.createScriptFile
 import com.nikgapps.app.utils.root.RootManager
+import com.nikgapps.app.utils.root.ScriptResult
 import java.io.File
 
 object BuildUtility {
@@ -141,49 +142,75 @@ object BuildUtility {
         rootManager: RootManager,
         resManager: ResourceManager
     ) {
+        val scriptDir = NIKGAPPS_APP_DIR
         appSet.packages.forEach { pkg ->
-            val scriptFile = createScriptFile(
-                "$NIKGAPPS_HOME_DIR/${pkg.packageTitle}.sh",
-                pkg.getInstallScript(resManager.getScript("install_package"))
-            )
-            val result = rootManager.executeScriptAsRoot(scriptFile.absolutePath)
-            if (result.success) {
-                val addonFileName = createScriptFile(
-                    "$NIKGAPPS_HOME_DIR/${pkg.packageTitle}_generate_filename.sh",
-                    resManager.getScript("generate_filename")
-                )
-                val addonFileNameResult = rootManager.executeScriptAsRoot(
-                    addonFileName.absolutePath,
-                    pkg.addonIndex,
-                    pkg.packageTitle
-                )
-                if (!addonFileNameResult.success) {
-                    progressLogViewModel.addLog("Failed to generate filename for ${pkg.packageTitle}: ${addonFileNameResult.output}")
-                    return
-                }
-                var addonFName: String = addonFileNameResult.output.trim()
-                addonFName = File(addonFName).name
-                val addonFile = createScriptFile(
-                    "$NIKGAPPS_HOME_DIR/$addonFName",
-                    pkg.getAddonScript(resManager.getScript("addon_header_1"))
-                )
-                if (!addonFile.exists()) {
-                    progressLogViewModel.addLog("Failed to create addon file for ${pkg.packageTitle}")
-                    return
-                }
-                val copyAddonFile = createScriptFile(
-                    "$NIKGAPPS_HOME_DIR/copy_addon.sh",
-                    resManager.getScript("copy_addon")
-                )
-                val result = rootManager.executeScriptAsRoot(copyAddonFile.absolutePath, addonFName)
-                if (!result.success) {
-                    progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
-                    return
-                }
+            val installationResult = installPackage(pkg, resManager, rootManager, scriptDir)
+            if (installationResult.success) {
+                generateOTAScript(pkg, resManager, rootManager, scriptDir, progressLogViewModel)
                 progressLogViewModel.addLog("Successfully installed ${pkg.packageTitle}")
             } else {
-                progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
+                progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${installationResult.output}")
             }
         }
+    }
+
+    fun installPackage(
+        pkg: Package,
+        resManager: ResourceManager,
+        rootManager: RootManager,
+        scriptDir: String
+    ): ScriptResult {
+        val scriptFile = createScriptFile(
+            "$scriptDir/${pkg.packageTitle}.sh",
+            pkg.getInstallScript(resManager.getScript("install_package"))
+        )
+        return rootManager.executeScriptAsRoot(scriptFile.absolutePath)
+    }
+
+    fun generateOTAScript(
+        pkg: Package,
+        resManager: ResourceManager,
+        rootManager: RootManager,
+        scriptDir: String,
+        progressLogViewModel: ProgressLogViewModel
+    ): ScriptResult {
+        val otaUtility = createScriptFile(
+            "$scriptDir/ota_utility.sh",
+            resManager.getScript("ota_utility")
+        )
+        val addonFileNameResult = rootManager.executeCommandAsRoot(
+            "ota_utility.sh",
+            "generate_filename",
+            "\"/system/addon.d\"",
+            "\"${pkg.addonIndex}\"",
+            "\"${pkg.packageTitle}\""
+        )
+        if (!addonFileNameResult.success) {
+            progressLogViewModel.addLog("Failed to generate filename for ${pkg.packageTitle}: ${addonFileNameResult.output}")
+            return ScriptResult(
+                false,
+                "Failed to generate filename for ${pkg.packageTitle}: ${addonFileNameResult.output}"
+            )
+        }
+        var addonFName: String = addonFileNameResult.output.trim()
+        addonFName = File(addonFName).name
+        val addonFile = createScriptFile(
+            "$scriptDir/$addonFName",
+            pkg.getAddonScript(resManager.getScript("addon_header_1"))
+        )
+        if (!addonFile.exists()) {
+            progressLogViewModel.addLog("Failed to create addon file for ${pkg.packageTitle}")
+            return ScriptResult(false, "Failed to create addon file for ${pkg.packageTitle}")
+        }
+        val copyAddonFile = createScriptFile(
+            "$scriptDir/copy_addon.sh",
+            resManager.getScript("copy_addon")
+        )
+        val result = rootManager.executeScriptAsRoot(copyAddonFile.absolutePath, addonFName)
+        if (!result.success) {
+            progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")
+            return ScriptResult(false, "Failed to install ${pkg.packageTitle}: ${result.output}")
+        }
+        return ScriptResult(true, "Successfully generated addon.d for ${pkg.packageTitle}")
     }
 }

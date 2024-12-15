@@ -30,7 +30,7 @@ update_prop() {
   dataPath=$1
   dataType=$2
   propFilePath="/system/etc/permissions/$3.prop"
-  sdPropFilePath="/sdcard/NikGapps/prop_files/$3.prop"
+  sdPropFilePath="$APP_LOGS_DIR/prop_files/$3.prop"
   if [ ! -f "$propFilePath" ]; then
     touch "$propFilePath"
     log_message "- Creating $propFilePath"

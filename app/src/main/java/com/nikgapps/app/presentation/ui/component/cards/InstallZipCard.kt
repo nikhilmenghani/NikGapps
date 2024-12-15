@@ -15,7 +15,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import com.nikgapps.R
 import com.nikgapps.app.data.model.LogManager.log
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
@@ -23,8 +22,10 @@ import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.BuildUtility.installAppSet
 import com.nikgapps.app.utils.BuildUtility.scanForApps
 import com.nikgapps.app.utils.ZipUtility.extractZip
+import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
 import com.nikgapps.app.utils.managers.ResourceManager
+import com.nikgapps.app.utils.managers.ScriptManager
 import com.nikgapps.app.utils.root.RootManager
 import com.nikgapps.dumps.RootUtility
 import kotlinx.coroutines.CoroutineScope
@@ -123,9 +124,11 @@ suspend fun installZipFile(
         progressLogViewModel.addLog("Extraction Successful!")
         val appsets = scanForApps(progressLogViewModel, file.absolutePath.toString())
         progressLogViewModel.addLog("Installing NikGapps...")
-        var rootManager = RootManager(context)
-        var isSuccess = rootManager.executeScript(R.raw.mount)
         val resManager = ResourceManager(context)
+        ScriptManager.createScriptFile("$NIKGAPPS_APP_DIR/variables.sh", resManager.getScript("variables"))
+        var rootManager = RootManager(context)
+        ScriptManager.createScriptFile("$NIKGAPPS_APP_DIR/mount.sh", resManager.getScript("mount"))
+        var isSuccess = rootManager.executeScriptAsRoot("$NIKGAPPS_APP_DIR/mount.sh")
         Log.d("RootManager", "Mount /system result: $isSuccess")
         if (isSuccess.success) {
             appsets.forEach { appSet ->

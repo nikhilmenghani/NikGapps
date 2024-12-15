@@ -1,6 +1,7 @@
 package com.nikgapps.app.utils.root
 
 import android.content.Context
+import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
 import java.io.File
 
 data class ScriptResult(val success: Boolean, val output: String)
@@ -47,6 +48,27 @@ class RootManager(private val context: Context? = null) {
     fun executeScriptAsRoot(filePath: String, vararg args: String): ScriptResult {
         return try {
             val process = Runtime.getRuntime().exec("su -c sh $filePath ${args.joinToString(" ")}")
+            val output = process.inputStream.bufferedReader().readText()
+            val error = process.errorStream.bufferedReader().readText()
+            process.waitFor()
+            if (error.isNotEmpty()) ScriptResult(false, "Error: $error") else ScriptResult(true, output)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "Exception: ${e.message}"
+            ScriptResult(false, "Exception: ${e.message}")
+        }
+    }
+
+    fun executeCommandAsRoot(fileSource: String, command: String, vararg args: String): ScriptResult {
+        return try {
+            val commandString = buildString {
+                if (fileSource.isNotEmpty()) {
+                    append("source $NIKGAPPS_APP_DIR/$fileSource && ")
+                }
+                append("echo \$($command ${args.joinToString(" ")})")
+            }
+            println(commandString)
+            val process = Runtime.getRuntime().exec("su -c $commandString")
             val output = process.inputStream.bufferedReader().readText()
             val error = process.errorStream.bufferedReader().readText()
             process.waitFor()

@@ -24,7 +24,9 @@ data class Package(
         return buildString {
             appendLine("#!/bin/sh")
             appendLine()
-            appendLine(". /sdcard/NikGapps/NikGapps_flags.log")
+            appendLine("cd \"\$(dirname \"\$0\")\"")
+            appendLine("source ./NikGapps_flags.log")
+            appendLine("source ./variables.sh")
             appendLine()
             appendLine("# Initializing Variables")
             appendLine("title=\"$packageTitle\"")

@@ -1,5 +1,9 @@
 #!/system/bin/sh
 
+
+cd "$(dirname "$0")"
+. ./variables.sh
+
 # Utility function for logging
 log_message() {
   echo "$1" >> "$LOG_FILE"
@@ -199,7 +203,7 @@ main() {
   log_message "   "
   log_message "$CURRENT_DATE_TIME"
   log_message "   "
-  log_message "Starting partition mounting process"
+  log_message "- Starting partition mounting process"
   check_dynamic_partitions
   fetch_active_slot
   # Detect the system partition
@@ -219,12 +223,7 @@ main() {
 
   # Handle additional partitions
   mount_additional_partitions "$system_mount_point"
-  log_message "Partition mounting process complete"
+  log_message "- Partition mounting process complete"
 }
 
-CURRENT_DATE_TIME=$(date +%Y_%m_%d_%H_%M_%S)
-DYNAMIC_PARTITIONS=false
-ACTIVE_SLOT=""
-LOG_FILE="/sdcard/NikGapps/NikGapps_logs.log"
-FLAG_FILE="/sdcard/NikGapps/NikGapps_flags.log"
 main
