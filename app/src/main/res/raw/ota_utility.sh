@@ -39,7 +39,7 @@ copy_ota_script() {
     file_name=$(basename "$1")
     mkdir -p /system/addon.d
     cp "$1" "/system/addon.d/$file_name"
-    set_perm 0 0 0755 "/system/addon.d/$file_name"
+    set_perm 0 0 0644 "/system/addon.d/$file_name"
     [ -f "/system/addon.d/$file_name" ] && echo "Addon script copied successfully" || echo "Addon script not copied"
   else
     echo "Addon script not found"
