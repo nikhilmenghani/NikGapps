@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import com.nikgapps.app.data.model.AppSet
 import com.nikgapps.app.data.model.Package
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_HOME_DIR
+import com.nikgapps.app.utils.managers.ResourceManager
+import com.nikgapps.app.utils.managers.ScriptManager.createScriptFile
 import com.nikgapps.app.utils.root.RootManager
 import java.io.File
 
@@ -64,16 +67,27 @@ object BuildUtility {
                 File(directory, file).readLines().forEach { line ->
                     when {
                         line.startsWith("title=") -> packageInfo["title"] = line.extractValue()
-                        line.startsWith("package_title=") -> packageInfo["packageTitle"] = line.extractValue()
-                        line.startsWith("package_name=") -> packageInfo["packageName"] = line.extractValue()
-                        line.startsWith("pkg_size=") -> packageInfo["packageSize"] = line.extractValue()
-                        line.startsWith("default_partition=") -> packageInfo["packagePartition"] = line.extractValue()
-                        line.startsWith("clean_flash=") -> packageInfo["cleanFlash"] = line.extractValue()
+                        line.startsWith("package_title=") -> packageInfo["packageTitle"] =
+                            line.extractValue()
+
+                        line.startsWith("package_name=") -> packageInfo["packageName"] =
+                            line.extractValue()
+
+                        line.startsWith("pkg_size=") -> packageInfo["packageSize"] =
+                            line.extractValue()
+
+                        line.startsWith("default_partition=") -> packageInfo["packagePartition"] =
+                            line.extractValue()
+
+                        line.startsWith("clean_flash=") -> packageInfo["cleanFlash"] =
+                            line.extractValue()
+
                         line.startsWith("remove_aosp_apps_from_rom=\"") -> isAospApps = true
                         isAospApps -> {
                             if (line.endsWith("\"")) isAospApps = false
                             else removeAospAppsList.add(line.trim())
                         }
+
                         line.startsWith("file_list=\"") -> isFileList = true
                         isFileList -> {
                             if (line.endsWith("\"")) isFileList = false
@@ -84,10 +98,12 @@ object BuildUtility {
                                         fileList.add(line.trim())
                                         appType = "priv-app"
                                     }
+
                                     line.startsWith("___app") -> {
                                         fileList.add(line.trim())
                                         appType = "app"
                                     }
+
                                     else -> fileList.add(line.trim())
                                 }
                             }
@@ -117,28 +133,25 @@ object BuildUtility {
         return this.substringAfter("=\"").trim().dropLast(1)
     }
 
+    // we can pass a data object with raw script values as parameter to improve function calling
     @SuppressLint("SdCardPath")
     fun installAppSet(
         progressLogViewModel: ProgressLogViewModel,
         appSet: AppSet,
         rootManager: RootManager,
-        baseScript: String,
-        addonHeader1: String,
-        generateFilename: String,
-        copyAddon: String
+        resManager: ResourceManager
     ) {
         appSet.packages.forEach { pkg ->
-            // Create the script file in /sdcard/NikGapps/pkg.packageTitle.sh
-            val scriptFile = File("/sdcard/NikGapps/${pkg.packageTitle}.sh")
-            scriptFile.writeText(pkg.getInstallScript(baseScript))
-            scriptFile.setExecutable(true)
-            // Execute the script using rootManager
+            val scriptFile = createScriptFile(
+                "$NIKGAPPS_HOME_DIR/${pkg.packageTitle}.sh",
+                pkg.getInstallScript(resManager.getScript("install_package"))
+            )
             val result = rootManager.executeScriptAsRoot(scriptFile.absolutePath)
             if (result.success) {
-                val addonFileName =
-                    File("/sdcard/NikGapps/${pkg.packageTitle}_generate_filename.sh")
-                addonFileName.writeText(generateFilename)
-                addonFileName.setExecutable(true)
+                val addonFileName = createScriptFile(
+                    "$NIKGAPPS_HOME_DIR/${pkg.packageTitle}_generate_filename.sh",
+                    resManager.getScript("generate_filename")
+                )
                 val addonFileNameResult = rootManager.executeScriptAsRoot(
                     addonFileName.absolutePath,
                     pkg.addonIndex,
@@ -150,14 +163,18 @@ object BuildUtility {
                 }
                 var addonFName: String = addonFileNameResult.output.trim()
                 addonFName = File(addonFName).name
-                val addonFile = File("/sdcard/NikGapps/$addonFName")
-                addonFile.writeText(pkg.getAddonScript(addonHeader1))
-                addonFile.setExecutable(true)
-
-                val copyAddonFile = File("/sdcard/NikGapps/copy_addon.sh")
-                copyAddonFile.writeText(copyAddon)
-                copyAddonFile.setExecutable(true)
-
+                val addonFile = createScriptFile(
+                    "$NIKGAPPS_HOME_DIR/$addonFName",
+                    pkg.getAddonScript(resManager.getScript("addon_header_1"))
+                )
+                if (!addonFile.exists()) {
+                    progressLogViewModel.addLog("Failed to create addon file for ${pkg.packageTitle}")
+                    return
+                }
+                val copyAddonFile = createScriptFile(
+                    "$NIKGAPPS_HOME_DIR/copy_addon.sh",
+                    resManager.getScript("copy_addon")
+                )
                 val result = rootManager.executeScriptAsRoot(copyAddonFile.absolutePath, addonFName)
                 if (!result.success) {
                     progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${result.output}")

@@ -18,6 +18,9 @@ object ApplicationConstants {
     const val DOWNLOAD_URL = "https://sourceforge.net/projects/nikgapps/files/Releases/Android-15/04-Nov-2024/NikGapps-variant-arm64-15-20241104-signed.zip/download"
 //    const val DOWNLOAD_URL = "https://sourceforge.net/projects/nikgapps/files/Releases/Android-15/04-Nov-2024/Addons/NikGapps-Addon-15-Books-20241104-signed.zip/download"
     const val REQUEST_INSTALL_UNKNOWN_APPS = 1234
+    @SuppressLint("SdCardPath")
+    const val NIKGAPPS_HOME_DIR = "/sdcard/NikGapps"
+    const val NIKGAPPS_LOGS_DIR = "$NIKGAPPS_HOME_DIR/app_logs"
 
     var DATETIME_NOW: String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm").withZone(ZoneId.of("UTC")))

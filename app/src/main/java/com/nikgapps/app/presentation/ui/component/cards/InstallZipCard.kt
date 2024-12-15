@@ -24,6 +24,7 @@ import com.nikgapps.app.utils.BuildUtility.installAppSet
 import com.nikgapps.app.utils.BuildUtility.scanForApps
 import com.nikgapps.app.utils.ZipUtility.extractZip
 import com.nikgapps.app.utils.constants.ApplicationConstants.getFileNameFromUri
+import com.nikgapps.app.utils.managers.ResourceManager
 import com.nikgapps.app.utils.root.RootManager
 import com.nikgapps.dumps.RootUtility
 import kotlinx.coroutines.CoroutineScope
@@ -124,14 +125,11 @@ suspend fun installZipFile(
         progressLogViewModel.addLog("Installing NikGapps...")
         var rootManager = RootManager(context)
         var isSuccess = rootManager.executeScript(R.raw.mount)
+        val resManager = ResourceManager(context)
         Log.d("RootManager", "Mount /system result: $isSuccess")
         if (isSuccess.success) {
-            val baseScript = context.resources.openRawResource(R.raw.install_package).bufferedReader().use { it.readText() }
-            val addonHeader1 = context.resources.openRawResource(R.raw.addon_header_1).bufferedReader().use { it.readText() }
-            val generateFilename = context.resources.openRawResource(R.raw.generate_filename).bufferedReader().use { it.readText() }
-            val copyAddon = context.resources.openRawResource(R.raw.copy_addon).bufferedReader().use { it.readText() }
             appsets.forEach { appSet ->
-                installAppSet(progressLogViewModel, appSet, rootManager, baseScript, addonHeader1, generateFilename, copyAddon)
+                installAppSet(progressLogViewModel, appSet, rootManager, resManager)
             }
         } else {
             Log.e("RootManager", "Failed to execute mount script")
