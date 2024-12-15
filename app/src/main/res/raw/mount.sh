@@ -1,8 +1,7 @@
 #!/system/bin/sh
 
 
-cd "$(dirname "$0")"
-. ./variables.sh
+. $(dirname "$0")/variables.sh
 
 # Utility function for logging
 log_message() {

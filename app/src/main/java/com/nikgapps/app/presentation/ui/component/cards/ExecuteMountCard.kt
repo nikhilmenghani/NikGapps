@@ -16,6 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nikgapps.R
+import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
+import com.nikgapps.app.utils.managers.ResourceManager
+import com.nikgapps.app.utils.managers.ScriptManager
 import com.nikgapps.app.utils.root.RootManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,9 +41,11 @@ fun ExecuteMountCard() {
             isProcessing = true
             CoroutineScope(Dispatchers.IO).launch {
                 val rootManager = RootManager(context)
-                val scripts = listOf(R.raw.mount, R.raw.test)
+                val resManager = ResourceManager(context)
+                val scripts = listOf("mount", "test")
                 for (script in scripts) {
-                    val result = rootManager.executeScript(script)
+                    ScriptManager.createScriptFile("$NIKGAPPS_APP_DIR/$script.sh", resManager.getScript(script))
+                    val result = rootManager.executeScriptAsRoot("$NIKGAPPS_APP_DIR/$script.sh")
                     resultText += result.output
                     if (result.output == "Exception: Cannot run program \"su\": error=2, No such file or directory") {
                         resultText += "\nRoot access is required to execute the script"

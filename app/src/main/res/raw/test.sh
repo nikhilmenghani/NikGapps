@@ -1,6 +1,6 @@
 #!/system/bin/sh
 
-. /sdcard/NikGapps/NikGapps_flags.log
+. $(dirname "$0")/NikGapps_flags.log
 
 # Define an array of partition names
 partitions="system product system_ext"
