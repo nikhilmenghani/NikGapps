@@ -9,14 +9,11 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.nikgapps.App
 import com.nikgapps.R
 
 abstract class PermissionsManager : ComponentActivity() {
-
-    private val permissionRequestCode = 2027
 
     private val checkPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
@@ -28,13 +25,18 @@ abstract class PermissionsManager : ComponentActivity() {
             }
         }
 
-    open fun onPermissionGranted() {}
-
-    protected fun checkPermissions() {
-        if (grantStoragePermissions()) {
-            onPermissionGranted()
+    private val requestPermissionsLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            if (permissions[Manifest.permission.READ_EXTERNAL_STORAGE] == true &&
+                permissions[Manifest.permission.WRITE_EXTERNAL_STORAGE] == true) {
+                onPermissionGranted()
+            } else {
+                App.Companion.globalClass.showMsg(R.string.storage_permission_required)
+                finish()
+            }
         }
-    }
+
+    open fun onPermissionGranted() {}
 
     private fun canAccessStorage(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
@@ -59,26 +61,13 @@ abstract class PermissionsManager : ComponentActivity() {
             intent.data = Uri.fromParts("package", packageName, null)
             checkPermissionLauncher.launch(intent)
         } else {
-            ActivityCompat.requestPermissions(
-                this,
+            requestPermissionsLauncher.launch(
                 arrayOf(
                     Manifest.permission.READ_EXTERNAL_STORAGE,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ),
-                permissionRequestCode
+                )
             )
         }
         return false
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == permissionRequestCode) {
-            onPermissionGranted()
-        }
     }
 }
