@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -27,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -57,9 +57,9 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     navController: NavHostController
 ) {
-    val context = LocalContext.current as MainActivity
+    val context = LocalActivity.current as MainActivity
     val workManager = WorkManager.getInstance(context)
-    var currentVersion by remember { mutableStateOf(getCurrentVersion(context)) }
+    val currentVersion by remember { mutableStateOf(getCurrentVersion(context)) }
     var latestVersion by remember { mutableStateOf(currentVersion) }
     var isLatestVersion by remember { mutableStateOf(true) }
     var isDownloading by remember { mutableStateOf(false) }
