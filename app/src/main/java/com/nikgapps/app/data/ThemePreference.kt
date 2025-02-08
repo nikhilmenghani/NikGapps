@@ -1,4 +1,4 @@
-package com.nikgapps.app.data.model
+package com.nikgapps.app.data
 
 enum class ThemePreference {
     LIGHT,

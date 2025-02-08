@@ -4,7 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.StringRes
-import com.nikgapps.app.data.model.SingleChoice
+import com.nikgapps.app.data.SingleChoice
 import com.nikgapps.app.utils.managers.DownloadManager
 import com.nikgapps.app.utils.managers.PreferencesManager
 import kotlinx.coroutines.CoroutineScope

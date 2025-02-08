@@ -1,21 +1,19 @@
 package com.nikgapps.app.utils
 
 import android.os.Build
-import android.widget.Toast
 import com.jaredrummler.android.device.DeviceName
-import com.nikgapps.app.data.model.LogManager
+import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipInputStream
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
+import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 object ZipUtility {

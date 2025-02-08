@@ -4,7 +4,7 @@ import android.Manifest
 import android.os.Build
 import android.provider.Settings
 import androidx.annotation.RequiresApi
-import com.nikgapps.app.data.model.PermissionInfo
+import com.nikgapps.app.data.PermissionInfo
 
 object PermissionConstants {
     const val INSTALL_APPS = "Install Unknown Apps"

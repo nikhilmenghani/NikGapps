@@ -42,8 +42,8 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
-import com.nikgapps.app.data.model.GappsVariantPreference
-import com.nikgapps.app.data.model.toVariantString
+import com.nikgapps.app.data.GappsVariantPreference
+import com.nikgapps.app.data.toVariantString
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.utils.constants.ApplicationConstants
 import com.nikgapps.app.utils.worker.DownloadWorker

@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.nikgapps.App
-import com.nikgapps.app.data.model.dataStore
+import com.nikgapps.app.data.dataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 

@@ -1,4 +1,4 @@
-package com.nikgapps.app.data.model
+package com.nikgapps.app.data
 
 import androidx.compose.runtime.mutableStateListOf
 import com.nikgapps.app.utils.constants.ApplicationConstants

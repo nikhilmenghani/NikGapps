@@ -1,8 +1,8 @@
 package com.nikgapps.app.utils
 
 import android.annotation.SuppressLint
-import com.nikgapps.app.data.model.AppSet
-import com.nikgapps.app.data.model.Package
+import com.nikgapps.app.data.AppSet
+import com.nikgapps.app.data.Package
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
 import com.nikgapps.app.utils.managers.ResourceManager

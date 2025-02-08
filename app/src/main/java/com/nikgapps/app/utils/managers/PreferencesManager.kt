@@ -1,6 +1,6 @@
 package com.nikgapps.app.utils.managers
 
-import com.nikgapps.app.data.model.DisplayPrefs
+import com.nikgapps.app.data.DisplayPrefs
 
 const val emptyString = ""
 

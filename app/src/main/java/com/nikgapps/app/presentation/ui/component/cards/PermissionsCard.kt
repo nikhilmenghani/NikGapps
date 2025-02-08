@@ -87,7 +87,7 @@ fun PermissionsCard(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = Color.Black,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 

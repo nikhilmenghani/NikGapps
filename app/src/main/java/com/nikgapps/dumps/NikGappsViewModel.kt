@@ -1,7 +1,7 @@
 package com.nikgapps.dumps
 
 import androidx.lifecycle.ViewModel
-import com.nikgapps.app.data.model.AppSet
+import com.nikgapps.app.data.AppSet
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
