@@ -71,7 +71,7 @@ fun RootAccessCard(rootAccessState: Boolean, onClick: () -> Unit = {}) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Check Root Access",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color.Black
                 )
             }
         }

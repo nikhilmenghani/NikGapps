@@ -3,6 +3,7 @@ package com.nikgapps.app.presentation.ui.component.cards
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -20,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -107,18 +110,95 @@ fun PermissionsCard(
     }
 }
 
+@Composable
+fun PermissionsCard2(
+    title: String = "Test Permission",
+    description: String = "This is a test permission",
+    isPermissionGranted: Boolean = false,
+    onRequestPermission: () -> Unit
+) {
+    // Background and icon color based on permission status
+    val backgroundColor = if (isPermissionGranted) Color(0xFFB9F6CA) else Color(0xFFF8D7DA)
+    val permissionIcon = if (isPermissionGranted) Icons.Default.CheckCircle else Icons.Default.Refresh
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 18.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ){
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.Black
+                    )
+                }
+
+                // Divider
+                HorizontalDivider(
+                    color = Color.Gray,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                // Description
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = onRequestPermission
+            ) {
+                Icon(
+                    imageVector = permissionIcon,
+                    contentDescription = "Check Root Access",
+                    tint = Color.Black
+                )
+            }
+        }
+    }
+}
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Preview
 @Composable
 fun PreviewSamplePermissionsManagerCard() {
     NikGappsThemePreview {
-        PermissionsCard(
-            title = "Test Permission",
-            description = "This is a test permission",
-            isPermissionGranted = true,
-            onRequestPermission = { },
-            permissionsText = "Request Permission"
-        )
+        Column{
+            PermissionsCard(
+                title = "Test Permission",
+                description = "This is a test permission",
+                isPermissionGranted = true,
+                onRequestPermission = { },
+                permissionsText = "Request Permission"
+            )
+            PermissionsCard2(
+                title = "Test Permission",
+                description = "This is a test permission",
+                isPermissionGranted = true,
+                onRequestPermission = { },
+            )
+        }
     }
 }
