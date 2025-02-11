@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeviceUnknown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +41,8 @@ import androidx.work.workDataOf
 import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
+import com.nikgapps.app.presentation.ui.component.bottomsheets.CustomBottomSheet
+import com.nikgapps.app.presentation.ui.component.buttons.FilledTonalButtonWithIcon
 import com.nikgapps.app.presentation.ui.component.cards.DeviceStatsCard
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
@@ -63,7 +66,7 @@ fun HomeScreen(
     var latestVersion by remember { mutableStateOf(currentVersion) }
     var isLatestVersion by remember { mutableStateOf(true) }
     var isDownloading by remember { mutableStateOf(false) }
-
+    var showBottomSheet by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             latestVersion = fetchLatestVersion()
@@ -177,32 +180,35 @@ fun HomeScreen(
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                item { DeviceStatsCard() }
+                item {
+                    FilledTonalButtonWithIcon(onClick = {
+                        showBottomSheet = true
+                    },
+                        icon = Icons.Default.DeviceUnknown,
+                        text = "Device Stats"
+                    )
+                }
+
             }
         }
     )
+    if (showBottomSheet) {
+        CustomBottomSheet(
+            title = "Device Stats",
+            sheetContent = { DeviceStatsCard() },
+            onDismiss = { showBottomSheet = false }
+        )
+    }
 }
 
-@Preview (showBackground = true)
+@Preview(showBackground = true)
 @Composable
 fun PreviewHomeScreen() {
     NikGappsThemePreview {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Update Available\nNikGapps v0.43",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-        }
+        FilledTonalButtonWithIcon(
+            onClick = {},
+            icon = Icons.Default.DeviceUnknown,
+            text = "Click Me"
+        )
     }
 }
