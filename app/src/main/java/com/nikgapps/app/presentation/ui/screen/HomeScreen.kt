@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DataArray
 import androidx.compose.material.icons.filled.DeviceUnknown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -38,6 +39,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.MainActivity
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
@@ -47,7 +49,9 @@ import com.nikgapps.app.presentation.ui.component.cards.DeviceStatsCard
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
-import com.nikgapps.app.utils.fetchLatestVersion
+import com.nikgapps.app.utils.network.GitHubApi.createOrUpdateFile
+import com.nikgapps.app.utils.network.GitHubApi.fetchJsonFile
+import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
 import com.nikgapps.app.utils.worker.DownloadWorker
 import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
@@ -188,6 +192,30 @@ fun HomeScreen(
                         text = "Device Stats"
                     )
                 }
+                item { DisplayFileContent(
+                    token = globalClass.preferencesManager.githubPrefs.token,
+                    filePath = "folder_access.json"
+                ) }
+                item {
+                    FilledTonalButtonWithIcon(onClick = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            latestVersion = fetchLatestVersion()
+                            isLatestVersion = (currentVersion == latestVersion) || (latestVersion == "Unknown")
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                createOrUpdateFile(
+                                    token = globalClass.preferencesManager.githubPrefs.token,
+                                    commitMessage = "Update latest version",
+                                    newFileContent = "{ \"test\" : \"test\" }",
+                                    committerName = "Nikhil Menghani",
+                                    committerEmail = "nikhil@menghani.com"
+                                )
+                            }
+                        }
+                    },
+                        icon = Icons.Default.DataArray,
+                        text = latestVersion
+                    )
+                }
 
             }
         }
@@ -201,13 +229,28 @@ fun HomeScreen(
     }
 }
 
+@Composable
+fun DisplayFileContent(token: String, filePath: String) {
+    var fileContent by remember { mutableStateOf("Loading...") }
+
+    LaunchedEffect(filePath) {
+        // Call the fetch function; update the state when data is fetched
+        fetchJsonFile(token, filePath) { result ->
+            fileContent = result
+        }
+    }
+
+    // Display the fetched content (or error message)
+    Text(text = fileContent)
+}
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewHomeScreen() {
     NikGappsThemePreview {
         FilledTonalButtonWithIcon(
             onClick = {},
-            icon = Icons.Default.DeviceUnknown,
+            icon = Icons.Default.DataArray,
             text = "Click Me"
         )
     }

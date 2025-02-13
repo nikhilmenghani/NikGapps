@@ -31,7 +31,6 @@ fun SingleTextDialog() {
             onDismiss = dialog::dismiss
         )
     }
-
 }
 
 @Composable
