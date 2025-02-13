@@ -1,13 +1,15 @@
 package com.nikgapps.app.presentation.ui.component.dialogs
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,25 +37,27 @@ fun SingleTextDialog() {
 @Composable
 fun SingleText(dialog: SingleText) {
     var textState by remember { mutableStateOf(dialog.text) }
-    Column(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            TextField(
-                modifier = Modifier.padding(16.dp),
-                value = textState,
-                onValueChange = { textState = it },
-                label = { Text(dialog.description) }
-            )
-            Button(onClick = {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        OutlinedTextField(
+            value = textState,
+            onValueChange = { textState = it },
+            label = { Text(dialog.description) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = {
                 dialog.onConfirm(textState)
                 dialog.dismiss()
-            }) {
-                Text(text = "Confirm")
-            }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "Confirm")
         }
     }
 }
