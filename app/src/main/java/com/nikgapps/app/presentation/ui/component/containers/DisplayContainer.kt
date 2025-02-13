@@ -14,7 +14,9 @@ import com.nikgapps.app.utils.managers.emptyString
 @Composable
 fun DisplayContainer() {
     val dialog = globalClass.singleChoiceDialog
+    val textDialog = globalClass.singleTextDialog
     val preferences = globalClass.preferencesManager.displayPrefs
+    val githubPreference = globalClass.preferencesManager.githubPrefs
 
     Container(title = stringResource(R.string.display)) {
         PreferenceItem(
@@ -49,5 +51,21 @@ fun DisplayContainer() {
                 }
             )
         }
+    }
+
+    Container(title = "Authentication") {
+        PreferenceItem(
+            label = "Github Token",
+            supportingText = githubPreference.token,
+            icon = Icons.AutoMirrored.Rounded.Label,
+            onClick = {
+                textDialog.show(
+                    title = "Github Token",
+                    description = "Enter your Github token",
+                    text = githubPreference.token,
+                    onConfirm = { githubPreference.token = it }
+                )
+            }
+        )
     }
 }
