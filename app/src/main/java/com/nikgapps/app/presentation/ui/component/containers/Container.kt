@@ -1,19 +1,15 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,56 +33,51 @@ fun Container(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .animateContentSize(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            .padding(8.dp)
+            .block(
+                color = MaterialTheme.colorScheme.onSecondary,
+                borderSize = 0.dp
+            )
+            .padding(12.dp)
     ) {
-        Column(
-            modifier = Modifier
+        Row(
+            Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .clickable(
+                    interactionSource = null,
+                    indication = null,
+                    onClick = { expanded = !expanded }
+                ),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
+            Text(
+                modifier = Modifier.weight(1f),
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            )
+            IconButton(onClick = { expanded = !expanded }) {
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null
                 )
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = "Expand/Collapse"
-                    )
-                }
             }
+        }
 
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .block(
-                            color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                            borderSize = 0.dp
-                        )
-                        .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    content()
-                }
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .block(
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        borderSize = 0.dp
+                    ),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                content()
             }
         }
     }
