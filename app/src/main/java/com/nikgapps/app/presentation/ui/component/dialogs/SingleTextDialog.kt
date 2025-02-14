@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.SingleText
 import com.nikgapps.app.presentation.ui.component.bottomsheets.CustomBottomSheet
+import com.nikgapps.app.presentation.ui.component.buttons.ClearButton
 
 @Composable
 fun SingleTextDialog() {
@@ -46,7 +47,13 @@ fun SingleText(dialog: SingleText) {
             value = textState,
             onValueChange = { textState = it },
             label = { Text(dialog.description) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 3,
+            trailingIcon = {
+                if (textState.isNotEmpty()) {
+                    ClearButton { textState = "" }
+                }
+            },
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(
