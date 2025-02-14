@@ -22,8 +22,6 @@ object GitHubApi {
         path: String = "data/records.json",
         commitMessage: String,
         newFileContent: String,
-        committerName: String,
-        committerEmail: String,
         branch: String = "main"
     ) {
         val url = "$BASE_URL/$owner/$repo/contents/$path"
@@ -34,10 +32,6 @@ object GitHubApi {
             put("message", commitMessage)
             put("content", encodedContent)
             put("branch", branch)
-            put("committer", JSONObject().apply {
-                put("name", committerName)
-                put("email", committerEmail)
-            })
             sha?.let { put("sha", it) } // Include SHA for updates
         }
 

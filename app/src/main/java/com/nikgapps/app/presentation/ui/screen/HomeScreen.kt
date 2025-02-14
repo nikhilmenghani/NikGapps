@@ -3,12 +3,17 @@ package com.nikgapps.app.presentation.ui.screen
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DataArray
 import androidx.compose.material.icons.filled.DeviceUnknown
@@ -17,6 +22,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +64,7 @@ import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,44 +186,39 @@ fun HomeScreen(
             }
         },
         content = { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .padding(16.dp)
-            ) {
-                item {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .padding(paddingValues)
+                        .padding(16.dp)
+                ) {
                     FilledTonalButtonWithIcon(onClick = {
                         showBottomSheet = true
                     },
                         icon = Icons.Default.DeviceUnknown,
                         text = "Device Stats"
                     )
-                }
-                item { DisplayFileContent(
-                    token = globalClass.preferencesManager.githubPrefs.token,
-                    filePath = "folder_access.json"
-                ) }
-                item {
+                    Spacer(modifier = Modifier.width(16.dp))
                     FilledTonalButtonWithIcon(onClick = {
                         CoroutineScope(Dispatchers.IO).launch {
-                            latestVersion = fetchLatestVersion()
-                            isLatestVersion = (currentVersion == latestVersion) || (latestVersion == "Unknown")
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 createOrUpdateFile(
                                     token = globalClass.preferencesManager.githubPrefs.token,
                                     commitMessage = "Update latest version",
-                                    newFileContent = "{ \"test\" : \"test\" }",
-                                    committerName = "Nikhil Menghani",
-                                    committerEmail = "nikhil@menghani.com"
+                                    newFileContent = "{ \"test\" : \"test\" }"
                                 )
                             }
                         }
                     },
                         icon = Icons.Default.DataArray,
-                        text = latestVersion
+                        text = "Sync Up Data"
                     )
                 }
-
+                HorizontalDivider()
+                DisplayFileContent(
+                    token = globalClass.preferencesManager.githubPrefs.token,
+                    filePath = "folder_access.json"
+                )
             }
         }
     )
@@ -231,17 +233,64 @@ fun HomeScreen(
 
 @Composable
 fun DisplayFileContent(token: String, filePath: String) {
-    var fileContent by remember { mutableStateOf("Loading...") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var dataMap by remember { mutableStateOf<Map<String, String>?>(null) }
 
     LaunchedEffect(filePath) {
-        // Call the fetch function; update the state when data is fetched
         fetchJsonFile(token, filePath) { result ->
-            fileContent = result
+            if (result.startsWith("Error:") || result == "File doesn't exist") {
+                errorMessage = result
+            } else {
+                try {
+                    val jsonObject = JSONObject(result)
+                    val map = mutableMapOf<String, String>()
+                    jsonObject.keys().forEach { key ->
+                        map[key] = jsonObject.getString(key)
+                    }
+                    dataMap = map
+                } catch (e: Exception) {
+                    errorMessage = "Error parsing JSON: ${e.message}"
+                }
+            }
         }
     }
 
-    // Display the fetched content (or error message)
-    Text(text = fileContent)
+    // Wrap everything in a Box to ensure bounded height constraints.
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            errorMessage != null -> {
+                Text(text = errorMessage!!, modifier = Modifier.padding(16.dp))
+            }
+            dataMap != null -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    // You can add header items here if needed as separate items {}
+                    items(dataMap!!.toList()) { (folder, username) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = folder,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = username,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                Text("Loading...", modifier = Modifier.fillMaxSize().padding(16.dp))
+            }
+        }
+    }
 }
 
 @Preview(showBackground = true)
