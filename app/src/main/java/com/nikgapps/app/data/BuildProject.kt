@@ -10,7 +10,20 @@ data class BuildProject(
     val name: String,
     val androidVersion: AndroidVersion,
     val architecture: Architecture,
-    val selectedAppIds: Set<String> = emptySet()
+    val selectedAppIds: Set<String> = emptySet(),
+    val appSources: Map<String, AppSourceConfig> = emptyMap()
+)
+
+enum class AppSource(val displayName: String) {
+    DEVICE("Device"),
+    GITLAB("GitLab"),
+    SOURCEFORGE("SourceForge"),
+    IMPORTED("Imported APK")
+}
+
+data class AppSourceConfig(
+    val source: AppSource = AppSource.DEVICE,
+    val location: String = ""
 )
 
 enum class AndroidVersion(val displayName: String, val apiLevel: Int) {
@@ -55,6 +68,22 @@ class BuildProjectRepository(context: Context) {
                                 }
                             }
                         }
+                        .orEmpty(),
+                    appSources = project.optJSONObject("appSources")
+                        ?.let { sources ->
+                            buildMap {
+                                sources.keys().forEach { appId ->
+                                    val config = sources.getJSONObject(appId)
+                                    put(
+                                        appId,
+                                        AppSourceConfig(
+                                            source = AppSource.valueOf(config.getString("source")),
+                                            location = config.optString("location")
+                                        )
+                                    )
+                                }
+                            }
+                        }
                         .orEmpty()
                 )
             }
@@ -87,6 +116,19 @@ class BuildProjectRepository(context: Context) {
                         .put("androidVersion", it.androidVersion.name)
                         .put("architecture", it.architecture.name)
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
+                        .put(
+                            "appSources",
+                            JSONObject().apply {
+                                it.appSources.forEach { (appId, config) ->
+                                    put(
+                                        appId,
+                                        JSONObject()
+                                            .put("source", config.source.name)
+                                            .put("location", config.location)
+                                    )
+                                }
+                            }
+                        )
                 )
             }
         }

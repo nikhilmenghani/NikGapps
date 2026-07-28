@@ -39,7 +39,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -345,6 +344,12 @@ private fun ProjectCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                FilledTonalIconButton(onClick = onOpen) {
+                    Icon(
+                        Icons.Default.FolderOpen,
+                        contentDescription = "Configure apps for ${project.name}"
+                    )
+                }
                 FilledTonalIconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit ${project.name}")
                 }
@@ -365,11 +370,6 @@ private fun ProjectCard(
                     onClick = onEdit,
                     label = { Text(project.architecture.displayName) }
                 )
-            }
-            FilledTonalButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.FolderOpen, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Configure apps")
             }
         }
     }

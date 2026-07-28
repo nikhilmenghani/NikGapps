@@ -7,6 +7,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.net.Uri
+import com.nikgapps.app.data.AppSource
+import com.nikgapps.app.data.AppSourceConfig
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.SupportedApp
 import com.topjohnwu.superuser.Shell
@@ -16,6 +19,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -28,6 +33,8 @@ data class ZipBuildProgress(
         get() = if (total == 0) 0f else completed.toFloat() / total
 }
 
+data class AppBuildInput(val app: SupportedApp, val source: AppSourceConfig)
+
 sealed interface ZipBuildResult {
     data class Success(val location: String) : ZipBuildResult
     data class Failure(val message: String) : ZipBuildResult
@@ -36,7 +43,7 @@ sealed interface ZipBuildResult {
 class FlashableZipBuilder(private val context: Context) {
     suspend fun build(
         project: BuildProject,
-        apps: List<SupportedApp>,
+        apps: List<AppBuildInput>,
         onProgress: suspend (ZipBuildProgress) -> Unit
     ): ZipBuildResult = withContext(Dispatchers.IO) {
         if (apps.isEmpty()) {
@@ -62,35 +69,28 @@ class FlashableZipBuilder(private val context: Context) {
                 addTextEntry(zip, "META-INF/com/google/android/updater-script", "#MAGISK\n")
                 addTextEntry(zip, "nikgapps/project.json", projectMetadata(project, apps))
 
-                apps.forEachIndexed { index, app ->
+                apps.forEachIndexed { index, input ->
+                    val app = input.app
                     onProgress(
-                        ZipBuildProgress(index, apps.size, "Reading ${app.name} from device…")
-                    )
-                    val applicationInfo = findApplicationInfo(app.packageName)
-                        ?: return@withContext failure(
-                            outputFile,
-                            temporaryFiles,
-                            "${app.name} (${app.packageName}) is not installed or visible."
+                        ZipBuildProgress(
+                            index,
+                            apps.size,
+                            "Reading ${app.name} from ${input.source.source.displayName}…"
                         )
-                    val apkPaths = listOfNotNull(applicationInfo.sourceDir) +
-                        applicationInfo.splitSourceDirs.orEmpty()
-                    if (apkPaths.isEmpty()) {
+                    )
+                    val apkFiles = resolveApks(input, temporaryFiles)
+                    if (apkFiles.isEmpty()) {
                         return@withContext failure(
                             outputFile,
                             temporaryFiles,
-                            "No APK files were found for ${app.name}."
+                            "Unable to resolve an APK for ${app.name} from " +
+                                input.source.source.displayName + "."
                         )
                     }
 
                     val appDirectory = app.name.replace(Regex("[^A-Za-z0-9._-]+"), "")
-                    apkPaths.forEachIndexed { apkIndex, apkPath ->
-                        val readableApk = readableFile(apkPath, temporaryFiles)
-                            ?: return@withContext failure(
-                                outputFile,
-                                temporaryFiles,
-                                "Unable to read ${File(apkPath).name} for ${app.name}. Root access may be required."
-                            )
-                        val apkName = if (apkIndex == 0) "base.apk" else File(apkPath).name
+                    apkFiles.forEachIndexed { apkIndex, readableApk ->
+                        val apkName = if (apkIndex == 0) "base.apk" else readableApk.name
                         addFileEntry(
                             zip,
                             "product/priv-app/$appDirectory/$apkName",
@@ -155,6 +155,54 @@ class FlashableZipBuilder(private val context: Context) {
         }
     }
 
+    private fun resolveApks(
+        input: AppBuildInput,
+        temporaryFiles: MutableList<File>
+    ): List<File> = when (input.source.source) {
+        AppSource.DEVICE -> {
+            val info = findApplicationInfo(input.app.packageName) ?: return emptyList()
+            (listOfNotNull(info.sourceDir) + info.splitSourceDirs.orEmpty()).mapNotNull {
+                readableFile(it, temporaryFiles)
+            }
+        }
+        AppSource.IMPORTED -> copyArtifact(
+            prefix = "nikgapps-import-",
+            temporaryFiles = temporaryFiles
+        ) { destination ->
+            context.contentResolver.openInputStream(Uri.parse(input.source.location))?.use { source ->
+                destination.outputStream().use(source::copyTo)
+            } ?: error("Cannot open imported APK")
+        }
+        AppSource.GITLAB, AppSource.SOURCEFORGE -> copyArtifact(
+            prefix = "nikgapps-download-",
+            temporaryFiles = temporaryFiles
+        ) { destination ->
+            val connection = URL(input.source.location).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = true
+            connection.connectTimeout = 20_000
+            connection.readTimeout = 60_000
+            connection.inputStream.use { source ->
+                destination.outputStream().use(source::copyTo)
+            }
+            connection.disconnect()
+        }
+    }
+
+    private fun copyArtifact(
+        prefix: String,
+        temporaryFiles: MutableList<File>,
+        copy: (File) -> Unit
+    ): List<File> {
+        val temporary = File.createTempFile(prefix, ".apk", context.cacheDir)
+        return if (runCatching { copy(temporary) }.isSuccess && temporary.length() > 0) {
+            temporaryFiles += temporary
+            listOf(temporary)
+        } else {
+            temporary.delete()
+            emptyList()
+        }
+    }
+
     private fun addFileEntry(zip: ZipOutputStream, path: String, source: File) {
         zip.putNextEntry(ZipEntry(path))
         FileInputStream(source).use { it.copyTo(zip) }
@@ -169,13 +217,21 @@ class FlashableZipBuilder(private val context: Context) {
 
     private fun projectMetadata(
         project: BuildProject,
-        apps: List<SupportedApp>
+        apps: List<AppBuildInput>
     ): String = JSONObject()
         .put("name", project.name)
         .put("androidApi", project.androidVersion.apiLevel)
         .put("architecture", project.architecture.value)
-        .put("source", "device")
-        .put("packages", JSONArray(apps.map { it.packageName }))
+        .put(
+            "packages",
+            JSONArray(
+                apps.map {
+                    JSONObject()
+                        .put("packageName", it.app.packageName)
+                        .put("source", it.source.source.name.lowercase())
+                }
+            )
+        )
         .toString(2)
 
     @Suppress("DEPRECATION")
