@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -144,23 +146,54 @@ fun HomeScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("NikGapps") },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "NikGapps",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "v$currentVersion",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 actions = {
                     if (!isLatestVersion) {
-                        IconButton(
-                            enabled = !isDownloading,
-                            onClick = ::downloadUpdate
+                        Box(
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(48.dp)
                         ) {
-                            if (isDownloading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.SystemUpdate,
-                                    contentDescription = "Update to version $latestVersion"
-                                )
+                            IconButton(
+                                enabled = !isDownloading,
+                                onClick = ::downloadUpdate,
+                                modifier = Modifier.align(Alignment.CenterStart)
+                            ) {
+                                if (isDownloading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(22.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.SystemUpdate,
+                                        contentDescription = "Update to version $latestVersion"
+                                    )
+                                }
+                            }
+                            if (!isDownloading) {
+                                Badge(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .offset(x = 30.dp, y = 2.dp)
+                                ) {
+                                    Text("v$latestVersion")
+                                }
                             }
                         }
                     }
