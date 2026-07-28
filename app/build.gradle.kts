@@ -1,12 +1,11 @@
 plugins {
     id("com.android.application")
-    alias(libs.plugins.org.jetbrains.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.nikgapps"
-    compileSdk = 35
+    compileSdk = 37
 
     signingConfigs {
         create("release") {
@@ -45,16 +44,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
     }
 
     packaging {
