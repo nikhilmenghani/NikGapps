@@ -7,6 +7,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import com.nikgapps.App
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,7 @@ import com.nikgapps.R
 @Composable
 fun CopyFileButton() {
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     Button(onClick = {
         CoroutineScope(Dispatchers.IO).launch {
@@ -28,7 +30,7 @@ fun CopyFileButton() {
                 val destPath = "/product/app/NikGapps/NikGapps.apk"
 
                 // Load the script from raw resources
-                val inputStream = context.resources.openRawResource(R.raw.copy_file_script)
+                val inputStream = resources.openRawResource(R.raw.copy_file_script)
                 val scriptFile = File(context.filesDir, "copy_file_script.sh")
                 scriptFile.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)

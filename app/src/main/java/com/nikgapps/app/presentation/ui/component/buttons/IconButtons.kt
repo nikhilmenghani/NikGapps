@@ -32,6 +32,7 @@ import com.nikgapps.R
 import com.nikgapps.app.utils.extensions.HapticFeedback.slightHapticFeedback
 
 @Composable
+@Suppress("DEPRECATION")
 fun PasteFromClipBoardButton(onPaste: (String) -> Unit = {}) {
     val clipboardManager = LocalClipboardManager.current
     PasteButton(onClick = {

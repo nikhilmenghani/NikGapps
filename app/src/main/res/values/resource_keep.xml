@@ -1,0 +1,2 @@
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/addon_header,@raw/addon_tail,@raw/install_package,@raw/ota_utility,@raw/space_check,@raw/variables" />

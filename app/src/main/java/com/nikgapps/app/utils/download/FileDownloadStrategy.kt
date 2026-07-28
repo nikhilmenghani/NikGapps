@@ -52,10 +52,7 @@ class FileDownloadStrategy() : DownloadStrategy {
                             return
                         }
 
-                        val responseBody = response.body ?: run {
-                            continuation.resume(false)
-                            return
-                        }
+                        val responseBody = response.body
 
                         val file = File(destinationPath)
                         try {

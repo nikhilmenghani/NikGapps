@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- KTX URI helpers currently target JVM 11 while this app intentionally targets JVM 8. -->
+    <issue id="UseKtx" severity="ignore" />
+</lint>

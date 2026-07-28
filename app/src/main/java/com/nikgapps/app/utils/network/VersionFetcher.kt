@@ -14,11 +14,11 @@ object VersionFetcher {
             val response = NetworkClient.executeRequest(request)
 
             if (response.isSuccessful) {
-                response.body?.string()?.let { responseBody ->
+                response.body.string().let { responseBody ->
                     val jsonElement: JsonElement = Json.decodeFromString(JsonElement.serializer(), responseBody)
                     val jsonObject = jsonElement as? JsonObject
                     jsonObject?.get("name")?.jsonPrimitive?.content?.replace("v", "") ?: "Unknown"
-                } ?: "Unknown"
+                }
             } else {
                 "Unknown"
             }

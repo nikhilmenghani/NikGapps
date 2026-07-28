@@ -137,7 +137,7 @@ fun DownloadNikGappsCard() {
                     onClick = {
                         isDownloading = true
                         val downloadUrl =
-                            ApplicationConstants.getDownloadUrl(variant.toString().lowercase())
+                            ApplicationConstants.getDownloadUrl(variant.lowercase())
                         val zipFileName = downloadUrl.split("/").lastOrNull { it.endsWith(".zip") }
                             ?: throw IllegalArgumentException("No .zip file found in URL")
                         val zipFileNameWithoutExtension = zipFileName.removeSuffix(".zip")

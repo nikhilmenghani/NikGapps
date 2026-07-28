@@ -26,7 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
@@ -54,7 +55,8 @@ fun InstallZipProgressBottomSheet(
         }
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val containerHeight = LocalWindowInfo.current.containerSize.height
+    val screenHeight = with(LocalDensity.current) { containerHeight.toDp() }
     val minHeight = screenHeight * 0.4f // Allow the height to shrink down to 40% of the screen height
     val maxHeight = screenHeight * 0.6f // Allow the height to grow up to 60% of the screen height
 

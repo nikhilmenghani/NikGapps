@@ -138,7 +138,6 @@ object ZipUtility {
                     val process = Runtime.getRuntime().exec(command)
                     val output = process.inputStream.bufferedReader().use { it.readText() }
                     val fileName = command
-                        .toString()
                         .trim()
                         .replace(" ", "")
                         .replace("-", "_")

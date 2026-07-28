@@ -14,9 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import com.nikgapps.app.data.LogManager.log
-import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.ui.component.bottomsheets.InstallZipProgressBottomSheet
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.BuildUtility.installAppSet
@@ -142,13 +140,5 @@ suspend fun installZipFile(
 
     withContext(Dispatchers.Main) {
         progressCallback(false)
-    }
-}
-
-@Preview
-@Composable
-fun PreviewInstallZipCard() {
-    NikGappsThemePreview {
-        InstallZipCard(ProgressLogViewModel())
     }
 }

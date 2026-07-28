@@ -49,10 +49,12 @@ object GitHubApi {
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
-                if (response.isSuccessful) {
-                    println("File created/updated successfully: ${response.body?.string()}")
-                } else {
-                    println("Error creating/updating file: ${response.body?.string()}")
+                response.use {
+                    if (it.isSuccessful) {
+                        println("File created/updated successfully: ${it.body.string()}")
+                    } else {
+                        println("Error creating/updating file: ${it.body.string()}")
+                    }
                 }
             }
         })
@@ -68,8 +70,8 @@ object GitHubApi {
         return try {
             val response = NetworkClient.executeRequest(request)
             if (response.isSuccessful) {
-                val body = response.body?.string()
-                JSONObject(body ?: "").optString("sha", null)
+                val body = response.body.string()
+                JSONObject(body).optString("sha").takeIf { it.isNotEmpty() }
             } else {
                 null
             }
@@ -100,7 +102,7 @@ object GitHubApi {
                 if (response.code == 404) {
                     onResult("File doesn't exist")
                 } else if (response.isSuccessful) {
-                    response.body?.string()?.let { bodyStr ->
+                    response.body.string().let { bodyStr ->
                         try {
                             val jsonResponse = JSONObject(bodyStr)
                             val encodedContent = jsonResponse.getString("content").replace("\n", "")
@@ -110,7 +112,7 @@ object GitHubApi {
                         } catch (e: Exception) {
                             onResult("Error parsing JSON: ${e.message}")
                         }
-                    } ?: onResult("Empty response")
+                    }
                 } else {
                     onResult("Error: ${response.message}")
                 }

@@ -21,7 +21,7 @@ class ApkDownloadStrategy : DownloadStrategy {
             val response: Response = client.newCall(request).execute()
 
             if (response.isSuccessful) {
-                response.body?.let { responseBody ->
+                response.body.let { responseBody ->
                     val totalBytes = responseBody.contentLength()
                     var downloadedBytes: Long = 0
 
