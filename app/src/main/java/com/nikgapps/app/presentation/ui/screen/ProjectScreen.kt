@@ -6,6 +6,9 @@ import android.os.Build
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,20 +17,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -40,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,16 +76,13 @@ import kotlinx.coroutines.withContext
 
 private data class DeviceAppStatus(val installed: Boolean, val version: String?)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProjectScreen(projectId: String, navController: NavHostController) {
     val context = LocalActivity.current ?: return
     val repository = remember { BuildProjectRepository(context) }
     var project by remember(projectId) {
         mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId })
-    }
-    val initialSelectedAppIds = remember(projectId) {
-        project?.selectedAppIds.orEmpty()
     }
     val deviceStatuses = remember {
         SupportedApps.all.associate { app ->
@@ -126,6 +129,7 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
     var buildProgress by remember { mutableStateOf<ZipBuildProgress?>(null) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var buildFailed by remember { mutableStateOf(false) }
+    var selectionMode by remember { mutableStateOf(false) }
 
     val currentProject = project
     if (currentProject == null) {
@@ -164,16 +168,76 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
         }
     }
 
+    fun buildZip() {
+        scope.launch {
+            val inputs = SupportedApps.all
+                .filter { it.id in currentProject.selectedAppIds }
+                .map {
+                    AppBuildInput(
+                        it,
+                        currentProject.appSources[it.id] ?: AppSourceConfig()
+                    )
+                }
+            buildProgress = ZipBuildProgress(0, inputs.size, "Preparing project…")
+            when (
+                val result = zipBuilder.build(currentProject, inputs) { progress ->
+                    withContext(Dispatchers.Main) { buildProgress = progress }
+                }
+            ) {
+                is ZipBuildResult.Success -> {
+                    buildProgress = null
+                    buildFailed = false
+                    resultMessage = "Flashable ZIP created:\n${result.location}"
+                }
+                is ZipBuildResult.Failure -> {
+                    buildProgress = null
+                    buildFailed = true
+                    resultMessage = result.message
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(currentProject.name) },
+                title = {
+                    Text(
+                        if (selectionMode) {
+                            "${currentProject.selectedAppIds.size} selected"
+                        } else {
+                            currentProject.name
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = navController::navigateUp) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (selectionMode) {
+                        IconButton(onClick = { selectionMode = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Exit selection mode")
+                        }
+                    }
                 }
             )
+        },
+        bottomBar = {
+            Surface(tonalElevation = 3.dp, shadowElevation = 3.dp) {
+                Button(
+                    onClick = ::buildZip,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Icon(Icons.Default.Inventory2, contentDescription = null)
+                    Text(
+                        "  Build flashable ZIP (${currentProject.selectedAppIds.size} apps)"
+                    )
+                }
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -184,51 +248,55 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
             item {
                 Text("Supported apps", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Select an artifact source for each app. Device apps are selectable only when installed.",
+                    if (selectionMode) {
+                        "Tap available apps to change the selection."
+                    } else {
+                        "Press and hold an available app to start selecting."
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    TextButton(
-                        onClick = {
-                            save(
-                                currentProject.copy(
-                                    selectedAppIds = availableAppIds(currentProject)
+                if (selectionMode) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                save(
+                                    currentProject.copy(
+                                        selectedAppIds = availableAppIds(currentProject)
+                                    )
                                 )
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.SelectAll, contentDescription = null)
-                        Text(" All")
-                    }
-                    TextButton(
-                        onClick = {
-                            save(currentProject.copy(selectedAppIds = emptySet()))
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Deselect, contentDescription = null)
-                        Text(" None")
-                    }
-                    TextButton(
-                        onClick = {
-                            save(
-                                currentProject.copy(
-                                    selectedAppIds =
-                                        initialSelectedAppIds.intersect(
-                                            availableAppIds(currentProject)
-                                        )
+                            }
+                        ) {
+                            Icon(Icons.Default.SelectAll, contentDescription = null)
+                            Text(" Select All")
+                        }
+                        TextButton(
+                            onClick = {
+                                save(currentProject.copy(selectedAppIds = emptySet()))
+                            }
+                        ) {
+                            Icon(Icons.Default.Deselect, contentDescription = null)
+                            Text(" Select None")
+                        }
+                        TextButton(
+                            onClick = {
+                                val available = availableAppIds(currentProject)
+                                save(
+                                    currentProject.copy(
+                                        selectedAppIds =
+                                            available - currentProject.selectedAppIds
+                                    )
                                 )
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null)
-                        Text(" Revert")
+                            }
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = null)
+                            Text(" Invert Selection")
+                        }
                     }
                 }
             }
@@ -244,6 +312,18 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
                     deviceStatus = deviceStatuses[app.id] ?: DeviceAppStatus(false, null),
                     selected = app.id in currentProject.selectedAppIds,
                     selectionEnabled = available,
+                    selectionMode = selectionMode,
+                    onStartSelection = {
+                        if (available) {
+                            selectionMode = true
+                            save(
+                                currentProject.copy(
+                                    selectedAppIds =
+                                        currentProject.selectedAppIds + app.id
+                                )
+                            )
+                        }
+                    },
                     onSelectedChange = { selected ->
                         save(
                             currentProject.copy(
@@ -279,43 +359,6 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
                     }
                 )
             }
-            item {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val inputs = SupportedApps.all
-                                .filter { it.id in currentProject.selectedAppIds }
-                                .map {
-                                    AppBuildInput(
-                                        it,
-                                        currentProject.appSources[it.id] ?: AppSourceConfig()
-                                    )
-                                }
-                            buildProgress = ZipBuildProgress(0, inputs.size, "Preparing project…")
-                            when (
-                                val result = zipBuilder.build(currentProject, inputs) { progress ->
-                                    withContext(Dispatchers.Main) { buildProgress = progress }
-                                }
-                            ) {
-                                is ZipBuildResult.Success -> {
-                                    buildProgress = null
-                                    buildFailed = false
-                                    resultMessage = "Flashable ZIP created:\n${result.location}"
-                                }
-                                is ZipBuildResult.Failure -> {
-                                    buildProgress = null
-                                    buildFailed = true
-                                    resultMessage = result.message
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Inventory2, contentDescription = null)
-                    Text("  Build flashable ZIP (${currentProject.selectedAppIds.size} apps)")
-                }
-            }
         }
     }
 
@@ -348,7 +391,7 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SupportedAppCard(
     app: SupportedApp,
@@ -356,6 +399,8 @@ private fun SupportedAppCard(
     deviceStatus: DeviceAppStatus,
     selected: Boolean,
     selectionEnabled: Boolean,
+    selectionMode: Boolean,
+    onStartSelection: () -> Unit,
     onSelectedChange: (Boolean) -> Unit,
     onSourceChange: (AppSource) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -363,44 +408,69 @@ private fun SupportedAppCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var sourceMenuExpanded by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            }
+        )
+    ) {
         Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        enabled = selectionEnabled || !selectionMode,
+                        onClick = {
+                            if (selectionMode && selectionEnabled) {
+                                onSelectedChange(!selected)
+                            } else if (!selectionMode) {
+                                expanded = !expanded
+                            }
+                        },
+                        onLongClick = onStartSelection
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(app.name, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        when (source.source) {
-                            AppSource.DEVICE -> if (deviceStatus.installed) {
-                                "Version ${deviceStatus.version ?: "Unknown"} · Device"
-                            } else {
-                                "Not installed · Device"
-                            }
-                            AppSource.IMPORTED -> "Imported APK"
-                            else -> "Version resolved during build · ${source.source.displayName}"
-                        },
+                        app.packageName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (selectionEnabled) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Checkbox(
-                    checked = selected && selectionEnabled,
-                    onCheckedChange = onSelectedChange,
-                    enabled = selectionEnabled
-                )
-                IconButton(onClick = { expanded = !expanded }) {
+                if (!selectionMode) {
                     Icon(
                         if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = if (expanded) "Collapse" else "Configure source"
                     )
                 }
             }
-            if (expanded) {
-                Spacer(Modifier.height(8.dp))
-                Text(app.packageName, style = MaterialTheme.typography.labelSmall)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                MetadataTile(
+                    label = when (source.source) {
+                        AppSource.DEVICE -> if (deviceStatus.installed) {
+                            "v${deviceStatus.version ?: "Unknown"}"
+                        } else {
+                            "Not installed"
+                        }
+                        AppSource.IMPORTED -> "Imported APK"
+                        else -> "Version at build"
+                    },
+                    isError = !selectionEnabled
+                )
+                MetadataTile(label = source.source.displayName)
+            }
+            if (expanded && !selectionMode) {
                 Spacer(Modifier.height(8.dp))
                 ExposedDropdownMenuBox(
                     expanded = sourceMenuExpanded,
@@ -454,5 +524,28 @@ private fun SupportedAppCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MetadataTile(label: String, isError: Boolean = false) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = if (isError) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        }
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (isError) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            },
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+        )
     }
 }

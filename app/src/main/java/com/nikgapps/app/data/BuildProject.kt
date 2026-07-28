@@ -11,7 +11,8 @@ data class BuildProject(
     val androidVersion: AndroidVersion,
     val architecture: Architecture,
     val selectedAppIds: Set<String> = emptySet(),
-    val appSources: Map<String, AppSourceConfig> = emptyMap()
+    val appSources: Map<String, AppSourceConfig> = emptyMap(),
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 enum class AppSource(val displayName: String) {
@@ -53,8 +54,10 @@ class BuildProjectRepository(context: Context) {
         val json = preferences.getString(PROJECTS_KEY, null) ?: return emptyList()
         return runCatching {
             val projects = JSONArray(json)
-            List(projects.length()) { index ->
+            var needsTimestampMigration = false
+            val result = List(projects.length()) { index ->
                 val project = projects.getJSONObject(index)
+                if (!project.has("createdAt")) needsTimestampMigration = true
                 BuildProject(
                     id = project.getString("id"),
                     name = project.getString("name"),
@@ -84,9 +87,11 @@ class BuildProjectRepository(context: Context) {
                                 }
                             }
                         }
-                        .orEmpty()
+                        .orEmpty(),
+                    createdAt = project.optLong("createdAt", System.currentTimeMillis())
                 )
             }
+            if (needsTimestampMigration) saveProjects(result) else result
         }.getOrDefault(emptyList())
     }
 
@@ -115,6 +120,7 @@ class BuildProjectRepository(context: Context) {
                         .put("name", it.name)
                         .put("androidVersion", it.androidVersion.name)
                         .put("architecture", it.architecture.name)
+                        .put("createdAt", it.createdAt)
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
                         .put(
                             "appSources",

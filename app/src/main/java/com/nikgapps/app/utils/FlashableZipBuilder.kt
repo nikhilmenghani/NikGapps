@@ -27,10 +27,11 @@ import java.util.zip.ZipOutputStream
 data class ZipBuildProgress(
     val completed: Int,
     val total: Int,
-    val message: String
+    val message: String,
+    val overallFraction: Float? = null
 ) {
     val fraction: Float
-        get() = if (total == 0) 0f else completed.toFloat() / total
+        get() = overallFraction ?: if (total == 0) 0f else completed.toFloat() / total
 }
 
 data class AppBuildInput(val app: SupportedApp, val source: AppSourceConfig)
@@ -89,13 +90,30 @@ class FlashableZipBuilder(private val context: Context) {
                     }
 
                     val appDirectory = app.name.replace(Regex("[^A-Za-z0-9._-]+"), "")
+                    val totalApkBytes = apkFiles.sumOf { it.length() }.coerceAtLeast(1L)
+                    var appBytesWritten = 0L
                     apkFiles.forEachIndexed { apkIndex, readableApk ->
                         val apkName = if (apkIndex == 0) "base.apk" else readableApk.name
                         addFileEntry(
                             zip,
                             "product/priv-app/$appDirectory/$apkName",
                             readableApk
-                        )
+                        ) { fileBytesWritten ->
+                            val bytesBeforeFile = appBytesWritten
+                            val appFraction =
+                                (bytesBeforeFile + fileBytesWritten).toFloat() / totalApkBytes
+                            val overall = ((index + appFraction) / apps.size) * 0.9f
+                            onProgress(
+                                ZipBuildProgress(
+                                    completed = index,
+                                    total = apps.size,
+                                    message = "Compressing ${app.name} " +
+                                        "(${(appFraction * 100).toInt()}%)",
+                                    overallFraction = overall
+                                )
+                            )
+                        }
+                        appBytesWritten += readableApk.length()
                     }
                     onProgress(
                         ZipBuildProgress(index + 1, apps.size, "Added ${app.name}")
@@ -105,7 +123,17 @@ class FlashableZipBuilder(private val context: Context) {
             onProgress(
                 ZipBuildProgress(apps.size, apps.size, "Saving ZIP to Downloads…")
             )
-            val publishedLocation = publishToDownloads(outputFile)
+            val publishedLocation = publishToDownloads(outputFile) { copied, total ->
+                val saveFraction = copied.toFloat() / total.coerceAtLeast(1L)
+                onProgress(
+                    ZipBuildProgress(
+                        completed = apps.size,
+                        total = apps.size,
+                        message = "Saving ZIP to Downloads (${(saveFraction * 100).toInt()}%)",
+                        overallFraction = 0.9f + (saveFraction * 0.1f)
+                    )
+                )
+            }
                 ?: return@withContext failure(
                     outputFile,
                     temporaryFiles,
@@ -203,9 +231,29 @@ class FlashableZipBuilder(private val context: Context) {
         }
     }
 
-    private fun addFileEntry(zip: ZipOutputStream, path: String, source: File) {
+    private suspend fun addFileEntry(
+        zip: ZipOutputStream,
+        path: String,
+        source: File,
+        onBytesWritten: suspend (Long) -> Unit
+    ) {
         zip.putNextEntry(ZipEntry(path))
-        FileInputStream(source).use { it.copyTo(zip) }
+        FileInputStream(source).use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var written = 0L
+            var lastReportedPercent = -1
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                zip.write(buffer, 0, count)
+                written += count
+                val percent = ((written * 100) / source.length().coerceAtLeast(1L)).toInt()
+                if (percent != lastReportedPercent) {
+                    lastReportedPercent = percent
+                    onBytesWritten(written)
+                }
+            }
+        }
         zip.closeEntry()
     }
 
@@ -235,7 +283,10 @@ class FlashableZipBuilder(private val context: Context) {
         .toString(2)
 
     @Suppress("DEPRECATION")
-    private fun publishToDownloads(source: File): String? {
+    private suspend fun publishToDownloads(
+        source: File,
+        onBytesCopied: suspend (Long, Long) -> Unit
+    ): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             val directory = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -243,7 +294,11 @@ class FlashableZipBuilder(private val context: Context) {
             )
             if (!directory.exists() && !directory.mkdirs()) return null
             val destination = File(directory, source.name)
-            source.copyTo(destination, overwrite = true)
+            source.inputStream().use { input ->
+                destination.outputStream().use { output ->
+                    copyWithProgress(input, output, source.length(), onBytesCopied)
+                }
+            }
             return destination.absolutePath
         }
 
@@ -261,7 +316,9 @@ class FlashableZipBuilder(private val context: Context) {
             ?: return null
         return try {
             resolver.openOutputStream(uri)?.use { output ->
-                source.inputStream().buffered().use { input -> input.copyTo(output) }
+                source.inputStream().buffered().use { input ->
+                    copyWithProgress(input, output, source.length(), onBytesCopied)
+                }
             } ?: error("Unable to open Downloads output")
             values.clear()
             values.put(MediaStore.Downloads.IS_PENDING, 0)
@@ -270,6 +327,28 @@ class FlashableZipBuilder(private val context: Context) {
         } catch (error: Exception) {
             resolver.delete(uri, null, null)
             null
+        }
+    }
+
+    private suspend fun copyWithProgress(
+        input: java.io.InputStream,
+        output: java.io.OutputStream,
+        total: Long,
+        onBytesCopied: suspend (Long, Long) -> Unit
+    ) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var copied = 0L
+        var lastReportedPercent = -1
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            output.write(buffer, 0, count)
+            copied += count
+            val percent = ((copied * 100) / total.coerceAtLeast(1L)).toInt()
+            if (percent != lastReportedPercent) {
+                lastReportedPercent = percent
+                onBytesCopied(copied, total)
+            }
         }
     }
 

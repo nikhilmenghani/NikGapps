@@ -83,6 +83,9 @@ import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -339,7 +342,12 @@ private fun ProjectCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(project.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${project.selectedAppIds.size} apps selected",
+                        "${project.selectedAppIds.size} apps · ${
+                            remember(project.createdAt) {
+                                SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                                    .format(Date(project.createdAt))
+                            }
+                        }",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
