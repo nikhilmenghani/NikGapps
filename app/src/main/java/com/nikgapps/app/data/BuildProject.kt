@@ -9,7 +9,8 @@ data class BuildProject(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val androidVersion: AndroidVersion,
-    val architecture: Architecture
+    val architecture: Architecture,
+    val selectedAppIds: Set<String> = emptySet()
 )
 
 enum class AndroidVersion(val displayName: String, val apiLevel: Int) {
@@ -45,7 +46,16 @@ class BuildProjectRepository(context: Context) {
                     id = project.getString("id"),
                     name = project.getString("name"),
                     androidVersion = AndroidVersion.valueOf(project.getString("androidVersion")),
-                    architecture = Architecture.valueOf(project.getString("architecture"))
+                    architecture = Architecture.valueOf(project.getString("architecture")),
+                    selectedAppIds = project.optJSONArray("selectedAppIds")
+                        ?.let { selectedApps ->
+                            buildSet {
+                                repeat(selectedApps.length()) { appIndex ->
+                                    add(selectedApps.getString(appIndex))
+                                }
+                            }
+                        }
+                        .orEmpty()
                 )
             }
         }.getOrDefault(emptyList())
@@ -76,6 +86,7 @@ class BuildProjectRepository(context: Context) {
                         .put("name", it.name)
                         .put("androidVersion", it.androidVersion.name)
                         .put("architecture", it.architecture.name)
+                        .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
                 )
             }
         }

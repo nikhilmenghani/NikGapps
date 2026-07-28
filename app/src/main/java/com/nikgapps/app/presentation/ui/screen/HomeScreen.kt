@@ -66,6 +66,7 @@ import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.presentation.navigation.Screens
+import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -197,6 +198,7 @@ fun HomeScreen(navController: NavHostController) {
                 items(projects, key = { it.id }) { project ->
                     ProjectCard(
                         project = project,
+                        onOpen = { navController.navigate(projectRoute(project.id)) },
                         onEdit = { projectToEdit = project },
                         onDelete = { projectToDelete = project }
                     )
@@ -211,6 +213,7 @@ fun HomeScreen(navController: NavHostController) {
             onSave = { project ->
                 projects = projectRepository.addProject(project)
                 showCreateProject = false
+                navController.navigate(projectRoute(project.id))
             }
         )
     }
@@ -265,6 +268,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 @Composable
 private fun ProjectCard(
     project: BuildProject,
+    onOpen: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -281,6 +285,10 @@ private fun ProjectCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(12.dp))
+            Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+                Text("Configure apps")
+            }
+            Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

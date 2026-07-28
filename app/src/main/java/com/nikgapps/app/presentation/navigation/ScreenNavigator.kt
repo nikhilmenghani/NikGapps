@@ -30,6 +30,7 @@ import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.InstallScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
+import com.nikgapps.app.presentation.ui.screen.ProjectScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -49,10 +50,19 @@ val listOfNavItems = listOf(
 )
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps, Logs, Install
+    Home, Profile, Download, Settings, Apps, Logs, Install, Project
 }
 
-val excludedScreens = listOf(Screens.Settings.name, Screens.Profile.name, Screens.Apps.name)
+const val PROJECT_ROUTE = "Project/{projectId}"
+
+fun projectRoute(projectId: String) = "Project/$projectId"
+
+val excludedScreens = listOf(
+    Screens.Settings.name,
+    Screens.Profile.name,
+    Screens.Apps.name,
+    PROJECT_ROUTE
+)
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
@@ -135,6 +145,12 @@ fun NavigationHost(
         }
         composable(route = Screens.Install.name) {
             InstallScreen(progressLogViewModel)
+        }
+        composable(route = PROJECT_ROUTE) { backStackEntry ->
+            ProjectScreen(
+                projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
+                navController = navController
+            )
         }
     }
 }
