@@ -9,7 +9,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -36,28 +43,51 @@ import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.app.utils.settings.Settings
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PermissionsScreen(onAllPermissionsGranted: () -> Unit = {}) {
+fun PermissionsScreen(
+    autoCompleteWhenGranted: Boolean = true,
+    onAllPermissionsGranted: () -> Unit = {},
+    onBack: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var allPermissionsGranted by remember {
         mutableStateOf(Permissions.hasAllRequiredPermissions(context))
     }
-    LaunchedEffect(allPermissionsGranted) {
-        if (allPermissionsGranted) {
-            onAllPermissionsGranted() // Automatically navigate to home when all permissions are granted
+    LaunchedEffect(allPermissionsGranted, autoCompleteWhenGranted) {
+        if (autoCompleteWhenGranted && allPermissionsGranted) {
+            onAllPermissionsGranted()
         }
     }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Permissions Screen") }) }
-    ) {
+        topBar = {
+            TopAppBar(
+                title = { Text("Permissions") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 permissionMap.forEach { (permissionName, _) ->
                     PermissionsManagerCard(

@@ -11,14 +11,20 @@ import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.ui.screen.PermissionsScreen
 
 class PermissionsActivity: ComponentActivity() {
+    companion object {
+        const val EXTRA_REVIEW_MODE = "com.nikgapps.extra.REVIEW_PERMISSIONS"
+    }
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val reviewMode = intent.getBooleanExtra(EXTRA_REVIEW_MODE, false)
         setContent {
             NikGappsTheme {
-                // Your composable content
                 PermissionsScreen(
-                    onAllPermissionsGranted = ::onAllPermissionsGranted
+                    autoCompleteWhenGranted = !reviewMode,
+                    onAllPermissionsGranted = ::onAllPermissionsGranted,
+                    onBack = if (reviewMode) ::finish else null
                 )
             }
         }
