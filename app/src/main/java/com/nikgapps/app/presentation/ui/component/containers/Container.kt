@@ -29,17 +29,19 @@ import com.nikgapps.app.utils.extensions.block
 @Composable
 fun Container(
     title: String,
+    initiallyExpanded: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
             .block(
-                color = MaterialTheme.colorScheme.onSecondary,
-                borderSize = 0.dp
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+                borderSize = 1.dp
             )
             .padding(12.dp)
     ) {
@@ -72,8 +74,9 @@ fun Container(
                 modifier = Modifier
                     .fillMaxWidth()
                     .block(
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        borderSize = 0.dp
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f),
+                        borderSize = 1.dp
                     ),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {

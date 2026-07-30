@@ -49,6 +49,9 @@ fun PreferenceItem(
     onClick: () -> Unit = {},
 ) {
     Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        tonalElevation = 0.dp,
+        shape = MaterialTheme.shapes.small,
         modifier = Modifier.combinedClickable(
             onClick = onClick,
             onClickLabel = onClickLabel,
@@ -190,6 +193,9 @@ fun PreferenceItemVariant(
     onClick: () -> Unit = {},
 ) {
     Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        tonalElevation = 0.dp,
+        shape = MaterialTheme.shapes.small,
         modifier = Modifier.combinedClickable(
             enabled = enabled,
             onClick = onClick,

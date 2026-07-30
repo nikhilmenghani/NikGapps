@@ -1,14 +1,16 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.Nightlight
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
+import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
 
 @Composable
@@ -19,10 +21,11 @@ fun DisplayContainer() {
     val githubPreference = globalClass.preferencesManager.githubPrefs
 
     Container(title = stringResource(R.string.display)) {
+        PreferenceSubtitle(text = "Appearance")
         PreferenceItem(
             label = stringResource(R.string.use_dynamic_color),
             supportingText = emptyString,
-            icon = Icons.AutoMirrored.Rounded.Label,
+            icon = Icons.Rounded.Palette,
             switchState = preferences.useDynamicColor,
             onSwitchChange = { preferences.useDynamicColor = it }
         )
@@ -54,10 +57,11 @@ fun DisplayContainer() {
     }
 
     Container(title = "Authentication") {
+        PreferenceSubtitle(text = "GitHub")
         PreferenceItem(
             label = "Github Token",
             supportingText = githubPreference.token,
-            icon = Icons.AutoMirrored.Rounded.Label,
+            icon = Icons.Rounded.VpnKey,
             onClick = {
                 textDialog.show(
                     title = "Github Token",
