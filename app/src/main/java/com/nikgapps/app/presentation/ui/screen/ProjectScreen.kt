@@ -3,7 +3,9 @@ package com.nikgapps.app.presentation.ui.screen
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +43,7 @@ private enum class PackageSort(val label: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectScreen(projectId: String, navController: NavHostController) {
+fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: NavHostController) {
     val context = LocalActivity.current ?: return
     val repository = remember { BuildProjectRepository(context) }
     var project by remember(projectId) { mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId }) }
@@ -50,6 +52,8 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
     var progress by remember { mutableStateOf<ZipBuildProgress?>(null) }
     var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.CATALOG) }
+    var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
+    val expandedPackages = remember(projectId) { mutableStateListOf<String>() }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
@@ -169,6 +173,13 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
         }
     }
 
+    LaunchedEffect(autoBuild, metadata) {
+        if (autoBuild && !autoBuildConsumed && metadata != null) {
+            autoBuildConsumed = true
+            startBuild()
+        }
+    }
+
     Scaffold(topBar = { TopAppBar(title = { Text(current.name) }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }) }, bottomBar = { Surface(tonalElevation = 3.dp) { Button(onClick = ::startBuild,
@@ -231,7 +242,10 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
                         RegistryAppRow(pkg, source, deviceStatus,
                             pkg.id in current.selectedAppIds,
                             current.channelOverrides[pkg.id] ?: current.defaultChannel,
-                            owners, owner?.id,
+                            owners, owner?.id, pkg.id in expandedPackages,
+                            onExpand = {
+                                if (pkg.id in expandedPackages) expandedPackages.remove(pkg.id) else expandedPackages.add(pkg.id)
+                            },
                             onSelected = { enabled -> save(current.copy(
                                 selectedAppSetId = owner?.id ?: current.selectedAppSetId,
                                 selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
@@ -260,14 +274,19 @@ fun ProjectScreen(projectId: String, navController: NavHostController) {
 
 @Composable
 private fun RegistryAppRow(pkg: CatalogPackage, source: AppSource, device: RegistryDeviceStatus, selected: Boolean,
-    channel: String, memberAppSets: List<CatalogAppSet>, selectedAppSetId: String?,
+    channel: String, memberAppSets: List<CatalogAppSet>, selectedAppSetId: String?, expanded: Boolean,
+    onExpand: () -> Unit,
     onSelected: (Boolean) -> Unit, onSource: (AppSource) -> Unit, onAppSet: (CatalogAppSet) -> Unit,
     onChannel: (ReleaseChannel) -> Unit) {
     val enabled = source == AppSource.GITLAB || device.installed
     val catalogVersion = pkg.channels[channel]?.let(pkg.versions::get) ?: pkg.versions.values.firstOrNull()
     val deviceIsNewer = device.versionCode != null && catalogVersion != null && device.versionCode > catalogVersion.versionCode
+    val availableChannels = ReleaseChannel.entries.filter { it.wireName in pkg.channels }
+    val selectedChannel = availableChannels.firstOrNull { it.wireName == channel } ?: availableChannels.firstOrNull()
+    val nextChannel = selectedChannel?.takeIf { availableChannels.size > 1 }
+        ?.let { availableChannels[(availableChannels.indexOf(it) + 1) % availableChannels.size] }
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onExpand), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(14.dp), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier.size(48.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null) } }
             Spacer(Modifier.width(12.dp))
@@ -277,47 +296,59 @@ private fun RegistryAppRow(pkg: CatalogPackage, source: AppSource, device: Regis
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Checkbox(selected, onSelected, enabled = enabled)
+            Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                if (expanded) "Collapse ${pkg.name}" else "Configure ${pkg.name}")
         }
 
-        Text("AppSet", style = MaterialTheme.typography.labelLarge)
-        Text("This package will be included under the highlighted AppSet.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            memberAppSets.forEach { appSet ->
-                FilterChip(selected = appSet.id == selectedAppSetId,
-                    onClick = { onAppSet(appSet) },
-                    label = { Text(appSet.name) },
-                    leadingIcon = if (appSet.id == selectedAppSetId) {{
-                        Icon(Icons.Default.Check, null, Modifier.size(18.dp))
-                    }} else null)
-            }
-        }
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text("Package source", style = MaterialTheme.typography.labelLarge)
+                Text("Select which version should be placed in the flashable ZIP.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SourceTile(title = "GitLab", version = catalogVersion?.versionName, icon = Icons.Default.CloudDownload,
+                        selected = source == AppSource.GITLAB, enabled = true, modifier = Modifier.weight(1f),
+                        supportingText = if (deviceIsNewer && source == AppSource.GITLAB) "Newer version on device" else null) {
+                        onSource(AppSource.GITLAB)
+                    }
+                    SourceTile(title = "Device", version = device.versionName, icon = Icons.Default.PhoneAndroid,
+                        selected = source == AppSource.DEVICE, enabled = device.installed, modifier = Modifier.weight(1f),
+                        supportingText = if (device.installed) null else "Not installed") {
+                        onSource(AppSource.DEVICE)
+                    }
+                }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Text("Release channel", style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            ReleaseChannel.entries.forEach { option ->
-                val available = option.wireName in pkg.channels
-                FilterChip(selected = channel == option.wireName, onClick = { onChannel(option) }, enabled = available,
-                    label = { Text(option.wireName.replaceFirstChar { it.uppercase() }) },
-                    leadingIcon = if (channel == option.wireName) {{ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }} else null)
-            }
-        }
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Text("Package source", style = MaterialTheme.typography.labelLarge)
-        Text("Select which version should be placed in the flashable ZIP.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SourceTile(title = "GitLab", version = catalogVersion?.versionName, icon = Icons.Default.CloudDownload,
-                selected = source == AppSource.GITLAB, enabled = true, modifier = Modifier.weight(1f),
-                supportingText = if (deviceIsNewer && source == AppSource.GITLAB) "Newer version on device" else null) {
-                onSource(AppSource.GITLAB)
-            }
-            SourceTile(title = "Device", version = device.versionName, icon = Icons.Default.PhoneAndroid,
-                selected = source == AppSource.DEVICE, enabled = device.installed, modifier = Modifier.weight(1f),
-                supportingText = if (device.installed) null else "Not installed") {
-                onSource(AppSource.DEVICE)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("AppSet", style = MaterialTheme.typography.labelLarge)
+                        Text("Highlighted AppSet owns this package", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            memberAppSets.forEach { appSet ->
+                                FilterChip(selected = appSet.id == selectedAppSetId,
+                                    onClick = { onAppSet(appSet) }, label = { Text(appSet.name) },
+                                    leadingIcon = if (appSet.id == selectedAppSetId) {{
+                                        Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                                    }} else null)
+                            }
+                        }
+                    }
+                    VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Release channel", style = MaterialTheme.typography.labelLarge)
+                        FilledTonalButton(onClick = { nextChannel?.let(onChannel) }, enabled = nextChannel != null,
+                            modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp)) {
+                            Icon(Icons.Default.Sync, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(selectedChannel?.wireName?.replaceFirstChar { it.uppercase() } ?: "Unavailable",
+                                maxLines = 1)
+                        }
+                        if (availableChannels.size > 1) Text("Tap to switch channel", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }

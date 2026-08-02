@@ -20,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
@@ -53,9 +55,9 @@ enum class Screens {
     Home, Profile, Download, Settings, Apps, Logs, Install, Project
 }
 
-const val PROJECT_ROUTE = "Project/{projectId}"
+const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
 
-fun projectRoute(projectId: String) = "Project/$projectId"
+fun projectRoute(projectId: String, build: Boolean = false) = "Project/$projectId?build=$build"
 
 val excludedScreens = listOf(
     Screens.Settings.name,
@@ -146,9 +148,12 @@ fun NavigationHost(
         composable(route = Screens.Install.name) {
             InstallScreen(progressLogViewModel)
         }
-        composable(route = PROJECT_ROUTE) { backStackEntry ->
+        composable(route = PROJECT_ROUTE, arguments = listOf(
+            navArgument("build") { type = NavType.BoolType; defaultValue = false }
+        )) { backStackEntry ->
             ProjectScreen(
                 projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
+                autoBuild = backStackEntry.arguments?.getBoolean("build") == true,
                 navController = navController
             )
         }

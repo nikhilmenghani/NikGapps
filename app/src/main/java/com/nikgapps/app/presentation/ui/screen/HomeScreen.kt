@@ -246,6 +246,7 @@ fun HomeScreen(navController: NavHostController) {
                     ProjectCard(
                         project = project,
                         onOpen = { navController.navigate(projectRoute(project.id)) },
+                        onBuild = { navController.navigate(projectRoute(project.id, build = true)) },
                         onDuplicate = {
                             projects = projectRepository.addProject(
                                 BuildProject(
@@ -332,6 +333,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 private fun ProjectCard(
     project: BuildProject,
     onOpen: () -> Unit,
+    onBuild: () -> Unit,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -403,19 +405,19 @@ private fun ProjectCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
-                ProjectActionButton(
-                    icon = Icons.Default.Inventory2,
-                    label = "Create ZIP",
-                    onClick = onOpen,
-                    modifier = Modifier.weight(1f)
-                )
+                if (project.selectedAppIds.isNotEmpty()) {
+                    ProjectActionButton(
+                        icon = Icons.Default.Inventory2,
+                        label = "Create ZIP",
+                        onClick = onBuild
+                    )
+                }
                 ProjectActionButton(
                     icon = Icons.Default.Delete,
                     label = "Delete",
                     onClick = onDelete,
-                    modifier = Modifier.weight(1f),
                     destructive = true
                 )
             }
