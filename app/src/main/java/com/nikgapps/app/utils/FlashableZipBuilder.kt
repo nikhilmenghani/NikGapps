@@ -193,15 +193,7 @@ class FlashableZipBuilder(private val context: Context) {
                 readableFile(it, temporaryFiles)
             }
         }
-        AppSource.IMPORTED -> copyArtifact(
-            prefix = "nikgapps-import-",
-            temporaryFiles = temporaryFiles
-        ) { destination ->
-            context.contentResolver.openInputStream(Uri.parse(input.source.location))?.use { source ->
-                destination.outputStream().use(source::copyTo)
-            } ?: error("Cannot open imported APK")
-        }
-        AppSource.GITLAB, AppSource.SOURCEFORGE -> copyArtifact(
+        AppSource.GITLAB -> copyArtifact(
             prefix = "nikgapps-download-",
             temporaryFiles = temporaryFiles
         ) { destination ->

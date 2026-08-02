@@ -21,13 +21,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -42,8 +43,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -250,6 +252,10 @@ fun HomeScreen(navController: NavHostController) {
                                     name = "${project.name} copy",
                                     androidVersion = project.androidVersion,
                                     architecture = project.architecture,
+                                    selectedAppSetId = project.selectedAppSetId,
+                                    selectedPackageAppSets = project.selectedPackageAppSets,
+                                    defaultChannel = project.defaultChannel,
+                                    channelOverrides = project.channelOverrides,
                                     selectedAppIds = project.selectedAppIds,
                                     appSources = project.appSources
                                 )
@@ -392,34 +398,26 @@ private fun ProjectCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        FilledTonalIconButton(
-                            onClick = onOpen,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.FolderOpen,
-                                contentDescription = "Open ${project.name}",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        FilledTonalIconButton(
-                            onClick = onDelete,
-                            modifier = Modifier.size(36.dp),
-                            colors = androidx.compose.material3.IconButtonDefaults
-                                .filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete ${project.name}",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
                 }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProjectActionButton(
+                    icon = Icons.Default.Inventory2,
+                    label = "Create ZIP",
+                    onClick = onOpen,
+                    modifier = Modifier.weight(1f)
+                )
+                ProjectActionButton(
+                    icon = Icons.Default.Delete,
+                    label = "Delete",
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f),
+                    destructive = true
+                )
             }
         }
     }
@@ -444,6 +442,34 @@ private fun ProjectCard(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun ProjectActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    destructive: Boolean = false
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        shape = CircleShape,
+        colors = if (destructive) {
+            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer
+            )
+        } else {
+            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors()
+        },
+        contentPadding = PaddingValues(horizontal = 10.dp)
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 
@@ -552,7 +578,11 @@ private fun ProjectSheet(
                             id = project?.id ?: java.util.UUID.randomUUID().toString(),
                             name = name.trim(),
                             androidVersion = androidVersion,
-                            architecture = architecture
+                            architecture = architecture,
+                            selectedAppSetId = project?.selectedAppSetId ?: "core",
+                            selectedPackageAppSets = project?.selectedPackageAppSets.orEmpty(),
+                            defaultChannel = project?.defaultChannel ?: "stable",
+                            channelOverrides = project?.channelOverrides.orEmpty()
                         )
                     )
                 },

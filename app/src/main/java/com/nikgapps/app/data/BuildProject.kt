@@ -10,20 +10,22 @@ data class BuildProject(
     val name: String,
     val androidVersion: AndroidVersion,
     val architecture: Architecture,
+    val selectedAppSetId: String = "core",
+    val selectedPackageAppSets: Map<String, String> = emptyMap(),
+    val defaultChannel: String = "stable",
+    val channelOverrides: Map<String, String> = emptyMap(),
     val selectedAppIds: Set<String> = emptySet(),
     val appSources: Map<String, AppSourceConfig> = emptyMap(),
     val createdAt: Long = System.currentTimeMillis()
 )
 
 enum class AppSource(val displayName: String) {
-    DEVICE("Device"),
     GITLAB("GitLab"),
-    SOURCEFORGE("SourceForge"),
-    IMPORTED("Imported APK")
+    DEVICE("Device")
 }
 
 data class AppSourceConfig(
-    val source: AppSource = AppSource.DEVICE,
+    val source: AppSource = AppSource.GITLAB,
     val location: String = ""
 )
 
@@ -63,6 +65,14 @@ class BuildProjectRepository(context: Context) {
                     name = project.getString("name"),
                     androidVersion = AndroidVersion.valueOf(project.getString("androidVersion")),
                     architecture = Architecture.valueOf(project.getString("architecture")),
+                    selectedAppSetId = project.optString("selectedAppSetId", "core"),
+                    selectedPackageAppSets = project.optJSONObject("selectedPackageAppSets")?.let { values ->
+                        buildMap { values.keys().forEach { put(it, values.getString(it)) } }
+                    }.orEmpty(),
+                    defaultChannel = project.optString("defaultChannel", "stable"),
+                    channelOverrides = project.optJSONObject("channelOverrides")?.let { values ->
+                        buildMap { values.keys().forEach { put(it, values.getString(it)) } }
+                    }.orEmpty(),
                     selectedAppIds = project.optJSONArray("selectedAppIds")
                         ?.let { selectedApps ->
                             buildSet {
@@ -80,7 +90,9 @@ class BuildProjectRepository(context: Context) {
                                     put(
                                         appId,
                                         AppSourceConfig(
-                                            source = AppSource.valueOf(config.getString("source")),
+                                            source = runCatching {
+                                                AppSource.valueOf(config.getString("source"))
+                                            }.getOrDefault(AppSource.GITLAB),
                                             location = config.optString("location")
                                         )
                                     )
@@ -120,6 +132,10 @@ class BuildProjectRepository(context: Context) {
                         .put("name", it.name)
                         .put("androidVersion", it.androidVersion.name)
                         .put("architecture", it.architecture.name)
+                        .put("selectedAppSetId", it.selectedAppSetId)
+                        .put("selectedPackageAppSets", JSONObject(it.selectedPackageAppSets))
+                        .put("defaultChannel", it.defaultChannel)
+                        .put("channelOverrides", JSONObject(it.channelOverrides))
                         .put("createdAt", it.createdAt)
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
                         .put(

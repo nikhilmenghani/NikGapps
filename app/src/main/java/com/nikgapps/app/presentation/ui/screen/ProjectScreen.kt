@@ -1,628 +1,349 @@
 package com.nikgapps.app.presentation.ui.screen
 
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.graphics.drawable.toBitmap
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Deselect
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.nikgapps.app.data.AppSource
-import com.nikgapps.app.data.AppSourceConfig
-import com.nikgapps.app.data.BuildProject
-import com.nikgapps.app.data.BuildProjectRepository
-import com.nikgapps.app.data.SupportedApp
-import com.nikgapps.app.data.SupportedApps
-import com.nikgapps.app.utils.AppBuildInput
-import com.nikgapps.app.utils.FlashableZipBuilder
+import com.nikgapps.app.data.*
+import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
-import com.nikgapps.app.utils.ZipBuildResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
-private data class DeviceAppStatus(val installed: Boolean, val version: String?)
+private data class RegistryDeviceStatus(
+    val installed: Boolean,
+    val versionName: String? = null,
+    val versionCode: Long? = null
+)
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private enum class PackageSort(val label: String) {
+    CATALOG("Catalog"),
+    NAME("Name"),
+    INSTALLED("Installed first")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectScreen(projectId: String, navController: NavHostController) {
     val context = LocalActivity.current ?: return
     val repository = remember { BuildProjectRepository(context) }
-    var project by remember(projectId) {
-        mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId })
-    }
-    val deviceStatuses = remember {
-        SupportedApps.all.associate { app ->
-            app.id to runCatching {
-                @Suppress("DEPRECATION")
-                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    context.packageManager.getPackageInfo(
-                        app.packageName,
-                        PackageManager.PackageInfoFlags.of(0)
-                    )
-                } else {
-                    context.packageManager.getPackageInfo(app.packageName, 0)
-                }
-                DeviceAppStatus(true, info.versionName)
-            }.getOrDefault(DeviceAppStatus(false, null))
-        }
-    }
-    var pendingImportAppId by remember { mutableStateOf<String?>(null) }
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        val appId = pendingImportAppId
-        pendingImportAppId = null
-        if (uri != null && appId != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-            project?.let { current ->
-                val updated = current.copy(
-                    appSources = current.appSources + (
-                        appId to AppSourceConfig(AppSource.IMPORTED, uri.toString())
-                    )
-                )
-                repository.updateProject(updated)
-                project = updated
-            }
-        }
-    }
-    val zipBuilder = remember { FlashableZipBuilder(context) }
+    var project by remember(projectId) { mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId }) }
+    var metadata by remember { mutableStateOf<RegistryMetadata?>(null) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf<ZipBuildProgress?>(null) }
+    var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.CATALOG) }
     val scope = rememberCoroutineScope()
-    var buildProgress by remember { mutableStateOf<ZipBuildProgress?>(null) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
-    var buildFailed by remember { mutableStateOf(false) }
-    var selectionMode by remember { mutableStateOf(false) }
+    val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
-    val currentProject = project
-    if (currentProject == null) {
-        Text("Project not found", modifier = Modifier.padding(24.dp))
-        return
+    LaunchedEffect(Unit) {
+        try { metadata = catalogRepository.load() }
+        catch (e: Exception) { loadError = e.message ?: "Unable to load the NikGapps catalog" }
     }
+    val current = project
+    if (current == null) { Text("Project not found", Modifier.padding(24.dp)); return }
+    val registry = metadata
+    val selectedAppSet = registry?.appSets?.appSets?.firstOrNull { it.id == current.selectedAppSetId }
+        ?: registry?.appSets?.appSets?.firstOrNull()
+    val packageAppSets = registry?.let { loaded ->
+        loaded.appSets.appSets.flatMap { appSet ->
+            loaded.catalog.publicPackages(appSet).map { pkg -> pkg.id to appSet }
+        }.groupBy({ it.first }, { it.second })
+    }.orEmpty()
+    val displayedPackages = registry?.catalog?.packages?.filter { it.id in packageAppSets }.orEmpty()
 
-    LaunchedEffect(currentProject.id) {
-        val validSelections = currentProject.selectedAppIds.filterTo(mutableSetOf()) { appId ->
-            val source = currentProject.appSources[appId] ?: AppSourceConfig()
-            when (source.source) {
-                AppSource.DEVICE -> deviceStatuses[appId]?.installed == true
-                else -> source.location.isNotBlank()
+    LaunchedEffect(registry, selectedAppSet?.id) {
+        if (registry != null && selectedAppSet != null) {
+            val packageOwners = current.selectedPackageAppSets.toMutableMap()
+            current.selectedAppIds.forEach { id ->
+                val validOwners = packageAppSets[id].orEmpty()
+                if (packageOwners[id] !in validOwners.map { it.id }) {
+                    packageOwners[id] = validOwners.firstOrNull()?.id ?: selectedAppSet.id
+                }
             }
+            val normalized = current.copy(selectedAppSetId = selectedAppSet.id, selectedPackageAppSets = packageOwners)
+            if (normalized != current) { repository.updateProject(normalized); project = normalized }
         }
-        if (validSelections != currentProject.selectedAppIds) {
-            val updated = currentProject.copy(selectedAppIds = validSelections)
-            repository.updateProject(updated)
-            project = updated
+    }
+    val catalogPackages = registry?.catalog?.packages.orEmpty()
+    val deviceStatuses = remember(catalogPackages) {
+        catalogPackages.associate { pkg ->
+            val info = pkg.versions.values.asSequence().mapNotNull { version ->
+                version.packageName?.let { packageName -> runCatching {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) context.packageManager.getPackageInfo(
+                        packageName, PackageManager.PackageInfoFlags.of(0))
+                    else @Suppress("DEPRECATION") context.packageManager.getPackageInfo(packageName, 0)
+                }.getOrNull() }
+            }.firstOrNull()
+            pkg.id to if (info == null) RegistryDeviceStatus(false) else RegistryDeviceStatus(
+                installed = true,
+                versionName = info.versionName,
+                versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode
+                    else @Suppress("DEPRECATION") info.versionCode.toLong()
+            )
+        }
+    }
+    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort) {
+        when (packageSort) {
+            PackageSort.CATALOG -> displayedPackages
+            PackageSort.NAME -> displayedPackages.sortedBy { it.name.lowercase() }
+            PackageSort.INSTALLED -> displayedPackages.sortedWith(
+                compareByDescending<CatalogPackage> { deviceStatuses[it.id]?.installed == true }
+                    .thenBy { it.name.lowercase() }
+            )
         }
     }
 
-    fun save(updated: BuildProject) {
-        repository.updateProject(updated)
-        project = updated
-    }
-
-    fun availableAppIds(project: BuildProject): Set<String> {
-        return SupportedApps.all.mapNotNullTo(mutableSetOf()) { app ->
-            val source = project.appSources[app.id] ?: AppSourceConfig()
-            val available = when (source.source) {
-                AppSource.DEVICE -> deviceStatuses[app.id]?.installed == true
-                else -> source.location.isNotBlank()
-            }
-            app.id.takeIf { available }
-        }
-    }
-
-    fun buildZip() {
+    fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun startBuild() {
+        val loaded = metadata ?: return
+        val appSet = selectedAppSet ?: return
         scope.launch {
-            val inputs = SupportedApps.all
-                .filter { it.id in currentProject.selectedAppIds }
-                .map {
-                    AppBuildInput(
-                        it,
-                        currentProject.appSources[it.id] ?: AppSourceConfig()
-                    )
+            try {
+                progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
+                val defaultChannel = ReleaseChannel.valueOf(current.defaultChannel.uppercase())
+                val overrides = current.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
+                val selections = current.selectedAppIds.associateWith { id ->
+                    current.selectedPackageAppSets[id] ?: loaded.appSets.appSets.firstOrNull { id in it.packages }?.id
+                    ?: throw IllegalArgumentException("No AppSet owns selected package '$id'")
                 }
-            buildProgress = ZipBuildProgress(0, inputs.size, "Preparing project…")
-            when (
-                val result = zipBuilder.build(currentProject, inputs) { progress ->
-                    withContext(Dispatchers.Main) { buildProgress = progress }
-                }
-            ) {
-                is ZipBuildResult.Success -> {
-                    buildProgress = null
-                    buildFailed = false
-                    resultMessage = "Flashable ZIP created:\n${result.location}"
-                }
-                is ZipBuildResult.Failure -> {
-                    buildProgress = null
-                    buildFailed = true
-                    resultMessage = result.message
-                }
-            }
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (selectionMode) {
-                            "${currentProject.selectedAppIds.size} selected"
-                        } else {
-                            currentProject.name
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = navController::navigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                val resolution = withContext(Dispatchers.IO) { CatalogResolver(loaded.catalog, loaded.appSets).resolveAcrossAppSets(
+                    selections, defaultChannel, overrides, current.androidVersion.apiLevel, current.architecture.value) }
+                val resolved = resolution.packages
+                val visibleTotal = resolved.count { !it.hidden }
+                val downloader = ArtifactDownloader(context.cacheDir)
+                val validator = PackageZipValidator()
+                val deviceFactory = DeviceArtifactFactory(context)
+                val deviceDir = File(context.cacheDir, "nikgapps/device-packages").apply { mkdirs() }
+                val artifacts = mutableListOf<ValidatedArtifact>()
+                var completedVisible = 0
+                resolved.forEach { pkg ->
+                    val source = current.appSources[pkg.catalogPackage.id]?.source ?: AppSource.GITLAB
+                    val operation = when {
+                        pkg.hidden -> "Downloading required dependency ${pkg.catalogPackage.name}…"
+                        source == AppSource.DEVICE -> "Reading ${pkg.catalogPackage.name} from this device…"
+                        else -> "Downloading ${pkg.catalogPackage.name} from GitLab…"
                     }
-                },
-                actions = {
-                    if (selectionMode) {
-                        IconButton(onClick = { selectionMode = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Exit selection mode")
-                        }
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Surface(tonalElevation = 3.dp, shadowElevation = 3.dp) {
-                Button(
-                    onClick = ::buildZip,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Icon(Icons.Default.Inventory2, contentDescription = null)
-                    Text(
-                        "  Build flashable ZIP (${currentProject.selectedAppIds.size} apps)"
-                    )
-                }
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text("Supported apps", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    if (selectionMode) {
-                        "Tap available apps to change the selection."
+                    progress = ZipBuildProgress(completedVisible, visibleTotal, operation)
+                    val artifact = if (!pkg.hidden && source == AppSource.DEVICE) {
+                        withContext(Dispatchers.IO) { deviceFactory.create(pkg, deviceDir) }
                     } else {
-                        "Press and hold an available app to start selecting."
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (selectionMode) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        TextButton(
-                            onClick = {
-                                save(
-                                    currentProject.copy(
-                                        selectedAppIds = availableAppIds(currentProject)
-                                    )
-                                )
-                            }
-                        ) {
-                            Icon(Icons.Default.SelectAll, contentDescription = null)
-                            Text(" Select All")
-                        }
-                        TextButton(
-                            onClick = {
-                                save(currentProject.copy(selectedAppIds = emptySet()))
-                            }
-                        ) {
-                            Icon(Icons.Default.Deselect, contentDescription = null)
-                            Text(" Select None")
-                        }
-                        TextButton(
-                            onClick = {
-                                val available = availableAppIds(currentProject)
-                                save(
-                                    currentProject.copy(
-                                        selectedAppIds =
-                                            available - currentProject.selectedAppIds
-                                    )
-                                )
-                            }
-                        ) {
-                            Icon(Icons.Default.SwapHoriz, contentDescription = null)
-                            Text(" Invert Selection")
-                        }
+                        val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
+                            val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
+                            progress = ZipBuildProgress(completedVisible, visibleTotal,
+                                "${if (pkg.hidden) "Downloading required dependency" else "Downloading from GitLab"}: ${pkg.catalogPackage.name}${percent?.let { " ($it%)" }.orEmpty()}")
+                        } }
+                        withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
                     }
+                    artifacts += artifact
+                    if (!pkg.hidden) completedVisible++
                 }
-            }
-            items(SupportedApps.all, key = { it.id }) { app ->
-                val source = currentProject.appSources[app.id] ?: AppSourceConfig()
-                val available = when (source.source) {
-                    AppSource.DEVICE -> deviceStatuses[app.id]?.installed == true
-                    else -> source.location.isNotBlank()
+                progress = ZipBuildProgress(visibleTotal, visibleTotal, "Assembling the flashable ZIP…")
+                val output = withContext(Dispatchers.IO) {
+                    RegistryZipAssembler(AndroidBuilderAssetSource(context)).build(
+                        File(context.cacheDir, "zip-builds"), BuildRequest(current.androidVersion.displayName,
+                            current.androidVersion.apiLevel, current.architecture.value, appSet, defaultChannel,
+                            overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets), artifacts)
                 }
-                SupportedAppCard(
-                    app = app,
-                    source = source,
-                    deviceStatus = deviceStatuses[app.id] ?: DeviceAppStatus(false, null),
-                    selected = app.id in currentProject.selectedAppIds,
-                    selectionEnabled = available,
-                    selectionMode = selectionMode,
-                    onStartSelection = {
-                        if (available) {
-                            selectionMode = true
-                            save(
-                                currentProject.copy(
-                                    selectedAppIds =
-                                        currentProject.selectedAppIds + app.id
-                                )
-                            )
-                        }
-                    },
-                    onSelectedChange = { selected ->
-                        save(
-                            currentProject.copy(
-                                selectedAppIds = if (selected) {
-                                    currentProject.selectedAppIds + app.id
-                                } else {
-                                    currentProject.selectedAppIds - app.id
-                                }
-                            )
-                        )
-                    },
-                    onSourceChange = { newSource ->
-                        val config = AppSourceConfig(newSource)
-                        save(
-                            currentProject.copy(
-                                appSources = currentProject.appSources + (app.id to config),
-                                selectedAppIds = currentProject.selectedAppIds - app.id
-                            )
-                        )
-                    },
-                    onLocationChange = { location ->
-                        save(
-                            currentProject.copy(
-                                appSources = currentProject.appSources + (
-                                    app.id to source.copy(location = location)
-                                )
-                            )
-                        )
-                    },
-                    onImport = {
-                        pendingImportAppId = app.id
-                        importLauncher.launch(arrayOf("application/vnd.android.package-archive"))
-                    }
-                )
-            }
+                val published = withContext(Dispatchers.IO) { ZipPublisher(context).publish(output) }
+                output.delete()
+                progress = null; result = false to "Flashable ZIP created:\n$published"
+            } catch (e: Exception) { progress = null; result = true to (e.message ?: "Build failed") }
         }
     }
 
-    buildProgress?.let { progress ->
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Building flashable ZIP") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LinearProgressIndicator(
-                        progress = { progress.fraction },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text(progress.message)
-                    Text("${progress.completed} of ${progress.total} apps")
+    Scaffold(topBar = { TopAppBar(title = { Text(current.name) }, navigationIcon = {
+        IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+    }) }, bottomBar = { Surface(tonalElevation = 3.dp) { Button(onClick = ::startBuild,
+        enabled = metadata != null && current.selectedAppIds.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(16.dp),
+        shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
+        Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp))
+        Text("Build flashable ZIP · ${current.selectedAppIds.size} apps")
+    } } }) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item {
+                Text("Build your app set", style = MaterialTheme.typography.headlineMedium)
+                Text("Pick any supported package, its source, and the AppSet used for shared apps.",
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(16.dp))
+                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("${current.selectedAppIds.size} apps selected", style = MaterialTheme.typography.titleMedium)
+                                Text("Configure each package below", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
                 }
-            },
-            confirmButton = {}
-        )
-    }
-    resultMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { resultMessage = null },
-            title = { Text(if (buildFailed) "Build failed" else "Build complete") },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(onClick = { resultMessage = null }) { Text("OK") }
+                Spacer(Modifier.height(12.dp))
+                Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Sort apps", style = MaterialTheme.typography.labelLarge)
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PackageSort.entries.forEach { option ->
+                                FilterChip(selected = packageSort == option, onClick = { packageSort = option },
+                                    label = { Text(option.label) },
+                                    leadingIcon = if (packageSort == option) {{
+                                        Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                                    }} else null)
+                            }
+                        }
+                    }
+                }
+                loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
+                if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
-        )
+            sortedPackages.forEach { pkg ->
+                item(key = pkg.id) {
+                    val owners = packageAppSets[pkg.id].orEmpty()
+                    val owner = owners.firstOrNull { it.id == current.selectedPackageAppSets[pkg.id] }
+                        ?: owners.firstOrNull()
+                    val source = current.appSources[pkg.id]?.source ?: AppSource.GITLAB
+                    val deviceStatus = deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false)
+                    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        RegistryAppRow(pkg, source, deviceStatus,
+                            pkg.id in current.selectedAppIds,
+                            current.channelOverrides[pkg.id] ?: current.defaultChannel,
+                            owners, owner?.id,
+                            onSelected = { enabled -> save(current.copy(
+                                selectedAppSetId = owner?.id ?: current.selectedAppSetId,
+                                selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
+                                selectedPackageAppSets = if (enabled && owner != null) current.selectedPackageAppSets + (pkg.id to owner.id)
+                                    else current.selectedPackageAppSets - pkg.id)) },
+                            onSource = { newSource -> save(current.copy(
+                                appSources = current.appSources + (pkg.id to AppSourceConfig(newSource)),
+                                selectedAppIds = current.selectedAppIds,
+                                selectedPackageAppSets = current.selectedPackageAppSets)) },
+                            onAppSet = { appSet -> save(current.copy(
+                                selectedAppSetId = appSet.id,
+                                selectedPackageAppSets = current.selectedPackageAppSets + (pkg.id to appSet.id))) },
+                            onChannel = { channel -> save(current.copy(
+                                channelOverrides = current.channelOverrides + (pkg.id to channel.wireName))) })
+                    }
+                }
+            }
+        }
+    }
+    progress?.let { p -> AlertDialog({}, title = { Text("Building flashable ZIP") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth()); Text(p.message); Text("${p.completed} of ${p.total} packages")
+    } }, confirmButton = {}) }
+    result?.let { (failed, message) -> AlertDialog({ result = null }, title = { Text(if (failed) "Build failed" else "Build complete") },
+        text = { Text(message) }, confirmButton = { TextButton({ result = null }) { Text("OK") } }) }
+}
+
+@Composable
+private fun RegistryAppRow(pkg: CatalogPackage, source: AppSource, device: RegistryDeviceStatus, selected: Boolean,
+    channel: String, memberAppSets: List<CatalogAppSet>, selectedAppSetId: String?,
+    onSelected: (Boolean) -> Unit, onSource: (AppSource) -> Unit, onAppSet: (CatalogAppSet) -> Unit,
+    onChannel: (ReleaseChannel) -> Unit) {
+    val enabled = source == AppSource.GITLAB || device.installed
+    val catalogVersion = pkg.channels[channel]?.let(pkg.versions::get) ?: pkg.versions.values.firstOrNull()
+    val deviceIsNewer = device.versionCode != null && catalogVersion != null && device.versionCode > catalogVersion.versionCode
+    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(14.dp), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(48.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null) } }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(pkg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(catalogVersion?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Checkbox(selected, onSelected, enabled = enabled)
+        }
+
+        Text("AppSet", style = MaterialTheme.typography.labelLarge)
+        Text("This package will be included under the highlighted AppSet.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            memberAppSets.forEach { appSet ->
+                FilterChip(selected = appSet.id == selectedAppSetId,
+                    onClick = { onAppSet(appSet) },
+                    label = { Text(appSet.name) },
+                    leadingIcon = if (appSet.id == selectedAppSetId) {{
+                        Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                    }} else null)
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text("Release channel", style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            ReleaseChannel.entries.forEach { option ->
+                val available = option.wireName in pkg.channels
+                FilterChip(selected = channel == option.wireName, onClick = { onChannel(option) }, enabled = available,
+                    label = { Text(option.wireName.replaceFirstChar { it.uppercase() }) },
+                    leadingIcon = if (channel == option.wireName) {{ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }} else null)
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text("Package source", style = MaterialTheme.typography.labelLarge)
+        Text("Select which version should be placed in the flashable ZIP.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SourceTile(title = "GitLab", version = catalogVersion?.versionName, icon = Icons.Default.CloudDownload,
+                selected = source == AppSource.GITLAB, enabled = true, modifier = Modifier.weight(1f),
+                supportingText = if (deviceIsNewer && source == AppSource.GITLAB) "Newer version on device" else null) {
+                onSource(AppSource.GITLAB)
+            }
+            SourceTile(title = "Device", version = device.versionName, icon = Icons.Default.PhoneAndroid,
+                selected = source == AppSource.DEVICE, enabled = device.installed, modifier = Modifier.weight(1f),
+                supportingText = if (device.installed) null else "Not installed") {
+                onSource(AppSource.DEVICE)
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun SupportedAppCard(
-    app: SupportedApp,
-    source: AppSourceConfig,
-    deviceStatus: DeviceAppStatus,
-    selected: Boolean,
-    selectionEnabled: Boolean,
-    selectionMode: Boolean,
-    onStartSelection: () -> Unit,
-    onSelectedChange: (Boolean) -> Unit,
-    onSourceChange: (AppSource) -> Unit,
-    onLocationChange: (String) -> Unit,
-    onImport: () -> Unit
-) {
-    val context = LocalContext.current
-    val appIcon = remember(app.packageName, deviceStatus.installed) {
-        if (!deviceStatus.installed) {
-            null
-        } else {
-            runCatching {
-                context.packageManager.getApplicationIcon(app.packageName)
-                    .toBitmap(96, 96)
-                    .asImageBitmap()
-            }.getOrNull()
-        }
-    }
-    var expanded by remember { mutableStateOf(false) }
-    var sourceMenuExpanded by remember { mutableStateOf(false) }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+private fun SourceTile(title: String, version: String?, icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean, enabled: Boolean, modifier: Modifier = Modifier, supportingText: String? = null,
+    onClick: () -> Unit) {
+    Card(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 112.dp),
         shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            1.dp,
-            if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(2.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, Modifier.size(20.dp))
+                Spacer(Modifier.weight(1f))
+                if (selected) Icon(Icons.Default.CheckCircle, "Selected source", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             }
-        )
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(
-                        enabled = selectionEnabled || !selectionMode,
-                        onClick = {
-                            if (selectionMode && selectionEnabled) {
-                                onSelectedChange(!selected)
-                            } else if (!selectionMode) {
-                                expanded = !expanded
-                            }
-                        },
-                        onLongClick = onStartSelection
-                ),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (appIcon != null) {
-                    Image(
-                        bitmap = appIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.size(48.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Android,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        app.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                    )
-                    Text(
-                        app.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        when (source.source) {
-                            AppSource.DEVICE -> if (deviceStatus.installed) {
-                                "Version ${deviceStatus.version ?: "Unknown"} · Device"
-                            } else {
-                                "Not installed · Device"
-                            }
-                            AppSource.IMPORTED -> "Imported APK"
-                            else -> "${source.source.displayName} · Version resolved at build"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (!selectionMode) {
-                    Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (expanded) "Collapse" else "Configure source"
-                    )
-                }
-            }
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 10.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                MetadataTile(
-                    label = when (source.source) {
-                        AppSource.DEVICE -> if (deviceStatus.installed) {
-                            "v${deviceStatus.version ?: "Unknown"}"
-                        } else {
-                            "Not installed"
-                        }
-                        AppSource.IMPORTED -> "Imported APK"
-                        else -> "Version at build"
-                    },
-                    isError = !selectionEnabled
-                )
-                MetadataTile(label = source.source.displayName)
-            }
-            if (expanded && !selectionMode) {
-                Spacer(Modifier.height(8.dp))
-                ExposedDropdownMenuBox(
-                    expanded = sourceMenuExpanded,
-                    onExpandedChange = { sourceMenuExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = source.source.displayName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Source") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(sourceMenuExpanded)
-                        },
-                        modifier = Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = sourceMenuExpanded,
-                        onDismissRequest = { sourceMenuExpanded = false }
-                    ) {
-                        AppSource.entries.forEach {
-                            DropdownMenuItem(
-                                text = { Text(it.displayName) },
-                                onClick = {
-                                    onSourceChange(it)
-                                    sourceMenuExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                if (source.source == AppSource.IMPORTED) {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (source.location.isBlank()) "Choose APK" else "Replace APK")
-                    }
-                } else if (
-                    source.source == AppSource.GITLAB ||
-                    source.source == AppSource.SOURCEFORGE
-                ) {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = source.location,
-                        onValueChange = onLocationChange,
-                        label = { Text("Direct APK URL") },
-                        supportingText = { Text("Use a direct downloadable .apk link") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(version?.let { "v$it" } ?: "Version unavailable", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            supportingText?.let { Text(it, style = MaterialTheme.typography.labelSmall,
+                color = if (enabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-    }
-}
-
-@Composable
-private fun MetadataTile(label: String, isError: Boolean = false) {
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = if (isError) {
-            MaterialTheme.colorScheme.errorContainer
-        } else {
-            MaterialTheme.colorScheme.secondaryContainer
-        }
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isError) {
-                MaterialTheme.colorScheme.onErrorContainer
-            } else {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            },
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-        )
     }
 }
