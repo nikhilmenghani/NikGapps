@@ -3,6 +3,8 @@ package com.nikgapps.app.presentation.ui.screen
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,18 +33,17 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -321,6 +321,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProjectCard(
     project: BuildProject,
@@ -329,8 +330,15 @@ private fun ProjectCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
+    var showProjectMenu by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = { showProjectMenu = true }
+            ),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -373,79 +381,69 @@ private fun ProjectCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                    onClick = onEdit,
-                    label = {
-                        Text(
-                            "${project.androidVersion.displayName} · API ${project.androidVersion.apiLevel}"
-                        )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        project.androidVersion.displayName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "API ${project.androidVersion.apiLevel} · ${project.architecture.displayName} build",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        FilledTonalIconButton(
+                            onClick = onOpen,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.FolderOpen,
+                                contentDescription = "Open ${project.name}",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        FilledTonalIconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(36.dp),
+                            colors = androidx.compose.material3.IconButtonDefaults
+                                .filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete ${project.name}",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                )
-                AssistChip(
-                    onClick = onEdit,
-                    label = { Text(project.architecture.displayName) }
-                )
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                ProjectActionButton(Icons.Default.FolderOpen, "Open", onOpen, Modifier.weight(1f))
-                ProjectActionButton(
-                    Icons.Default.ContentCopy,
-                    "Copy",
-                    onDuplicate,
-                    Modifier.weight(1f)
-                )
-                ProjectActionButton(Icons.Default.Edit, "Edit", onEdit, Modifier.weight(1f))
-                ProjectActionButton(
-                    Icons.Default.Delete,
-                    "Delete",
-                    onDelete,
-                    Modifier.weight(1f),
-                    destructive = true
-                )
+                }
             }
         }
     }
-}
-
-@Composable
-private fun ProjectActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    destructive: Boolean = false
-) {
-    val colors = if (destructive) {
-        androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
-    } else {
-        androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors()
-    }
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        shape = CircleShape,
-        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-            containerColor = colors.containerColor,
-            contentColor = colors.contentColor
-        ),
-        contentPadding = PaddingValues(horizontal = 6.dp)
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1
-        )
+        DropdownMenu(
+            expanded = showProjectMenu,
+            onDismissRequest = { showProjectMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Copy project") },
+                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                onClick = {
+                    showProjectMenu = false
+                    onDuplicate()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Edit project") },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                onClick = {
+                    showProjectMenu = false
+                    onEdit()
+                }
+            )
+        }
     }
 }
 
