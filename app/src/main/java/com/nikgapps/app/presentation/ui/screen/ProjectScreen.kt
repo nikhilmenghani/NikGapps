@@ -303,6 +303,25 @@ private fun RegistryAppRow(pkg: CatalogPackage, source: AppSource, device: Regis
         AnimatedVisibility(visible = expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                catalogVersion?.let { version ->
+                    val payloadSize = version.install?.payloadSize
+                        ?: version.files.sumOf { it.size }
+                    val fileSummary = version.files.groupingBy { it.type }.eachCount().entries
+                        .sortedBy { it.key }.joinToString(" · ") { "${it.value} ${it.key}" }
+                    Text("Package details", style = MaterialTheme.typography.labelLarge)
+                    Text(buildString {
+                        append("Version ${version.versionName} (${version.versionCode})")
+                        append(" · API ${version.android.minApi ?: "any"}–${version.android.maxApi ?: "current"}")
+                        append(" · ${payloadSize / 1_048_576.0f} MiB")
+                    }, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (fileSummary.isNotBlank()) Text(fileSummary, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Installs to ${version.defaultPartition}; ${version.files.size} verified files",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
                 Text("Package source", style = MaterialTheme.typography.labelLarge)
                 Text("Select which version should be placed in the flashable ZIP.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

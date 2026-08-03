@@ -59,11 +59,20 @@ class DeviceArtifactFactory(private val context: Context) {
             put("defaultPartition", resolved.version.defaultPartition)
             put("apk", buildJsonObject { put("path", primary); put("replaceable", true) })
             put("files", buildJsonArray { payloads.forEach { (path, file, hash) -> add(buildJsonObject {
-                put("path", path); put("sha256", hash); put("size", file.length())
+                put("path", path); put("archivePath", encode(path)); put("installPath", "${resolved.version.defaultPartition}/$path")
+                put("sha256", hash); put("size", file.length()); put("type", if (path == primary) "primaryApk" else "splitApk")
             }) } })
+            put("install", buildJsonObject {
+                put("format", "nikgapps-package-v1"); put("title", resolved.catalogPackage.name)
+                put("packageTitle", resolved.catalogPackage.name); put("payloadSize", payloads.sumOf { it.second.length() })
+                put("removeFiles", buildJsonArray {}); put("removeOverlays", buildJsonArray {})
+                put("privilegedPermissions", buildJsonArray {}); put("cleanFlashOnly", false); put("addonIndex", "09")
+            })
         }.toString()
         ZipOutputStream(output.outputStream()).use { zip ->
-            payloads.forEach { (path, file, _) -> zip.putNextEntry(ZipEntry("payload/default/$path")); file.inputStream().use { it.copyTo(zip) }; zip.closeEntry() }
+            payloads.forEach { (path, file, _) -> zip.putNextEntry(ZipEntry(encode(path))); file.inputStream().use { it.copyTo(zip) }; zip.closeEntry() }
+            zip.putNextEntry(ZipEntry("installer.sh")); zip.write("find_install_mode\n".toByteArray()); zip.closeEntry()
+            zip.putNextEntry(ZipEntry("uninstaller.sh")); zip.write("uninstall_package\n".toByteArray()); zip.closeEntry()
             zip.putNextEntry(ZipEntry("package.json")); zip.write(descriptorJson.toByteArray()); zip.closeEntry()
         }
         val checksum = sha256(output)
@@ -75,4 +84,5 @@ class DeviceArtifactFactory(private val context: Context) {
         file.inputStream().use { input -> val b = ByteArray(65536); while (true) { val n=input.read(b); if(n<0) break; d.update(b,0,n) } }
         return d.digest().joinToString("") { "%02x".format(it) }
     }
+    private fun encode(path: String): String { val parts = path.split('/'); return "___${parts.dropLast(1).joinToString("___")}/${parts.last()}" }
 }

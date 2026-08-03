@@ -16,7 +16,14 @@ data class CatalogPackage(val id: String, val name: String, val selectable: Bool
 data class Dependency(val id: String, val whenAppSet: String? = null)
 data class PackageVersion(val versionName: String, val versionCode: Long, val packageName: String?,
     val android: AndroidCompatibility, val architectures: List<String>, val defaultPartition: String,
-    val apk: ApkMetadata?, val artifact: Artifact)
+    val apk: ApkMetadata?, val artifact: Artifact, val files: List<CatalogFile> = emptyList(),
+    val install: InstallMetadata? = null)
+data class CatalogFile(val path: String, val archivePath: String?, val installPath: String?,
+    val sha256: String, val size: Long, val type: String)
+data class InstallMetadata(val format: String, val title: String, val packageTitle: String,
+    val payloadSize: Long, val removeFiles: List<String>, val removeOverlays: List<String>,
+    val privilegedPermissions: List<String>, val cleanFlashOnly: Boolean,
+    val addonIndex: String)
 data class AndroidCompatibility(val minApi: Int?, val targetApi: Int?, val maxApi: Int?)
 data class ApkMetadata(val path: String, val replaceable: Boolean)
 data class Artifact(val url: String, val sha256: String, val size: Long?)
@@ -64,7 +71,17 @@ object CatalogParser {
                 android.nullableInt("targetApi"), android.nullableInt("maxApi")), v.strings("architectures"),
             v.string("defaultPartition"), v["apk"]?.takeUnless { it is JsonNull }?.jsonObject?.let {
                 ApkMetadata(it.string("path"), it.bool("replaceable"))
-            }, Artifact(artifact.string("url"), artifact.string("sha256").lowercase(), artifact.nullableLong("size")))
+            }, Artifact(artifact.string("url"), artifact.string("sha256").lowercase(), artifact.nullableLong("size")),
+            v["files"]?.jsonArray?.map { value -> val f = value.jsonObject
+                CatalogFile(f.string("path"), f.nullableString("archivePath"), f.nullableString("installPath"),
+                    f.string("sha256").lowercase(), f.long("size"), f["type"]?.jsonPrimitive?.content ?: "supportingFile")
+            }.orEmpty(), v["install"]?.takeUnless { it is JsonNull }?.jsonObject?.let { install ->
+                InstallMetadata(install.string("format"), install.string("title"), install.string("packageTitle"),
+                    install.long("payloadSize"), install.optionalStrings("removeFiles"),
+                    install.optionalStrings("removeOverlays"), install.optionalStrings("privilegedPermissions"),
+                    install["cleanFlashOnly"]?.jsonPrimitive?.boolean ?: false,
+                    install["addonIndex"]?.jsonPrimitive?.content ?: "09")
+            })
             .also { require(it.artifact.sha256.matches(Regex("[0-9a-f]{64}"))) { "invalid artifact sha256" } }
     }
 
@@ -81,6 +98,8 @@ object CatalogParser {
     private fun JsonObject.array(k: String) = getValue(k).jsonArray
     private fun JsonObject.obj(k: String) = getValue(k).jsonObject
     private fun JsonObject.strings(k: String) = array(k).map { it.jsonPrimitive.content }
+    private fun JsonObject.optionalStrings(k: String) = get(k)?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty()
+    private fun JsonObject.nullableString(k: String) = get(k).let { if (it == null || it is JsonNull) null else it.jsonPrimitive.content }
     private fun JsonElement?.nullableString() = if (this == null || this is JsonNull) null else jsonPrimitive.content
     private fun JsonObject.nullableInt(k: String) = get(k).let { if (it == null || it is JsonNull) null else it.jsonPrimitive.int }
     private fun JsonObject.nullableLong(k: String) = get(k).let { if (it == null || it is JsonNull) null else it.jsonPrimitive.long }

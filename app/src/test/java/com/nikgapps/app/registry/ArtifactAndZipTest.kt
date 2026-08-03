@@ -38,6 +38,6 @@ class ArtifactAndZipTest {
     }
     private fun resolved(artifact: Artifact = Artifact("https://example.test/a", "a".repeat(64), 1)) = ResolvedPackage(
         CatalogPackage("gms_core", "gms_core", true, false, emptyList(), mapOf("stable" to "s"), emptyMap()), "s",
-        PackageVersion("stable", 1, "test", AndroidCompatibility(null, 36, null), listOf("arm64-v8a"), "product",
+        PackageVersion("stable", 1, "test.app", AndroidCompatibility(null, 36, null), listOf("arm64-v8a"), "product",
             ApkMetadata("priv-app/Test/Test.apk", true), artifact), ReleaseChannel.STABLE, false)
 }

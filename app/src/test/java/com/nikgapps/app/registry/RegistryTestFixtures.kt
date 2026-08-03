@@ -30,10 +30,16 @@ object RegistryTestFixtures {
     fun artifact(directory: File, id: String = "gms_core"): Pair<File, String> {
         val payload = "apk".toByteArray(); val payloadHash = hash(payload)
         val metadata = """{"schemaVersion":1,"id":"$id","packageName":"test.app","defaultPartition":"product",
-          "apk":{"path":"priv-app/Test/Test.apk","replaceable":true},"files":[{"path":"priv-app/Test/Test.apk","sha256":"$payloadHash","size":3}]}"""
+          "apk":{"path":"priv-app/Test/Test.apk","replaceable":true},"files":[{"path":"priv-app/Test/Test.apk",
+          "archivePath":"___priv-app___Test/Test.apk","installPath":"product/priv-app/Test/Test.apk",
+          "type":"primaryApk","sha256":"$payloadHash","size":3}],"install":{"format":"nikgapps-package-v1",
+          "title":"Test","packageTitle":"GmsCore","payloadSize":3,"removeFiles":[],"removeOverlays":[],
+          "privilegedPermissions":[],"cleanFlashOnly":false,"addonIndex":"09"}}"""
         val file = File(directory, "$id.zip")
         ZipOutputStream(file.outputStream()).use { z ->
-            z.putNextEntry(ZipEntry("payload/default/priv-app/Test/Test.apk")); z.write(payload); z.closeEntry()
+            z.putNextEntry(ZipEntry("___priv-app___Test/Test.apk")); z.write(payload); z.closeEntry()
+            z.putNextEntry(ZipEntry("installer.sh")); z.write("find_install_mode\n".toByteArray()); z.closeEntry()
+            z.putNextEntry(ZipEntry("uninstaller.sh")); z.write("uninstall_package\n".toByteArray()); z.closeEntry()
             z.putNextEntry(ZipEntry("package.json")); z.write(metadata.toByteArray()); z.closeEntry()
         }
         return file to hash(file.readBytes())
