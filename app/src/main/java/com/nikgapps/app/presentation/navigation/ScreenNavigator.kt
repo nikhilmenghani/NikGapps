@@ -12,9 +12,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,9 +41,7 @@ import androidx.navigation.navArgument
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.AppConfigScreen
 import com.nikgapps.app.presentation.ui.screen.BuildZipScreen
-import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
-import com.nikgapps.app.presentation.ui.screen.InstallScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.ProjectScreen
@@ -62,8 +58,6 @@ data class NavItem(
 
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.Home.name),
-    NavItem("Download", Icons.Default.Download, Screens.Download.name),
-    NavItem("Install", Icons.Default.InstallMobile, Screens.Install.name),
     NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name)
 )
 
@@ -167,9 +161,6 @@ fun NavigationHost(
         composable(route = Screens.Profile.name) {
             ProfileScreen()
         }
-        composable(route = Screens.Download.name) {
-            DownloadScreen()
-        }
         composable(route = Screens.Apps.name) {
             AppsScreen()
         }
@@ -178,9 +169,6 @@ fun NavigationHost(
         }
         composable(route = Screens.Logs.name) {
             LogsScreen()
-        }
-        composable(route = Screens.Install.name) {
-            InstallScreen(progressLogViewModel)
         }
         composable(route = PROJECT_ROUTE, arguments = listOf(
             navArgument("build") { type = NavType.BoolType; defaultValue = false }
