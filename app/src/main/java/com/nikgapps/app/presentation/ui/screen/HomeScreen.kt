@@ -41,6 +41,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -65,7 +66,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.work.Constraints
@@ -107,6 +110,8 @@ fun HomeScreen(navController: NavHostController) {
     var isDownloading by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
+    val reachabilitySpace = (LocalConfiguration.current.screenHeightDp * 0.18f).dp
+    val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     var projects by remember { mutableStateOf(projectRepository.getProjects()) }
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
@@ -156,6 +161,7 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -219,7 +225,8 @@ fun HomeScreen(navController: NavHostController) {
                     ) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                }
+                },
+                scrollBehavior = topBarScrollBehavior
             )
         },
         floatingActionButton = {
@@ -244,7 +251,9 @@ fun HomeScreen(navController: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("Projects", style = MaterialTheme.typography.headlineSmall)
+                    Box(Modifier.fillMaxWidth().height(reachabilitySpace), contentAlignment = Alignment.Center) {
+                        Text("Projects", style = MaterialTheme.typography.headlineLarge)
+                    }
                 }
                 items(projects, key = { it.id }) { project ->
                     val latestBuild = latestBuildRepository.get(project.id)

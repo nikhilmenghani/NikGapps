@@ -254,23 +254,17 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         AnimatedVisibility(summaryExpanded) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    FilledTonalButton(onClick = { updateAllSelections("select") },
-                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
-                                        Icon(Icons.Default.SelectAll, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Select all")
-                                    }
-                                    OutlinedButton(onClick = { updateAllSelections("clear") },
-                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
-                                        Icon(Icons.Default.Deselect, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Unselect all")
-                                    }
-                                    OutlinedButton(onClick = { updateAllSelections("invert") },
-                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
-                                        Icon(Icons.Default.SwapVert, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Invert")
-                                    }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    FilterChip(false, { updateAllSelections("select") }, { Text("Select all") },
+                                        leadingIcon = { Icon(Icons.Default.SelectAll, null, Modifier.size(16.dp)) })
+                                    FilterChip(false, { updateAllSelections("clear") }, { Text("Unselect all") },
+                                        leadingIcon = { Icon(Icons.Default.Deselect, null, Modifier.size(16.dp)) })
+                                    FilterChip(false, { updateAllSelections("invert") }, { Text("Invert") },
+                                        leadingIcon = { Icon(Icons.Default.SwapVert, null, Modifier.size(16.dp)) })
                                 }
                                 if (current.selectedAppIds.isEmpty()) Text("No apps selected yet", style = MaterialTheme.typography.bodyMedium)
-                                displayedPackages.filter { it.id in current.selectedAppIds }.forEach { selectedPkg ->
+                                val selectedPackages = displayedPackages.filter { it.id in current.selectedAppIds }
+                                selectedPackages.forEachIndexed { index, selectedPkg ->
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Android, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                                         Column(Modifier.weight(1f)) {
@@ -279,6 +273,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .72f))
                                         }
                                     }
+                                    if (index != selectedPackages.lastIndex) HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .14f))
                                 }
                             }
                         }
@@ -287,8 +283,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 Spacer(Modifier.height(12.dp))
                 Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth().animateContentSize()) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(Modifier.fillMaxWidth().clickable { sortFilterExpanded = !sortFilterExpanded },
                             verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(20.dp))

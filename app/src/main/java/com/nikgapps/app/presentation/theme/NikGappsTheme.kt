@@ -20,15 +20,35 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.ThemePreference
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Color(0xFF9ECAFF), onPrimary = Color(0xFF003258),
+    primaryContainer = Color(0xFF00497D), onPrimaryContainer = Color(0xFFD1E4FF),
+    secondary = Color(0xFFBBC7DB), onSecondary = Color(0xFF253140),
+    secondaryContainer = Color(0xFF3B4858), onSecondaryContainer = Color(0xFFD7E3F7),
+    tertiary = Color(0xFFD7BDE4), onTertiary = Color(0xFF3B2947),
+    tertiaryContainer = Color(0xFF523F5F), onTertiaryContainer = Color(0xFFF3DAFF),
+    background = Color(0xFF101418), onBackground = Color(0xFFE1E2E8),
+    surface = Color(0xFF101418), onSurface = Color(0xFFE1E2E8),
+    surfaceVariant = Color(0xFF43474E), onSurfaceVariant = Color(0xFFC3C7CF),
+    outline = Color(0xFF8D9199), outlineVariant = Color(0xFF43474E),
+    surfaceContainerLowest = Color(0xFF0B0F13), surfaceContainerLow = Color(0xFF181C20),
+    surfaceContainer = Color(0xFF1C2024), surfaceContainerHigh = Color(0xFF262A2F),
+    surfaceContainerHighest = Color(0xFF31353A)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Color(0xFF0061A4), onPrimary = Color.White,
+    primaryContainer = Color(0xFFD1E4FF), onPrimaryContainer = Color(0xFF001D36),
+    secondary = Color(0xFF535F70), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD7E3F7), onSecondaryContainer = Color(0xFF101C2B),
+    tertiary = Color(0xFF6B5778), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFF3DAFF), onTertiaryContainer = Color(0xFF251431),
+    background = Color(0xFFF8F9FF), onBackground = Color(0xFF191C20),
+    surface = Color(0xFFF8F9FF), onSurface = Color(0xFF191C20),
+    surfaceVariant = Color(0xFFDFE2EB), onSurfaceVariant = Color(0xFF43474E),
+    outline = Color(0xFF73777F), outlineVariant = Color(0xFFC3C7CF),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF2F3F9),
+    surfaceContainer = Color(0xFFECEEF4), surfaceContainerHigh = Color(0xFFE6E8EE),
+    surfaceContainerHighest = Color(0xFFE1E2E8)
 )
 
 fun Color.applyOpacity(enabled: Boolean): Color {
@@ -63,26 +83,6 @@ fun NikGappsTheme(
         else -> LightColorScheme
     }
 
-    // Override specific colors only if dynamicColor is false
-    val customColorScheme = if (!useDynamicColor) {
-        colorScheme.copy(
-            primary = if (darkTheme) Color(0xFF1E88E5) else Color(0xFF1976D2),
-            secondary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF03DAC6),
-            tertiary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF018786),
-            background = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
-            surface = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
-            surfaceVariant = if (darkTheme) Color(0xFF2C2C2C) else Color(0xFFE0E0E0),
-            onPrimary = if (darkTheme) Color.Black else Color.White,
-            onSecondary = if (darkTheme) Color.Black else Color.White,
-            onTertiary = if (darkTheme) Color.Black else Color.White,
-            onBackground = if (darkTheme) Color.White else Color.Black,
-            onSurface = if (darkTheme) Color.White else Color.Black,
-            onSurfaceVariant = if (darkTheme) Color.LightGray else Color.Black
-        )
-    } else {
-        colorScheme
-    }
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -92,7 +92,7 @@ fun NikGappsTheme(
     }
 
     MaterialTheme(
-        colorScheme = customColorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
@@ -111,27 +111,8 @@ fun NikGappsThemePreview(useDynamicColor: Boolean = false, content: @Composable 
         else -> LightColorScheme
     }
 
-    val customColorScheme = if (!useDynamicColor) {
-        colorScheme.copy(
-            primary = if (darkTheme) Color(0xFF1E88E5) else Color(0xFF1976D2),
-            secondary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF03DAC6),
-            tertiary = if (darkTheme) Color(0xFF03DAC6) else Color(0xFF018786),
-            background = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
-            surface = if (darkTheme) Color(0xFF121212) else Color(0xFFFFFFFF),
-            surfaceVariant = if (darkTheme) Color(0xFF2C2C2C) else Color(0xFFE0E0E0),
-            onPrimary = if (darkTheme) Color.Black else Color.White,
-            onSecondary = if (darkTheme) Color.Black else Color.White,
-            onTertiary = if (darkTheme) Color.Black else Color.White,
-            onBackground = if (darkTheme) Color.White else Color.Black,
-            onSurface = if (darkTheme) Color.White else Color.Black,
-            onSurfaceVariant = if (darkTheme) Color.LightGray else Color.Black
-        )
-    } else {
-        colorScheme
-    }
-
     MaterialTheme(
-        colorScheme = customColorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
