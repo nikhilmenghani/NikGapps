@@ -151,7 +151,8 @@ fun LogsScreen() {
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.Top) {
-                                    Text(entry.time, style = MaterialTheme.typography.labelSmall,
+                                    Text(entry.time.substringBeforeLast('.'), modifier = Modifier.widthIn(max = 58.dp),
+                                        style = MaterialTheme.typography.labelSmall,
                                         fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Surface(shape = RoundedCornerShape(6.dp), color = logColor(entry.level).copy(alpha = .16f),
                                         contentColor = logColor(entry.level)) {
@@ -165,6 +166,8 @@ fun LogsScreen() {
                                             color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace)
                                     }
                                 }
+                                if (index != lines.lastIndex) HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f))
                             }
                         }
                     }
