@@ -27,6 +27,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
+import com.nikgapps.app.presentation.ui.screen.AppConfigScreen
+import com.nikgapps.app.presentation.ui.screen.BuildZipScreen
 import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.InstallScreen
@@ -56,14 +58,20 @@ enum class Screens {
 }
 
 const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
+const val APP_CONFIG_ROUTE = "Project/{projectId}/app/{packageId}"
+const val BUILD_ZIP_ROUTE = "Project/{projectId}/build"
 
 fun projectRoute(projectId: String, build: Boolean = false) = "Project/$projectId?build=$build"
+fun appConfigRoute(projectId: String, packageId: String) = "Project/$projectId/app/$packageId"
+fun buildZipRoute(projectId: String) = "Project/$projectId/build"
 
 val excludedScreens = listOf(
     Screens.Settings.name,
     Screens.Profile.name,
     Screens.Apps.name,
-    PROJECT_ROUTE
+    PROJECT_ROUTE,
+    APP_CONFIG_ROUTE,
+    BUILD_ZIP_ROUTE
 )
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -154,6 +162,19 @@ fun NavigationHost(
             ProjectScreen(
                 projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
                 autoBuild = backStackEntry.arguments?.getBoolean("build") == true,
+                navController = navController
+            )
+        }
+        composable(route = APP_CONFIG_ROUTE) { backStackEntry ->
+            AppConfigScreen(
+                projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
+                packageId = backStackEntry.arguments?.getString("packageId").orEmpty(),
+                navController = navController
+            )
+        }
+        composable(route = BUILD_ZIP_ROUTE) { backStackEntry ->
+            BuildZipScreen(
+                projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
                 navController = navController
             )
         }

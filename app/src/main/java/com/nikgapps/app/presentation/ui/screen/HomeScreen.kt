@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -78,8 +79,10 @@ import com.nikgapps.app.data.AndroidVersion
 import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
+import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
+import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -103,6 +106,7 @@ fun HomeScreen(navController: NavHostController) {
     var isLatestVersion by remember { mutableStateOf(true) }
     var isDownloading by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
+    val latestBuildRepository = remember { LatestBuildRepository(context) }
     var projects by remember { mutableStateOf(projectRepository.getProjects()) }
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
@@ -243,10 +247,12 @@ fun HomeScreen(navController: NavHostController) {
                     Text("Projects", style = MaterialTheme.typography.headlineSmall)
                 }
                 items(projects, key = { it.id }) { project ->
+                    val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
                         onOpen = { navController.navigate(projectRoute(project.id)) },
-                        onBuild = { navController.navigate(projectRoute(project.id, build = true)) },
+                        onBuild = { navController.navigate(buildZipRoute(project.id)) },
+                        onOpenZip = latestBuild?.let { saved -> { context.openPublishedZip(saved) } },
                         onDuplicate = {
                             projects = projectRepository.addProject(
                                 BuildProject(
@@ -299,6 +305,7 @@ fun HomeScreen(navController: NavHostController) {
                 TextButton(
                     onClick = {
                         projects = projectRepository.deleteProject(project.id)
+                        latestBuildRepository.remove(project.id)
                         projectToDelete = null
                     }
                 ) {
@@ -334,6 +341,7 @@ private fun ProjectCard(
     project: BuildProject,
     onOpen: () -> Unit,
     onBuild: () -> Unit,
+    onOpenZip: (() -> Unit)?,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -407,6 +415,19 @@ private fun ProjectCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
+                ProjectActionButton(
+                    icon = Icons.Default.Delete,
+                    label = "Delete",
+                    onClick = onDelete,
+                    destructive = true
+                )
+                onOpenZip?.let { openZip ->
+                    ProjectActionButton(
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        label = "Open ZIP",
+                        onClick = openZip
+                    )
+                }
                 if (project.selectedAppIds.isNotEmpty()) {
                     ProjectActionButton(
                         icon = Icons.Default.Inventory2,
@@ -414,12 +435,6 @@ private fun ProjectCard(
                         onClick = onBuild
                     )
                 }
-                ProjectActionButton(
-                    icon = Icons.Default.Delete,
-                    label = "Delete",
-                    onClick = onDelete,
-                    destructive = true
-                )
             }
         }
     }

@@ -163,3 +163,17 @@ class BuildProjectRepository(context: Context) {
         const val PROJECTS_KEY = "projects"
     }
 }
+
+class LatestBuildRepository(context: Context) {
+    private val preferences = context.getSharedPreferences("latest_project_builds", Context.MODE_PRIVATE)
+
+    fun get(projectId: String): String? = preferences.getString(projectId, null)
+
+    fun save(projectId: String, location: String) {
+        preferences.edit().putString(projectId, location).apply()
+    }
+
+    fun remove(projectId: String) {
+        preferences.edit().remove(projectId).apply()
+    }
+}

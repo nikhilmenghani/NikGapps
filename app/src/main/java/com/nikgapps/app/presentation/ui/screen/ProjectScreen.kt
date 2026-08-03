@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
+import com.nikgapps.app.presentation.navigation.appConfigRoute
+import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
 import kotlinx.coroutines.Dispatchers
@@ -36,9 +38,8 @@ private data class RegistryDeviceStatus(
 )
 
 private enum class PackageSort(val label: String) {
-    CATALOG("Catalog"),
     NAME("Name"),
-    INSTALLED("Installed first")
+    INSTALLED("Install status")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,9 +52,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var loadError by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<ZipBuildProgress?>(null) }
     var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
-    var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.CATALOG) }
+    var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.NAME) }
+    var sortDescending by rememberSaveable(projectId) { mutableStateOf(false) }
+    var installedOnly by rememberSaveable(projectId) { mutableStateOf(false) }
+    var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
-    val expandedPackages = remember(projectId) { mutableStateListOf<String>() }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
@@ -104,15 +107,16 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             )
         }
     }
-    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort) {
-        when (packageSort) {
-            PackageSort.CATALOG -> displayedPackages
-            PackageSort.NAME -> displayedPackages.sortedBy { it.name.lowercase() }
-            PackageSort.INSTALLED -> displayedPackages.sortedWith(
+    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly) {
+        val filtered = displayedPackages.filter { !installedOnly || deviceStatuses[it.id]?.installed == true }
+        val sorted = when (packageSort) {
+            PackageSort.NAME -> filtered.sortedBy { it.name.lowercase() }
+            PackageSort.INSTALLED -> filtered.sortedWith(
                 compareByDescending<CatalogPackage> { deviceStatuses[it.id]?.installed == true }
                     .thenBy { it.name.lowercase() }
             )
         }
+        if (sortDescending) sorted.reversed() else sorted
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
@@ -182,7 +186,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     Scaffold(topBar = { TopAppBar(title = { Text(current.name) }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }) }, bottomBar = { Surface(tonalElevation = 3.dp) { Button(onClick = ::startBuild,
+    }) }, bottomBar = { Surface(tonalElevation = 3.dp) { Button(onClick = { navController.navigate(buildZipRoute(projectId)) },
         enabled = metadata != null && current.selectedAppIds.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(16.dp),
         shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
         Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp))
@@ -195,14 +199,32 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 Text("Pick any supported package, its source, and the AppSet used for shared apps.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.fillMaxWidth().clickable { summaryExpanded = !summaryExpanded }) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("${current.selectedAppIds.size} apps selected", style = MaterialTheme.typography.titleMedium)
-                                Text("Configure each package below", style = MaterialTheme.typography.labelMedium)
+                                Text("Tap to ${if (summaryExpanded) "hide" else "review"} your selection", style = MaterialTheme.typography.labelMedium)
+                            }
+                            Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+                        }
+                        AnimatedVisibility(summaryExpanded) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
+                                if (current.selectedAppIds.isEmpty()) Text("No apps selected yet", style = MaterialTheme.typography.bodyMedium)
+                                displayedPackages.filter { it.id in current.selectedAppIds }.forEach { selectedPkg ->
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Android, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(selectedPkg.name, style = MaterialTheme.typography.bodyMedium)
+                                            Text(selectedPkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: selectedPkg.id,
+                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .72f))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -214,7 +236,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Sort apps", style = MaterialTheme.typography.labelLarge)
+                            Text("Sort and filter", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { sortDescending = !sortDescending }) {
+                                Icon(if (sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                    if (sortDescending) "Descending" else "Ascending")
+                            }
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PackageSort.entries.forEach { option ->
@@ -224,6 +250,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         Icon(Icons.Default.Check, null, Modifier.size(18.dp))
                                     }} else null)
                             }
+                            FilterChip(selected = installedOnly, onClick = { installedOnly = !installedOnly },
+                                label = { Text("Installed only") }, leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(18.dp)) })
                         }
                     }
                 }
@@ -239,27 +267,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     val deviceStatus = deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false)
                     ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        RegistryAppRow(pkg, source, deviceStatus,
-                            pkg.id in current.selectedAppIds,
-                            current.channelOverrides[pkg.id] ?: current.defaultChannel,
-                            owners, owner?.id, pkg.id in expandedPackages,
-                            onExpand = {
-                                if (pkg.id in expandedPackages) expandedPackages.remove(pkg.id) else expandedPackages.add(pkg.id)
-                            },
+                        ProjectPackageRow(pkg, source, deviceStatus, pkg.id in current.selectedAppIds,
+                            onOpen = { navController.navigate(appConfigRoute(projectId, pkg.id)) },
                             onSelected = { enabled -> save(current.copy(
                                 selectedAppSetId = owner?.id ?: current.selectedAppSetId,
                                 selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
                                 selectedPackageAppSets = if (enabled && owner != null) current.selectedPackageAppSets + (pkg.id to owner.id)
-                                    else current.selectedPackageAppSets - pkg.id)) },
-                            onSource = { newSource -> save(current.copy(
-                                appSources = current.appSources + (pkg.id to AppSourceConfig(newSource)),
-                                selectedAppIds = current.selectedAppIds,
-                                selectedPackageAppSets = current.selectedPackageAppSets)) },
-                            onAppSet = { appSet -> save(current.copy(
-                                selectedAppSetId = appSet.id,
-                                selectedPackageAppSets = current.selectedPackageAppSets + (pkg.id to appSet.id))) },
-                            onChannel = { channel -> save(current.copy(
-                                channelOverrides = current.channelOverrides + (pkg.id to channel.wireName))) })
+                                    else current.selectedPackageAppSets - pkg.id)) })
                     }
                 }
             }
@@ -395,5 +409,27 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
             supportingText?.let { Text(it, style = MaterialTheme.typography.labelSmall,
                 color = if (enabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant) }
         }
+    }
+}
+
+@Composable
+private fun ProjectPackageRow(pkg: CatalogPackage, source: AppSource, device: RegistryDeviceStatus,
+    selected: Boolean, onOpen: () -> Unit, onSelected: (Boolean) -> Unit) {
+    val version = pkg.versions.values.firstOrNull()
+    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Surface(Modifier.size(48.dp), shape = RoundedCornerShape(16.dp),
+            color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
+            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null) }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(pkg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${source.displayName}${if (device.installed) " · Installed" else ""}",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        }
+        Checkbox(selected, onSelected, enabled = source == AppSource.GITLAB || device.installed)
+        Icon(Icons.Default.ChevronRight, "Configure ${pkg.name}")
     }
 }
