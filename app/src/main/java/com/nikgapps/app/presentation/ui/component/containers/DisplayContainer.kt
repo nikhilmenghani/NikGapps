@@ -1,5 +1,10 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,15 +15,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.AppSettingsAlt
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.DownloadPrefs
@@ -127,12 +142,30 @@ fun AdvancedPreferences() {
     }
 }
 
+@SuppressLint("BatteryLife")
 @Composable
 fun SystemPreferences(
     versionName: String,
     onPermissionsClick: () -> Unit,
     onAppSettingsClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val powerManager = remember { context.getSystemService(PowerManager::class.java) }
+    var ignoresBatteryOptimizations by remember {
+        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, powerManager) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                ignoresBatteryOptimizations =
+                    powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     SettingsPage {
         Container(
             title = stringResource(R.string.settings_system),
@@ -150,6 +183,24 @@ fun SystemPreferences(
                 supportingText = stringResource(R.string.settings_android_app_settings_description),
                 icon = Icons.Outlined.AppSettingsAlt,
                 onClick = onAppSettingsClick
+            )
+
+            PreferenceSubtitle(text = stringResource(R.string.settings_background))
+            PreferenceItem(
+                label = stringResource(R.string.settings_battery_optimization),
+                supportingText = stringResource(
+                    if (ignoresBatteryOptimizations) R.string.settings_battery_optimization_allowed
+                    else R.string.settings_battery_optimization_restricted
+                ),
+                icon = Icons.Outlined.BatterySaver,
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                    )
+                }
             )
 
             PreferenceSubtitle(text = stringResource(R.string.settings_about))

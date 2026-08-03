@@ -28,6 +28,10 @@
     <string name="settings_not_configured">Not configured</string>
     <string name="settings_configured">Configured</string>
     <string name="settings_device_access">Device access</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_battery_optimization">Battery optimization</string>
+    <string name="settings_battery_optimization_allowed">Unrestricted; background work can run reliably</string>
+    <string name="settings_battery_optimization_restricted">Restricted; tap to allow reliable background work</string>
     <string name="settings_permissions">Permissions</string>
     <string name="settings_permissions_description">Review the access NikGapps needs</string>
     <string name="settings_android_app_settings">Android app settings</string>
