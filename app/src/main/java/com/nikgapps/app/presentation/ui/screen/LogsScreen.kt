@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,8 @@ import java.util.Date
 import java.util.Locale
 
 private const val MAX_LOG_LINES = 2_000
+private data class LogcatEntry(val raw: String, val date: String, val time: String,
+    val level: String, val tag: String, val message: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +38,7 @@ fun LogsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val lines = remember { mutableStateListOf<String>() }
+    val lines = remember { mutableStateListOf<LogcatEntry>() }
     var paused by remember { mutableStateOf(false) }
     var session by remember { mutableIntStateOf(0) }
     var captureError by remember { mutableStateOf<String?>(null) }
@@ -50,7 +53,7 @@ fun LogsScreen() {
                 process.inputStream.bufferedReader().useLines { output ->
                     output.forEach { line ->
                         if (!paused) withContext(Dispatchers.Main) {
-                            lines += line
+                            lines += parseLogcatLine(line)
                             while (lines.size > MAX_LOG_LINES) lines.removeAt(0)
                         }
                     }
@@ -79,7 +82,7 @@ fun LogsScreen() {
                         writer.appendLine("Process ID: ${Process.myPid()}")
                         writer.appendLine("Lines: ${lines.size}")
                         writer.appendLine("-".repeat(72))
-                        lines.forEach(writer::appendLine)
+                        lines.forEach { writer.appendLine(it.raw) }
                     }
                 }
             }
@@ -134,12 +137,36 @@ fun LogsScreen() {
                     }
                     else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), state = listState,
                         verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        items(lines) { line -> Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Text("›", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall,
-                                color = logColor(line))
-                            Text(line, Modifier.weight(1f), fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
-                        } }
+                        itemsIndexed(lines) { index, entry ->
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                if (index == 0 || lines[index - 1].date != entry.date) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                                        Text(entry.date, Modifier.padding(horizontal = 10.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontFamily = FontFamily.Monospace)
+                                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top) {
+                                    Text(entry.time, style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Surface(shape = RoundedCornerShape(6.dp), color = logColor(entry.level).copy(alpha = .16f),
+                                        contentColor = logColor(entry.level)) {
+                                        Text(entry.level, Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        if (entry.tag.isNotBlank()) Text(entry.tag, style = MaterialTheme.typography.labelSmall,
+                                            color = logColor(entry.level), fontFamily = FontFamily.Monospace)
+                                        Text(entry.message, style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -151,9 +178,22 @@ fun LogsScreen() {
 }
 
 @Composable
-private fun logColor(line: String) = when {
-    " E " in line || " F " in line -> MaterialTheme.colorScheme.error
-    " W " in line -> MaterialTheme.colorScheme.tertiary
-    " I " in line -> MaterialTheme.colorScheme.primary
+private fun logColor(level: String) = when (level) {
+    "E", "F" -> MaterialTheme.colorScheme.error
+    "W" -> MaterialTheme.colorScheme.tertiary
+    "I" -> MaterialTheme.colorScheme.primary
+    "D" -> MaterialTheme.colorScheme.secondary
     else -> MaterialTheme.colorScheme.outline
+}
+
+private val THREADTIME_LOG = Regex("""^(\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s+([VDIWEF])\s+([^:]+):\s?(.*)$""")
+
+private fun parseLogcatLine(raw: String): LogcatEntry {
+    val match = THREADTIME_LOG.matchEntire(raw)
+    return if (match != null) {
+        val (date, time, level, tag, message) = match.destructured
+        LogcatEntry(raw, date, time, level, tag.trim(), message)
+    } else {
+        LogcatEntry(raw, "Session", "", "·", "", raw)
+    }
 }
