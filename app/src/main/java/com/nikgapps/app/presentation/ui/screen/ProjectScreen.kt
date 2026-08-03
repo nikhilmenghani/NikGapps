@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,7 +40,14 @@ private data class RegistryDeviceStatus(
 
 private enum class PackageSort(val label: String) {
     NAME("Name"),
-    INSTALLED("Install status")
+    INSTALLED("Install status"),
+    SELECTED("Selection status")
+}
+
+private enum class SelectionFilter(val label: String) {
+    BOTH("Both"),
+    SELECTED("Selected"),
+    UNSELECTED("Unselected")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +63,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.NAME) }
     var sortDescending by rememberSaveable(projectId) { mutableStateOf(false) }
     var installedOnly by rememberSaveable(projectId) { mutableStateOf(false) }
+    var selectionFilter by rememberSaveable(projectId) { mutableStateOf(SelectionFilter.BOTH) }
+    var sortFilterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -107,19 +117,46 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             )
         }
     }
-    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly) {
-        val filtered = displayedPackages.filter { !installedOnly || deviceStatuses[it.id]?.installed == true }
-        val sorted = when (packageSort) {
-            PackageSort.NAME -> filtered.sortedBy { it.name.lowercase() }
-            PackageSort.INSTALLED -> filtered.sortedWith(
-                compareByDescending<CatalogPackage> { deviceStatuses[it.id]?.installed == true }
-                    .thenBy { it.name.lowercase() }
-            )
+    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly,
+        selectionFilter, current.selectedAppIds) {
+        val filtered = displayedPackages.filter { pkg ->
+            (!installedOnly || deviceStatuses[pkg.id]?.installed == true) && when (selectionFilter) {
+                SelectionFilter.BOTH -> true
+                SelectionFilter.SELECTED -> pkg.id in current.selectedAppIds
+                SelectionFilter.UNSELECTED -> pkg.id !in current.selectedAppIds
+            }
         }
-        if (sortDescending) sorted.reversed() else sorted
+        when (packageSort) {
+            PackageSort.NAME -> filtered.sortedBy { it.name.lowercase() }.let { if (sortDescending) it.reversed() else it }
+            PackageSort.INSTALLED -> (if (sortDescending)
+                compareByDescending<CatalogPackage> { deviceStatuses[it.id]?.installed == true }
+                else compareBy<CatalogPackage> { deviceStatuses[it.id]?.installed == true })
+                .thenBy { it.name.lowercase() }.let(filtered::sortedWith)
+            PackageSort.SELECTED -> (if (sortDescending)
+                compareByDescending<CatalogPackage> { it.id in current.selectedAppIds }
+                else compareBy<CatalogPackage> { it.id in current.selectedAppIds })
+                .thenBy { it.name.lowercase() }.let(filtered::sortedWith)
+        }
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun updateAllSelections(action: String) {
+        val eligibleIds = displayedPackages.filter { pkg ->
+            val source = current.appSources[pkg.id]?.source ?: AppSource.GITLAB
+            source == AppSource.GITLAB || deviceStatuses[pkg.id]?.installed == true
+        }.mapTo(linkedSetOf()) { it.id }
+        val newSelection = when (action) {
+            "select" -> current.selectedAppIds + eligibleIds
+            "clear" -> current.selectedAppIds - displayedPackages.map { it.id }.toSet()
+            else -> (current.selectedAppIds - eligibleIds) + (eligibleIds - current.selectedAppIds)
+        }
+        val owners = current.selectedPackageAppSets.toMutableMap()
+        displayedPackages.forEach { pkg ->
+            if (pkg.id in newSelection) owners.putIfAbsent(pkg.id, packageAppSets[pkg.id]?.firstOrNull()?.id ?: current.selectedAppSetId)
+            else owners.remove(pkg.id)
+        }
+        save(current.copy(selectedAppIds = newSelection, selectedPackageAppSets = owners))
+    }
     fun startBuild() {
         val loaded = metadata ?: return
         val appSet = selectedAppSet ?: return
@@ -186,13 +223,16 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     Scaffold(topBar = { TopAppBar(title = { Text(current.name) }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }) }, bottomBar = { Surface(tonalElevation = 3.dp) { Button(onClick = { navController.navigate(buildZipRoute(projectId)) },
-        enabled = metadata != null && current.selectedAppIds.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(16.dp),
-        shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
-        Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp))
-        Text("Build flashable ZIP · ${current.selectedAppIds.size} apps")
-    } } }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
+    }) }, floatingActionButton = {
+        if (metadata != null && current.selectedAppIds.isNotEmpty()) {
+            ExtendedFloatingActionButton(onClick = { navController.navigate(buildZipRoute(projectId)) },
+                icon = { Icon(Icons.Default.Inventory2, null) },
+                text = { Text("Build ZIP · ${current.selectedAppIds.size}") },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+    }) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Text("Build your app set", style = MaterialTheme.typography.headlineMedium)
@@ -214,6 +254,21 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         AnimatedVisibility(summaryExpanded) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    FilledTonalButton(onClick = { updateAllSelections("select") },
+                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
+                                        Icon(Icons.Default.SelectAll, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Select all")
+                                    }
+                                    OutlinedButton(onClick = { updateAllSelections("clear") },
+                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
+                                        Icon(Icons.Default.Deselect, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Unselect all")
+                                    }
+                                    OutlinedButton(onClick = { updateAllSelections("invert") },
+                                        contentPadding = PaddingValues(horizontal = 12.dp)) {
+                                        Icon(Icons.Default.SwapVert, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Invert")
+                                    }
+                                }
                                 if (current.selectedAppIds.isEmpty()) Text("No apps selected yet", style = MaterialTheme.typography.bodyMedium)
                                 displayedPackages.filter { it.id in current.selectedAppIds }.forEach { selectedPkg ->
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -230,28 +285,56 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth().animateContentSize()) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().clickable { sortFilterExpanded = !sortFilterExpanded },
+                            verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Sort and filter", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { sortDescending = !sortDescending }) {
-                                Icon(if (sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                    if (sortDescending) "Descending" else "Ascending")
-                            }
+                            Icon(if (sortFilterExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                if (sortFilterExpanded) "Collapse" else "Expand")
                         }
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PackageSort.entries.forEach { option ->
-                                FilterChip(selected = packageSort == option, onClick = { packageSort = option },
-                                    label = { Text(option.label) },
-                                    leadingIcon = if (packageSort == option) {{
-                                        Icon(Icons.Default.Check, null, Modifier.size(18.dp))
-                                    }} else null)
+                        AnimatedVisibility(sortFilterExpanded) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Sort by", style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { sortDescending = !sortDescending }) {
+                                        Icon(if (sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                            if (sortDescending) "Descending" else "Ascending")
+                                    }
+                                }
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    PackageSort.entries.forEach { option ->
+                                        FilterChip(selected = packageSort == option, onClick = { packageSort = option },
+                                            label = { Text(option.label) },
+                                            leadingIcon = if (packageSort == option) {{
+                                                Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                                            }} else null)
+                                    }
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                Text("Filters", style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                FilterChip(selected = installedOnly, onClick = { installedOnly = !installedOnly },
+                                    label = { Text("Installed only") },
+                                    leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(18.dp)) })
+                                Text("Selection", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SelectionFilter.entries.forEach { option ->
+                                        FilterChip(selected = selectionFilter == option,
+                                            onClick = { selectionFilter = option }, label = { Text(option.label) },
+                                            leadingIcon = if (selectionFilter == option) {{
+                                                Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                                            }} else null)
+                                    }
+                                }
                             }
-                            FilterChip(selected = installedOnly, onClick = { installedOnly = !installedOnly },
-                                label = { Text("Installed only") }, leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(18.dp)) })
                         }
                     }
                 }
