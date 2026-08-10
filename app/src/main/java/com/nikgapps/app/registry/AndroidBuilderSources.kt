@@ -3,35 +3,36 @@ package com.nikgapps.app.registry
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import com.nikgapps.R
 import java.io.File
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.json.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
-class AndroidBuilderAssetSource(private val context: Context) : BuilderAssetSource {
-    override fun assets(): Map<String, ByteArray> = mapOf(
-        "META-INF/com/google/android/update-binary" to recoveryBinary().toByteArray(),
-        "common/functions.sh" to raw(R.raw.variables),
-        "common/nikgapps_functions.sh" to raw(R.raw.install_package),
-        "common/addon.sh" to (raw(R.raw.addon_header) + raw(R.raw.addon_tail)),
-        "common/header.sh" to raw(R.raw.addon_header),
-        "common/mount.sh" to raw(R.raw.mount),
-        "common/unmount.sh" to "#!/sbin/sh\n".toByteArray()
-    )
-    private fun raw(id: Int) = context.resources.openRawResource(id).use { it.readBytes() }
-    private fun recoveryBinary() = """#!/sbin/sh
-        OUTFD=${'$'}2
-        ZIPFILE=${'$'}3
-        TMPDIR=/tmp/nikgapps
-        rm -rf "${'$'}TMPDIR"; mkdir -p "${'$'}TMPDIR"
-        unzip -o "${'$'}ZIPFILE" 'common/*' 'afzc/*' 'AppSet/*' -d "${'$'}TMPDIR" >/dev/null || exit 1
-        COMMONDIR="${'$'}TMPDIR/common"; export COMMONDIR ZIPFILE OUTFD
-        . "${'$'}COMMONDIR/functions.sh"
-        . "${'$'}COMMONDIR/nikgapps_functions.sh"
-        . "${'$'}COMMONDIR/install.sh"
-    """.trimIndent() + "\n"
+class AndroidBuilderAssetSource(private val context: Context,
+    private val builderAssets: Map<String, BuilderAsset>) : BuilderAssetSource {
+    override fun assets(): Map<String, ByteArray> = RegistryZipAssembler.REQUIRED_ASSETS
+        .associateWith(::registryAsset)
+    private fun registryAsset(name: String): ByteArray {
+        val metadata = builderAssets[name] ?: error("Missing builder asset metadata for '$name'")
+        val directory = File(context.cacheDir, "nikgapps/builder-assets").apply { mkdirs() }
+        val target = File(directory, metadata.sha256)
+        if (target.isFile && target.length() == metadata.size && ArtifactDownloader.sha256(target) == metadata.sha256)
+            return target.readBytes()
+        val part = File(directory, "${metadata.sha256}.part")
+        try {
+            OkHttpClient().newCall(Request.Builder().url(metadata.url).build()).execute().use { response ->
+                if (!response.isSuccessful) error("HTTP ${response.code} downloading '$name'")
+                part.outputStream().use { output -> response.body.byteStream().use { it.copyTo(output) } }
+            }
+            require(part.length() == metadata.size) { "Size mismatch for builder asset '$name'" }
+            require(ArtifactDownloader.sha256(part) == metadata.sha256) { "Checksum mismatch for builder asset '$name'" }
+            if (!part.renameTo(target)) error("Cannot cache builder asset '$name'")
+            return target.readBytes()
+        } finally { part.delete() }
+    }
 }
 
 class DeviceArtifactFactory(private val context: Context) {

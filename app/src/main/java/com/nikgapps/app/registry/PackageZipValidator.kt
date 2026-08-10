@@ -76,7 +76,13 @@ class PackageZipValidator {
             }
             if (expected.version.files.isNotEmpty()) {
                 val catalogFiles = expected.version.files.associateBy { it.path }
-                if (catalogFiles.keys != listed) throw InvalidPackageZip("Artifact files differ from catalog")
+                if (catalogFiles.keys != listed) {
+                    val missing = (catalogFiles.keys - listed).sorted()
+                    val extra = (listed - catalogFiles.keys).sorted()
+                    throw InvalidPackageZip("Artifact files differ from catalog for '${expected.catalogPackage.id}': " +
+                        "missing=${missing.joinToString()} extra=${extra.joinToString()}. " +
+                        "Publish a new content-derived version and refresh metadata.")
+                }
                 descriptor.files.forEach { payload ->
                     val catalog = catalogFiles.getValue(payload.path)
                     if (catalog.sha256 != payload.sha256 || catalog.size != payload.size ||

@@ -202,7 +202,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 }
                 progress = ZipBuildProgress(visibleTotal, visibleTotal, "Assembling the flashable ZIP…")
                 val output = withContext(Dispatchers.IO) {
-                    RegistryZipAssembler(AndroidBuilderAssetSource(context)).build(
+                    RegistryZipAssembler(AndroidBuilderAssetSource(context, requireNotNull(registry).builderAssets)).build(
                         File(context.cacheDir, "zip-builds"), BuildRequest(current.androidVersion.displayName,
                             current.androidVersion.apiLevel, current.architecture.value, appSet, defaultChannel,
                             overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets), artifacts)
@@ -255,12 +255,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    FilterChip(false, { updateAllSelections("select") }, { Text("Select all") },
-                                        leadingIcon = { Icon(Icons.Default.SelectAll, null, Modifier.size(16.dp)) })
-                                    FilterChip(false, { updateAllSelections("clear") }, { Text("Unselect all") },
-                                        leadingIcon = { Icon(Icons.Default.Deselect, null, Modifier.size(16.dp)) })
-                                    FilterChip(false, { updateAllSelections("invert") }, { Text("Invert") },
-                                        leadingIcon = { Icon(Icons.Default.SwapVert, null, Modifier.size(16.dp)) })
+                                    FilterChip(false, { updateAllSelections("select") },
+                                        { Text("Select all", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                        modifier = Modifier.weight(1f))
+                                    FilterChip(false, { updateAllSelections("clear") },
+                                        { Text("Unselect all", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                        modifier = Modifier.weight(1f))
+                                    FilterChip(false, { updateAllSelections("invert") },
+                                        { Text("Invert", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                        modifier = Modifier.weight(1f))
                                 }
                                 if (current.selectedAppIds.isEmpty()) Text("No apps selected yet", style = MaterialTheme.typography.bodyMedium)
                                 val selectedPackages = displayedPackages.filter { it.id in current.selectedAppIds }

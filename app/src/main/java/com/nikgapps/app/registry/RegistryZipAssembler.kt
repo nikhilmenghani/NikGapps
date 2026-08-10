@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.json.*
+import kotlin.math.round
 
 data class BuildRequest(val androidVersion: String, val api: Int, val architecture: String,
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
@@ -31,7 +32,8 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
             ZipOutputStream(part.outputStream().buffered()).use { finalZip ->
                 val assets = assetSource.assets()
                 REQUIRED_ASSETS.forEach { require(assets.containsKey(it)) { "Missing builder asset '$it'" } }
-                assets.toSortedMap().forEach { (path, bytes) -> finalZip.bytes(path, bytes) }
+                assets.filterKeys { !it.startsWith("@template/") }.toSortedMap()
+                    .forEach { (path, bytes) -> finalZip.bytes(path, bytes) }
                 val packageSizes = StringBuilder()
                 val packageRows = linkedMapOf<String, MutableList<Triple<String, Long, String>>>()
                 artifacts.forEach { artifact ->
@@ -41,17 +43,22 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                     require(artifact.descriptor.install != null) {
                         "Package '${artifact.resolved.catalogPackage.id}' is not a prebuilt NikGapps package"
                     }
+                    val payloadSize = artifact.descriptor.install.payloadSize
                     finalZip.file("AppSet/${packageAppSet.name}/$title.zip", artifact.file)
-                    packageSizes.append(title).append('=').append(artifact.file.length()).append('\n')
+                    packageSizes.append(title).append('=').append(payloadSize).append('\n')
                     packageRows.getOrPut(packageAppSet.name) { mutableListOf() } +=
-                        Triple(title, artifact.file.length(), artifact.descriptor.defaultPartition)
+                        Triple(title, payloadSize, artifact.descriptor.defaultPartition)
                 }
                 finalZip.text("common/file_size.txt", packageSizes.toString())
                 finalZip.text("common/install.sh", finalInstaller(packageRows))
-                finalZip.text("afzc/nikgapps.config", config(request, artifacts))
+                finalZip.text("afzc/nikgapps.config", config(
+                    request, artifacts, assets.getValue(CONFIG_TEMPLATE).decodeToString()))
+                finalZip.text("customize.sh", "actual_file_name=${output.nameWithoutExtension}\n" +
+                    assets.getValue(CUSTOMIZE_TEMPLATE).decodeToString())
                 finalZip.text("nikgapps/build-manifest.json", manifest(request, artifacts))
                 finalZip.text("zip_name.txt", output.nameWithoutExtension)
-                finalZip.text("META-INF/com/google/android/updater-script", "#MAGISK\n")
+                finalZip.text("creator.txt", "Created by Nikhil Menghani".padStart(32).padEnd(38))
+                finalZip.text("META-INF/com/google/android/updater-script", "#MAGISK")
             }
             if (!part.renameTo(output)) error("Cannot publish ${output.name}")
             return output
@@ -60,19 +67,28 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     }
     private fun finalInstaller(groups: Map<String, List<Triple<String, Long, String>>>) = buildString {
         append("#!/sbin/sh\n# Shell Script EDIFY Replacement\n\n")
-        groups.forEach { (appSet, rows) ->
+        val ordered = groups.entries.sortedWith(compareBy<Map.Entry<String, List<Triple<String, Long, String>>>> {
+            when (it.key) { "Core", "CoreGo" -> 0; "SetupWizard", "PixelSetupWizard" -> 1; else -> 2 }
+        }.thenByDescending { if (it.key in setOf("Core", "CoreGo", "SetupWizard", "PixelSetupWizard")) 0L else it.value.sumOf { row -> row.second } })
+        val totalPackages = ordered.sumOf { it.value.size }
+        val progressPerPackage = if (totalPackages == 0) 0.0 else round((0.9 / totalPackages) * 100) / 100
+        var progress = 0.0
+        append("ProgressBarValues=\"\n")
+        ordered.forEach { (_, rows) -> rows.sortedByDescending { it.second }.forEach { row ->
+            progress = (progress + progressPerPackage).coerceAtMost(1.0)
+            append(row.first).append('=').append(round(progress * 100) / 100).append('\n')
+        } }
+        append("\"\n\n")
+        ordered.forEach { (appSet, rows) ->
             append("$appSet=\"\n")
             rows.sortedByDescending { it.second }.forEach { append("${it.first},${it.second},${it.third}\n") }
             append("\"\n\n")
         }
-        groups.keys.forEach { appSet -> append("install_app_set \"$appSet\" \"$$appSet\" \".zip\"\n") }
-        append("set_progress 1.00\nexit_install\n")
+        ordered.forEach { (appSet) -> append("install_app_set \"$appSet\" \"$$appSet\" \".zip\" \n") }
+        append("\nset_progress 1.00\n\nexit_install\n\n")
     }
-    private fun config(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildString {
-        append("# Generated NikGapps configuration; hidden dependencies are intentionally omitted.\n")
-        append("AppSet=${r.appSet.name}\n")
-        artifacts.filterNot { it.resolved.hidden }.forEach { append("${it.resolved.catalogPackage.name}=1\n") }
-    }
+    private fun config(r: BuildRequest, artifacts: List<ValidatedArtifact>, template: String) =
+        template.replace(Regex("(?m)^AndroidVersion=.*$"), "AndroidVersion=${r.androidVersion.filter { it.isDigit() }}")
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
         put("androidVersion", r.androidVersion); put("androidApi", r.api); put("architecture", r.architecture)
@@ -88,8 +104,15 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
             put("artifactSha256", a.resolved.version.artifact.sha256)
         }) } })
     }.toString()
-    companion object { val REQUIRED_ASSETS = setOf("META-INF/com/google/android/update-binary", "common/functions.sh",
-        "common/nikgapps_functions.sh", "common/addon.sh", "common/header.sh", "common/mount.sh", "common/unmount.sh") }
+    companion object {
+        const val CONFIG_TEMPLATE = "@template/nikgapps.config"
+        const val CUSTOMIZE_TEMPLATE = "@template/customize.sh"
+        val REQUIRED_ASSETS = setOf(
+            "META-INF/com/google/android/update-binary", "afzc/debloater.config", "changelog.yaml",
+            "common/functions.sh", "common/nikgapps_functions.sh", "common/addon.sh", "common/header.sh",
+            "common/mount.sh", "common/mtg_mount.sh", "common/unmount.sh", "module.prop",
+            "busybox", CONFIG_TEMPLATE, CUSTOMIZE_TEMPLATE)
+    }
 }
 private fun ZipOutputStream.text(path: String, value: String) = bytes(path, value.toByteArray())
 private fun ZipOutputStream.bytes(path: String, value: ByteArray) { putNextEntry(ZipEntry(path).apply { time = 0 }); write(value); closeEntry() }

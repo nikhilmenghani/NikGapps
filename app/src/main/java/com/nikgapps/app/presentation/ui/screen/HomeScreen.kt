@@ -25,10 +25,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -507,14 +509,8 @@ private fun ProjectSheet(
     onSave: (BuildProject) -> Unit
 ) {
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
-    var androidVersion by remember(project) {
-        mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_17)
-    }
-    var architecture by remember(project) {
-        mutableStateOf(project?.architecture ?: Architecture.ARM64)
-    }
-    var versionMenuExpanded by remember { mutableStateOf(false) }
-    var architectureMenuExpanded by remember { mutableStateOf(false) }
+    val androidVersion = project?.androidVersion ?: AndroidVersion.ANDROID_16
+    val architecture = project?.architecture ?: Architecture.ARM64
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -535,68 +531,14 @@ private fun ProjectSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            ExposedDropdownMenuBox(
-                expanded = versionMenuExpanded,
-                onExpandedChange = { versionMenuExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Android version") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(versionMenuExpanded)
-                    },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = versionMenuExpanded,
-                    onDismissRequest = { versionMenuExpanded = false }
-                ) {
-                    AndroidVersion.entries.reversed().forEach { version ->
-                        DropdownMenuItem(
-                            text = { Text("${version.displayName} (API ${version.apiLevel})") },
-                            onClick = {
-                                androidVersion = version
-                                versionMenuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-            ExposedDropdownMenuBox(
-                expanded = architectureMenuExpanded,
-                onExpandedChange = { architectureMenuExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = "${architecture.displayName} (${architecture.value})",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Architecture") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(architectureMenuExpanded)
-                    },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = architectureMenuExpanded,
-                    onDismissRequest = { architectureMenuExpanded = false }
-                ) {
-                    Architecture.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text("${option.displayName} (${option.value})") },
-                            onClick = {
-                                architecture = option
-                                architectureMenuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            OutlinedTextField(value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",
+                onValueChange = {}, readOnly = true, label = { Text("Android version") },
+                supportingText = { Text("Android 16 is currently the supported build target") },
+                leadingIcon = { Icon(Icons.Default.Android, null) }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = "${architecture.displayName} (${architecture.value})",
+                onValueChange = {}, readOnly = true, label = { Text("Architecture") },
+                supportingText = { Text("ARM64 is currently the supported architecture") },
+                leadingIcon = { Icon(Icons.Default.Memory, null) }, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = {
                     onSave(
