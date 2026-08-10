@@ -4,6 +4,7 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.zip.ZipFile
 import kotlinx.serialization.json.*
+import com.nikgapps.app.utils.AppDiagnostics
 
 data class PayloadFile(val path: String, val sha256: String, val size: Long,
     val archivePath: String? = null, val installPath: String? = null, val type: String = "supportingFile")
@@ -90,9 +91,20 @@ class PackageZipValidator {
                         catalog.type != payload.type) throw InvalidPackageZip("Artifact metadata differs from catalog for '${payload.path}'")
                 }
             }
+            AppDiagnostics.info("validation", "package_valid", mapOf("package" to expected.catalogPackage.id,
+                "version" to expected.versionKey, "files" to descriptor.files.size, "bytes" to file.length()))
             descriptor
         }
-    } catch (e: InvalidPackageZip) { throw e } catch (e: Exception) { throw InvalidPackageZip("Invalid ZIP for '${expected.catalogPackage.id}': ${e.message}") }
+    } catch (e: InvalidPackageZip) {
+        AppDiagnostics.failure("validation", "package_invalid", e,
+            mapOf("package" to expected.catalogPackage.id, "version" to expected.versionKey))
+        throw e
+    } catch (e: Exception) {
+        val invalid = InvalidPackageZip("Invalid ZIP for '${expected.catalogPackage.id}': ${e.message}")
+        AppDiagnostics.failure("validation", "package_invalid", invalid,
+            mapOf("package" to expected.catalogPackage.id, "version" to expected.versionKey))
+        throw invalid
+    }
 
     fun installPath(path: String, defaultPartition: String): String {
         safeRelative(path)

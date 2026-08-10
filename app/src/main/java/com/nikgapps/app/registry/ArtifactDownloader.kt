@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.nikgapps.app.utils.AppDiagnostics
 
 data class DownloadProgress(val packageId: String, val downloaded: Long, val total: Long?)
 class ArtifactDownloadException(message: String, cause: Throwable? = null) : Exception(message, cause)
@@ -20,13 +21,20 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
             val directory = File(cacheDirectory, "nikgapps/packages").apply { mkdirs() }
             val target = File(directory, "${artifact.sha256}.zip")
             if (target.isFile) {
-                if (sha256(target) == artifact.sha256 && (artifact.size == null || target.length() == artifact.size)) return@withContext target
+                if (sha256(target) == artifact.sha256 && (artifact.size == null || target.length() == artifact.size)) {
+                    AppDiagnostics.info("artifact", "cache_hit", mapOf("package" to pkg.catalogPackage.id,
+                        "bytes" to target.length(), "version" to pkg.versionKey))
+                    return@withContext target
+                }
+                AppDiagnostics.info("artifact", "cache_invalid", mapOf("package" to pkg.catalogPackage.id))
                 target.delete()
             }
             val part = File(directory, "${artifact.sha256}.part")
             var last: Throwable? = null
             repeat(maxAttempts) { attempt ->
                 try {
+                    AppDiagnostics.info("artifact", "download_started", mapOf("package" to pkg.catalogPackage.id,
+                        "attempt" to attempt + 1, "version" to pkg.versionKey, "expectedBytes" to artifact.size))
                     download(pkg.catalogPackage.id, artifact, part, onProgress)
                     if (artifact.size != null && part.length() != artifact.size) throw ArtifactDownloadException(
                         "Size mismatch for '${pkg.catalogPackage.id}': expected ${artifact.size}, got ${part.length()}")
@@ -34,8 +42,12 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
                     if (actual != artifact.sha256) throw ArtifactDownloadException(
                         "Checksum mismatch for '${pkg.catalogPackage.id}': expected ${artifact.sha256}, got $actual")
                     if (!part.renameTo(target)) throw ArtifactDownloadException("Cannot commit '${pkg.catalogPackage.id}' to artifact cache")
+                    AppDiagnostics.info("artifact", "download_completed", mapOf("package" to pkg.catalogPackage.id,
+                        "bytes" to target.length(), "attempt" to attempt + 1))
                     return@withContext target
                 } catch (e: Throwable) {
+                    AppDiagnostics.failure("artifact", "download_attempt_failed", e,
+                        mapOf("package" to pkg.catalogPackage.id, "attempt" to attempt + 1))
                     last = e
                     if (e is ArtifactDownloadException && (e.message?.contains("mismatch") == true)) part.delete()
                     if (attempt + 1 < maxAttempts) delay(500L * (attempt + 1))

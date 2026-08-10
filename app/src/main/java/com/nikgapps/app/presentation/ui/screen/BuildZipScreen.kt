@@ -27,6 +27,7 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
 import com.nikgapps.app.registry.*
+import com.nikgapps.app.utils.AppDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,10 +49,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var operationLabel by remember { mutableStateOf("Preparing build") }
     var retryKey by remember { mutableIntStateOf(0) }
     var confirmClearCache by remember { mutableStateOf(false) }
+    var activeRunId by remember { mutableStateOf("none") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    fun log(message: String) { if (logs.lastOrNull() != message) logs += message }
+    fun log(message: String) {
+        if (logs.lastOrNull() != message) logs += message
+        AppDiagnostics.info("build", "progress", mapOf("run" to activeRunId, "message" to message))
+    }
     fun downloadProgress(packageName: String, percent: Long) {
         val prefix = "Downloading $packageName:"
         val message = "$prefix $percent%"
@@ -61,12 +66,16 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
 
     LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex) }
     LaunchedEffect(projectId, retryKey) {
+        activeRunId = java.util.UUID.randomUUID().toString().take(8)
         logs.clear()
         completed = 0
         total = project?.selectedAppIds?.size ?: 0
         operationProgress = null
         operationLabel = "Preparing build"
         stage = BuildStage.RUNNING
+        AppDiagnostics.info("build", "started", mapOf("run" to activeRunId,
+            "project" to projectId.take(8), "selected" to (project?.selectedAppIds?.size ?: 0),
+            "android" to project?.androidVersion?.displayName, "architecture" to project?.architecture?.value))
         if (project == null) { stage = BuildStage.FAILED; log("Project not found"); return@LaunchedEffect }
         try {
             log("Loading the NikGapps package catalog…")
@@ -82,6 +91,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             }
             val resolution = withContext(Dispatchers.IO) { CatalogResolver(metadata.catalog, metadata.appSets).resolveAcrossAppSets(
                 selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value) }
+            AppDiagnostics.info("build", "resolved", mapOf("run" to activeRunId,
+                "selected" to project.selectedAppIds.size, "total" to resolution.packages.size,
+                "dependencies" to resolution.packages.count { it.hidden },
+                "packageIds" to resolution.packages.joinToString(",") { it.catalogPackage.id }))
             total = resolution.packages.count { !it.hidden }
             val artifacts = mutableListOf<ValidatedArtifact>()
             val downloader = ArtifactDownloader(context.cacheDir)
@@ -121,9 +134,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             LatestBuildRepository(context).save(projectId, location!!)
             output.delete()
             log("Build complete")
+            AppDiagnostics.info("build", "succeeded", mapOf("run" to activeRunId,
+                "packages" to artifacts.size, "destination" to "Downloads/NikGapps"))
             stage = BuildStage.COMPLETE
         } catch (e: Exception) {
             log("Build failed: ${e.message ?: "Unknown error"}")
+            AppDiagnostics.failure("build", "failed", e, mapOf("run" to activeRunId,
+                "stage" to operationLabel, "prepared" to completed, "total" to total))
             stage = BuildStage.FAILED
         }
     }
@@ -215,8 +232,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             confirmClearCache = false
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) { RegistryCache.clear(context.cacheDir) } }
-                    .onSuccess { retryKey++ }
-                    .onFailure { error -> log("Unable to clear cache: ${error.message}") }
+                    .onSuccess { result ->
+                        AppDiagnostics.info("cache", "cleared", mapOf("files" to result.files, "bytes" to result.bytes))
+                        retryKey++
+                    }
+                    .onFailure { error ->
+                        AppDiagnostics.failure("cache", "clear_failed", error)
+                        log("Unable to clear cache: ${error.message}")
+                    }
             }
         }) { Text("Clear & rebuild") } }
     )

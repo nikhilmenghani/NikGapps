@@ -28,6 +28,7 @@ import com.nikgapps.app.presentation.navigation.appConfigRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
+import com.nikgapps.app.utils.AppDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -158,6 +159,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             else owners.remove(pkg.id)
         }
         save(current.copy(selectedAppIds = newSelection, selectedPackageAppSets = owners))
+        AppDiagnostics.info("selection", "bulk_changed", mapOf("project" to projectId.take(8),
+            "operation" to action, "before" to current.selectedAppIds.size, "after" to newSelection.size))
     }
     fun startBuild() {
         val loaded = metadata ?: return
@@ -219,7 +222,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }) }, floatingActionButton = {
         if (metadata != null && current.selectedAppIds.isNotEmpty()) {
-            ExtendedFloatingActionButton(onClick = { navController.navigate(buildZipRoute(projectId)) },
+            ExtendedFloatingActionButton(onClick = {
+                AppDiagnostics.info("navigation", "build_opened", mapOf("project" to projectId.take(8),
+                    "selected" to current.selectedAppIds.size))
+                navController.navigate(buildZipRoute(projectId))
+            },
                 icon = { Icon(Icons.Default.Inventory2, null) },
                 text = { Text("Build ZIP · ${current.selectedAppIds.size}") },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -388,12 +395,19 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                         ProjectPackageRow(pkg, deviceStatus, pkg.id in current.selectedAppIds,
-                            onOpen = { navController.navigate(appConfigRoute(projectId, pkg.id)) },
-                            onSelected = { enabled -> save(current.copy(
-                                selectedAppSetId = owner?.id ?: current.selectedAppSetId,
-                                selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
-                                selectedPackageAppSets = if (enabled && owner != null) current.selectedPackageAppSets + (pkg.id to owner.id)
-                                    else current.selectedPackageAppSets - pkg.id)) })
+                            onOpen = {
+                                AppDiagnostics.info("navigation", "package_details_opened", mapOf("package" to pkg.id))
+                                navController.navigate(appConfigRoute(projectId, pkg.id))
+                            },
+                            onSelected = { enabled ->
+                                AppDiagnostics.info("selection", if (enabled) "package_selected" else "package_cleared",
+                                    mapOf("project" to projectId.take(8), "package" to pkg.id, "appSet" to owner?.id))
+                                save(current.copy(
+                                    selectedAppSetId = owner?.id ?: current.selectedAppSetId,
+                                    selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
+                                    selectedPackageAppSets = if (enabled && owner != null) current.selectedPackageAppSets + (pkg.id to owner.id)
+                                        else current.selectedPackageAppSets - pkg.id))
+                            })
                     }
                 }
             }

@@ -56,7 +56,7 @@ fun LogsScreen() {
         var process: java.lang.Process? = null
         try {
             process = withContext(Dispatchers.IO) {
-                ProcessBuilder("logcat", "--pid=${Process.myPid()}", "-v", "threadtime", "-T", "200", "*:V")
+                ProcessBuilder("logcat", "--pid=${Process.myPid()}", "-v", "threadtime", "-T", MAX_LOG_LINES.toString(), "*:V")
                     .redirectErrorStream(true).start()
             }
             coroutineScope {

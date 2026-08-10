@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import com.nikgapps.app.utils.AppDiagnostics
 
 class ZipPublisher(private val context: Context) {
     fun publish(source: File): String {
@@ -14,6 +15,8 @@ class ZipPublisher(private val context: Context) {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "NikGapps").apply { mkdirs() }
             val output = File(directory, source.name)
             source.inputStream().use { input -> output.outputStream().use(input::copyTo) }
+            AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
+                "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
             return output.absolutePath
         }
         val values = ContentValues().apply {
@@ -26,7 +29,12 @@ class ZipPublisher(private val context: Context) {
             resolver.openOutputStream(uri)?.use { output -> source.inputStream().use { it.copyTo(output) } }
                 ?: error("Cannot write Downloads entry")
             values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0); resolver.update(uri, values, null, null)
+            AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
+                "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
             return "Downloads/NikGapps/${source.name}"
-        } catch (e: Exception) { resolver.delete(uri, null, null); throw e }
+        } catch (e: Exception) {
+            AppDiagnostics.failure("publication", "failed", e, mapOf("file" to source.name))
+            resolver.delete(uri, null, null); throw e
+        }
     }
 }

@@ -8,6 +8,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.json.*
 import kotlin.math.round
+import com.nikgapps.app.utils.AppDiagnostics
 
 data class BuildRequest(val androidVersion: String, val api: Int, val architecture: String,
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
@@ -28,6 +29,9 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         val variant = if (appSetIds.size > 1) "custom" else appSetIds.single()
         val output = File(outputDirectory.apply { mkdirs() }, "NikGapps-$variant-${request.architecture}-$date.zip")
         val part = File(output.parentFile, "${output.name}.part")
+        AppDiagnostics.info("assembly", "started", mapOf("packages" to artifacts.size,
+            "appSets" to appSetIds.joinToString(","), "android" to request.androidVersion,
+            "architecture" to request.architecture))
         try {
             ZipOutputStream(part.outputStream().buffered()).use { finalZip ->
                 val assets = assetSource.assets()
@@ -61,8 +65,13 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 finalZip.text("META-INF/com/google/android/updater-script", "#MAGISK")
             }
             if (!part.renameTo(output)) error("Cannot publish ${output.name}")
+            AppDiagnostics.info("assembly", "completed", mapOf("packages" to artifacts.size,
+                "bytes" to output.length(), "file" to output.name))
             return output
-        } catch (e: Exception) { part.delete(); output.delete(); throw e }
+        } catch (e: Exception) {
+            AppDiagnostics.failure("assembly", "failed", e, mapOf("packages" to artifacts.size))
+            part.delete(); output.delete(); throw e
+        }
         finally { }
     }
     private fun finalInstaller(groups: Map<String, List<Triple<String, Long, String>>>) = buildString {

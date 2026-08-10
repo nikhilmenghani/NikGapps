@@ -6,6 +6,7 @@ import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import com.nikgapps.app.utils.AppDiagnostics
 
 data class BuilderAsset(val url: String, val sha256: String, val size: Long)
 data class RegistryMetadata(val catalog: Catalog, val appSets: AppSetCatalog,
@@ -25,11 +26,17 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             atomicWrite(catalogCache, catalogText)
             atomicWrite(appSetsCache, appSetsText)
             atomicWrite(builderAssetsCache, builderAssetsText)
+            AppDiagnostics.info("metadata", "loaded", mapOf("source" to "network",
+                "android" to parsed.catalog.androidVersion, "packages" to parsed.catalog.packages.size))
             parsed
         } catch (networkOrMetadata: Exception) {
             if (!catalogCache.isFile || !appSetsCache.isFile || !builderAssetsCache.isFile) throw MetadataException(
                 "Unable to load valid NikGapps metadata and no offline cache is available: ${networkOrMetadata.message}", networkOrMetadata)
-            try { parsePair(catalogCache.readText(), appSetsCache.readText(), builderAssetsCache.readText(), true) }
+            try { parsePair(catalogCache.readText(), appSetsCache.readText(), builderAssetsCache.readText(), true).also {
+                AppDiagnostics.info("metadata", "loaded", mapOf("source" to "cache",
+                    "android" to it.catalog.androidVersion, "packages" to it.catalog.packages.size,
+                    "networkError" to networkOrMetadata.javaClass.simpleName))
+            } }
             catch (cacheError: Exception) { throw MetadataException("Downloaded metadata failed and cached metadata is invalid: ${cacheError.message}", cacheError) }
         }
     }
