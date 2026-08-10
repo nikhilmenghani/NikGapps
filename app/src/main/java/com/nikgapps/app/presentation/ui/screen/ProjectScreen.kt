@@ -66,6 +66,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var selectionFilter by rememberSaveable(projectId) { mutableStateOf(SelectionFilter.BOTH) }
     var sortFilterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
+    var searchQuery by rememberSaveable(projectId) { mutableStateOf("") }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -118,8 +119,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
     val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly,
-        selectionFilter, current.selectedAppIds) {
+        selectionFilter, current.selectedAppIds, searchQuery) {
+        val query = searchQuery.trim().lowercase()
         val filtered = displayedPackages.filter { pkg ->
+            (query.isEmpty() || pkg.name.lowercase().contains(query) || pkg.id.lowercase().contains(query) ||
+                pkg.versions.values.any { it.packageName?.lowercase()?.contains(query) == true }) &&
             (!installedOnly || deviceStatuses[pkg.id]?.installed == true) && when (selectionFilter) {
                 SelectionFilter.BOTH -> true
                 SelectionFilter.SELECTED -> pkg.id in current.selectedAppIds
@@ -141,10 +145,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
     fun updateAllSelections(action: String) {
-        val eligibleIds = displayedPackages.filter { pkg ->
-            val source = current.appSources[pkg.id]?.source ?: AppSource.GITLAB
-            source == AppSource.GITLAB || deviceStatuses[pkg.id]?.installed == true
-        }.mapTo(linkedSetOf()) { it.id }
+        val eligibleIds = displayedPackages.mapTo(linkedSetOf()) { it.id }
         val newSelection = when (action) {
             "select" -> current.selectedAppIds + eligibleIds
             "clear" -> current.selectedAppIds - displayedPackages.map { it.id }.toSet()
@@ -163,8 +164,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         scope.launch {
             try {
                 progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
-                val defaultChannel = ReleaseChannel.valueOf(current.defaultChannel.uppercase())
-                val overrides = current.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
+                val defaultChannel = ReleaseChannel.STABLE
+                val overrides = emptyMap<String, ReleaseChannel>()
                 val selections = current.selectedAppIds.associateWith { id ->
                     current.selectedPackageAppSets[id] ?: loaded.appSets.appSets.firstOrNull { id in it.packages }?.id
                     ?: throw IllegalArgumentException("No AppSet owns selected package '$id'")
@@ -175,28 +176,20 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 val visibleTotal = resolved.count { !it.hidden }
                 val downloader = ArtifactDownloader(context.cacheDir)
                 val validator = PackageZipValidator()
-                val deviceFactory = DeviceArtifactFactory(context)
-                val deviceDir = File(context.cacheDir, "nikgapps/device-packages").apply { mkdirs() }
                 val artifacts = mutableListOf<ValidatedArtifact>()
                 var completedVisible = 0
                 resolved.forEach { pkg ->
-                    val source = current.appSources[pkg.catalogPackage.id]?.source ?: AppSource.GITLAB
                     val operation = when {
                         pkg.hidden -> "Downloading required dependency ${pkg.catalogPackage.name}…"
-                        source == AppSource.DEVICE -> "Reading ${pkg.catalogPackage.name} from this device…"
-                        else -> "Downloading ${pkg.catalogPackage.name} from GitLab…"
+                        else -> "Downloading ${pkg.catalogPackage.name}…"
                     }
                     progress = ZipBuildProgress(completedVisible, visibleTotal, operation)
-                    val artifact = if (!pkg.hidden && source == AppSource.DEVICE) {
-                        withContext(Dispatchers.IO) { deviceFactory.create(pkg, deviceDir) }
-                    } else {
-                        val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
-                            val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
-                            progress = ZipBuildProgress(completedVisible, visibleTotal,
-                                "${if (pkg.hidden) "Downloading required dependency" else "Downloading from GitLab"}: ${pkg.catalogPackage.name}${percent?.let { " ($it%)" }.orEmpty()}")
-                        } }
-                        withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
-                    }
+                    val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
+                        val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
+                        progress = ZipBuildProgress(completedVisible, visibleTotal,
+                            "${if (pkg.hidden) "Downloading required dependency" else "Downloading"}: ${pkg.catalogPackage.name}${percent?.let { " ($it%)" }.orEmpty()}")
+                    } }
+                    val artifact = withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
                     artifacts += artifact
                     if (!pkg.hidden) completedVisible++
                 }
@@ -236,7 +229,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Text("Build your app set", style = MaterialTheme.typography.headlineMedium)
-                Text("Pick any supported package, its source, and the AppSet used for shared apps.",
+                Text("Pick any supported package and the AppSet used for shared apps.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
@@ -283,6 +276,19 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Search apps") },
+                    placeholder = { Text("Name or package ID") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {{
+                        IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, "Clear search") }
+                    }} else null
+                )
                 Spacer(Modifier.height(12.dp))
                 Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth().animateContentSize()) {
@@ -345,11 +351,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     val owners = packageAppSets[pkg.id].orEmpty()
                     val owner = owners.firstOrNull { it.id == current.selectedPackageAppSets[pkg.id] }
                         ?: owners.firstOrNull()
-                    val source = current.appSources[pkg.id]?.source ?: AppSource.GITLAB
                     val deviceStatus = deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false)
                     ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        ProjectPackageRow(pkg, source, deviceStatus, pkg.id in current.selectedAppIds,
+                        ProjectPackageRow(pkg, deviceStatus, pkg.id in current.selectedAppIds,
                             onOpen = { navController.navigate(appConfigRoute(projectId, pkg.id)) },
                             onSelected = { enabled -> save(current.copy(
                                 selectedAppSetId = owner?.id ?: current.selectedAppSetId,
@@ -422,7 +427,7 @@ private fun RegistryAppRow(pkg: CatalogPackage, source: AppSource, device: Regis
                 Text("Select which version should be placed in the flashable ZIP.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SourceTile(title = "GitLab", version = catalogVersion?.versionName, icon = Icons.Default.CloudDownload,
+                    SourceTile(title = "Catalog", version = catalogVersion?.versionName, icon = Icons.Default.CloudDownload,
                         selected = source == AppSource.GITLAB, enabled = true, modifier = Modifier.weight(1f),
                         supportingText = if (deviceIsNewer && source == AppSource.GITLAB) "Newer version on device" else null) {
                         onSource(AppSource.GITLAB)
@@ -495,7 +500,7 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 }
 
 @Composable
-private fun ProjectPackageRow(pkg: CatalogPackage, source: AppSource, device: RegistryDeviceStatus,
+private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
     selected: Boolean, onOpen: () -> Unit, onSelected: (Boolean) -> Unit) {
     val version = pkg.versions.values.firstOrNull()
     Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -508,10 +513,10 @@ private fun ProjectPackageRow(pkg: CatalogPackage, source: AppSource, device: Re
             Text(pkg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${source.displayName}${if (device.installed) " · Installed" else ""}",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            if (device.installed) Text("Installed", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary)
         }
-        Checkbox(selected, onSelected, enabled = source == AppSource.GITLAB || device.installed)
+        Checkbox(selected, onSelected)
         Icon(Icons.Default.ChevronRight, "Configure ${pkg.name}")
     }
 }

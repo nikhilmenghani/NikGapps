@@ -18,4 +18,16 @@ object DisplayPrefs {
         defaultValue = true,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
+
+    var developerOptionsEnabled by prefMutableState(
+        keyName = "developerOptionsEnabled",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
+    var allowUnsupportedAndroidVersions by prefMutableState(
+        keyName = "allowUnsupportedAndroidVersions",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
 }

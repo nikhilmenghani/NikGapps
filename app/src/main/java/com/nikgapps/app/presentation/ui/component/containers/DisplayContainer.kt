@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -96,6 +98,7 @@ fun AdvancedPreferences() {
     val dialog = globalClass.singleChoiceDialog
     val textDialog = globalClass.singleTextDialog
     val githubPreference = globalClass.preferencesManager.githubPrefs
+    val developerPreference = globalClass.preferencesManager.displayPrefs
 
     SettingsPage {
         Container(
@@ -119,6 +122,26 @@ fun AdvancedPreferences() {
                     )
                 }
             )
+
+            if (developerPreference.developerOptionsEnabled) {
+                PreferenceSubtitle(text = "Developer options")
+                PreferenceItem(
+                    label = "Allow unsupported Android versions",
+                    supportingText = "Show Android versions without published package metadata",
+                    icon = Icons.Outlined.Science,
+                    switchState = developerPreference.allowUnsupportedAndroidVersions,
+                    onSwitchChange = { developerPreference.allowUnsupportedAndroidVersions = it }
+                )
+                PreferenceItem(
+                    label = "Hide developer options",
+                    supportingText = "Tap the app version seven times to enable them again",
+                    icon = Icons.Outlined.Android,
+                    onClick = {
+                        developerPreference.allowUnsupportedAndroidVersions = false
+                        developerPreference.developerOptionsEnabled = false
+                    }
+                )
+            }
 
             PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
             PreferenceItem(
@@ -150,6 +173,8 @@ fun SystemPreferences(
     onAppSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val developerPreference = globalClass.preferencesManager.displayPrefs
+    var developerTapCount by remember { mutableStateOf(0) }
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var ignoresBatteryOptimizations by remember {
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
@@ -207,7 +232,19 @@ fun SystemPreferences(
             PreferenceItem(
                 label = stringResource(R.string.app_name),
                 supportingText = stringResource(R.string.settings_version, versionName),
-                icon = Icons.Outlined.Android
+                icon = Icons.Outlined.Android,
+                onClick = {
+                    if (developerPreference.developerOptionsEnabled) {
+                        Toast.makeText(context, "Developer options are already enabled", Toast.LENGTH_SHORT).show()
+                    } else {
+                        developerTapCount++
+                        if (developerTapCount >= 7) {
+                            developerPreference.developerOptionsEnabled = true
+                            developerTapCount = 0
+                            Toast.makeText(context, "Developer options enabled", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             )
             PreferenceItem(
                 label = stringResource(R.string.settings_application_id),

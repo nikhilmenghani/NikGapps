@@ -46,7 +46,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var total by remember { mutableIntStateOf(project?.selectedAppIds?.size ?: 0) }
     var operationProgress by remember { mutableStateOf<Float?>(null) }
     var operationLabel by remember { mutableStateOf("Preparing build") }
+    var retryKey by remember { mutableIntStateOf(0) }
+    var confirmClearCache by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     fun log(message: String) { if (logs.lastOrNull() != message) logs += message }
     fun downloadProgress(packageName: String, percent: Long) {
@@ -57,7 +60,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
 
     LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex) }
-    LaunchedEffect(projectId) {
+    LaunchedEffect(projectId, retryKey) {
+        logs.clear()
+        completed = 0
+        total = project?.selectedAppIds?.size ?: 0
+        operationProgress = null
+        operationLabel = "Preparing build"
+        stage = BuildStage.RUNNING
         if (project == null) { stage = BuildStage.FAILED; log("Project not found"); return@LaunchedEffect }
         try {
             log("Loading the NikGapps package catalog…")
@@ -65,8 +74,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val metadata = withContext(Dispatchers.IO) { CatalogRepository(context.cacheDir).load() }
             log("Resolving ${project.selectedAppIds.size} selected apps and their dependencies…")
             operationLabel = "Resolving packages and dependencies"
-            val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
-            val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
+            val defaultChannel = ReleaseChannel.STABLE
+            val overrides = emptyMap<String, ReleaseChannel>()
             val selections = project.selectedAppIds.associateWith { id ->
                 project.selectedPackageAppSets[id] ?: metadata.appSets.appSets.firstOrNull { id in it.packages }?.id
                 ?: error("No AppSet owns selected package '$id'")
@@ -77,32 +86,22 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val artifacts = mutableListOf<ValidatedArtifact>()
             val downloader = ArtifactDownloader(context.cacheDir)
             val validator = PackageZipValidator()
-            val deviceFactory = DeviceArtifactFactory(context)
-            val deviceDir = File(context.cacheDir, "nikgapps/device-packages").apply { mkdirs() }
             resolution.packages.forEach { pkg ->
-                val source = project.appSources[pkg.catalogPackage.id]?.source ?: AppSource.GITLAB
-                val artifact = if (!pkg.hidden && source == AppSource.DEVICE) {
-                    log("Reading ${pkg.catalogPackage.name} from this device…")
-                    operationProgress = null
-                    operationLabel = "Reading ${pkg.catalogPackage.name} from device"
-                    withContext(Dispatchers.IO) { deviceFactory.create(pkg, deviceDir) }
-                } else {
-                    log(if (pkg.hidden) "Downloading required dependency ${pkg.catalogPackage.name}…"
-                        else "Downloading ${pkg.catalogPackage.name} from GitLab…")
-                    operationProgress = 0f
-                    operationLabel = "Downloading ${pkg.catalogPackage.name}"
-                    val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
-                        val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
-                        if (percent != null) {
-                            operationProgress = (percent / 100f).coerceIn(0f, 1f)
-                            downloadProgress(pkg.catalogPackage.name, percent)
-                        }
-                    } }
-                    log("Validating ${pkg.catalogPackage.name}…")
-                    operationProgress = null
-                    operationLabel = "Validating ${pkg.catalogPackage.name}"
-                    withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
-                }
+                log(if (pkg.hidden) "Downloading required dependency ${pkg.catalogPackage.name}…"
+                    else "Downloading ${pkg.catalogPackage.name}…")
+                operationProgress = 0f
+                operationLabel = "Downloading ${pkg.catalogPackage.name}"
+                val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
+                    val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
+                    if (percent != null) {
+                        operationProgress = (percent / 100f).coerceIn(0f, 1f)
+                        downloadProgress(pkg.catalogPackage.name, percent)
+                    }
+                } }
+                log("Validating ${pkg.catalogPackage.name}…")
+                operationProgress = null
+                operationLabel = "Validating ${pkg.catalogPackage.name}"
+                val artifact = withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
                 artifacts += artifact
                 if (!pkg.hidden) completed++
                 log("Prepared ${pkg.catalogPackage.name}")
@@ -152,7 +151,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text("Open ZIP")
                         }
                     }
-                    BuildStage.FAILED -> Button(onClick = navController::navigateUp, modifier = Modifier.align(Alignment.End)) { Text("Back") }
+                    BuildStage.FAILED -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+                        OutlinedButton(onClick = navController::navigateUp) { Text("Back") }
+                        Button(onClick = { confirmClearCache = true }) {
+                            Icon(Icons.Default.DeleteSweep, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Clear cache & rebuild")
+                        }
+                    }
                 }
             }
         }
@@ -200,6 +206,20 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             }
         }
     }
+    if (confirmClearCache) AlertDialog(
+        onDismissRequest = { confirmClearCache = false },
+        title = { Text("Clear build cache?") },
+        text = { Text("Downloaded package metadata, package ZIPs, builder assets, and temporary build files will be removed. Saved projects and completed ZIPs are kept.") },
+        dismissButton = { TextButton(onClick = { confirmClearCache = false }) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = {
+            confirmClearCache = false
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) { RegistryCache.clear(context.cacheDir) } }
+                    .onSuccess { retryKey++ }
+                    .onFailure { error -> log("Unable to clear cache: ${error.message}") }
+            }
+        }) { Text("Clear & rebuild") } }
+    )
 }
 
 private fun Context.openNikGappsFolder() {

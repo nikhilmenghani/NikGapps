@@ -80,6 +80,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.MainActivity
+import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.AndroidVersion
 import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
@@ -88,6 +89,7 @@ import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
+import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -508,9 +510,26 @@ private fun ProjectSheet(
     onDismiss: () -> Unit,
     onSave: (BuildProject) -> Unit
 ) {
+    val context = LocalActivity.current ?: return
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
-    val androidVersion = project?.androidVersion ?: AndroidVersion.ANDROID_16
+    var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
+    var versionMenuExpanded by remember { mutableStateOf(false) }
+    var metadataVersions by remember { mutableStateOf(setOf(AndroidVersion.ANDROID_16)) }
+    val developerPrefs = globalClass.preferencesManager.displayPrefs
+    LaunchedEffect(Unit) {
+        runCatching { CatalogRepository(context.cacheDir).load().catalog.androidVersion }
+            .getOrNull()?.let { published ->
+                AndroidVersion.entries.firstOrNull {
+                    it.displayName.removePrefix("Android ").equals(published, ignoreCase = true)
+                }?.let { metadataVersions = setOf(it) }
+            }
+    }
+    val selectableVersions = if (developerPrefs.developerOptionsEnabled &&
+        developerPrefs.allowUnsupportedAndroidVersions) AndroidVersion.entries else AndroidVersion.entries.filter { it in metadataVersions }
+    LaunchedEffect(selectableVersions) {
+        if (androidVersion !in selectableVersions && selectableVersions.isNotEmpty()) androidVersion = selectableVersions.last()
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -531,10 +550,25 @@ private fun ProjectSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",
-                onValueChange = {}, readOnly = true, label = { Text("Android version") },
-                supportingText = { Text("Android 16 is currently the supported build target") },
-                leadingIcon = { Icon(Icons.Default.Android, null) }, modifier = Modifier.fillMaxWidth())
+            ExposedDropdownMenuBox(expanded = versionMenuExpanded, onExpandedChange = { versionMenuExpanded = it }) {
+                OutlinedTextField(value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",
+                    onValueChange = {}, readOnly = true, label = { Text("Android version") },
+                    supportingText = {
+                        Text(if (developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions)
+                            "Developer override enabled" else "Versions with published metadata")
+                    },
+                    leadingIcon = { Icon(Icons.Default.Android, null) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(versionMenuExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                ExposedDropdownMenu(expanded = versionMenuExpanded, onDismissRequest = { versionMenuExpanded = false }) {
+                    selectableVersions.forEach { option ->
+                        DropdownMenuItem(text = { Text("${option.displayName} (API ${option.apiLevel})") }, onClick = {
+                            androidVersion = option
+                            versionMenuExpanded = false
+                        })
+                    }
+                }
+            }
             OutlinedTextField(value = "${architecture.displayName} (${architecture.value})",
                 onValueChange = {}, readOnly = true, label = { Text("Architecture") },
                 supportingText = { Text("ARM64 is currently the supported architecture") },

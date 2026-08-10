@@ -49,7 +49,7 @@ class DeviceArtifactFactory(private val context: Context) {
         val parent = primary.substringBeforeLast('/', "")
         val payloads = sources.mapIndexed { index, source ->
             val input = File(source)
-            if (!input.canRead()) error("Cannot read ${input.name}; grant root access or use GitLab")
+            if (!input.canRead()) error("Cannot read ${input.name}; grant root access or use the catalog package")
             val path = if (index == 0) primary else "$parent/${input.name}"
             Triple(path, input, sha256(input))
         }
