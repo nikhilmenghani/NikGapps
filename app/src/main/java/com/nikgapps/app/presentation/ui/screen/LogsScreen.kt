@@ -21,6 +21,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -29,7 +34,8 @@ import java.util.Date
 import java.util.Locale
 
 private const val MAX_LOG_LINES = 2_000
-private data class LogcatEntry(val raw: String, val date: String, val time: String,
+private const val LOGCAT_BATCH_INTERVAL_MS = 250L
+internal data class LogcatEntry(val raw: String, val date: String, val time: String,
     val level: String, val tag: String, val message: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,29 +44,49 @@ fun LogsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val lines = remember { mutableStateListOf<LogcatEntry>() }
+    var lines by remember { mutableStateOf<List<LogcatEntry>>(emptyList()) }
     var paused by remember { mutableStateOf(false) }
     var session by remember { mutableIntStateOf(0) }
     var captureError by remember { mutableStateOf<String?>(null) }
+    val pausedState by rememberUpdatedState(paused)
 
     LaunchedEffect(session) {
         captureError = null
-        withContext(Dispatchers.IO) {
-            var process: java.lang.Process? = null
-            try {
-                process = ProcessBuilder("logcat", "--pid=${Process.myPid()}", "-v", "threadtime", "-T", "200", "*:V")
+        val incoming = Channel<LogcatEntry>(capacity = 2_048, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        var process: java.lang.Process? = null
+        try {
+            process = withContext(Dispatchers.IO) {
+                ProcessBuilder("logcat", "--pid=${Process.myPid()}", "-v", "threadtime", "-T", "200", "*:V")
                     .redirectErrorStream(true).start()
-                process.inputStream.bufferedReader().useLines { output ->
-                    output.forEach { line ->
-                        if (!paused) withContext(Dispatchers.Main) {
-                            lines += parseLogcatLine(line)
-                            while (lines.size > MAX_LOG_LINES) lines.removeAt(0)
+            }
+            coroutineScope {
+                val reader = launch(Dispatchers.IO) {
+                    process.inputStream.bufferedReader().useLines { output ->
+                        output.forEach { raw ->
+                            val entry = parseLogcatLine(raw)
+                            if (!isViewerRenderNoise(entry)) incoming.trySend(entry)
                         }
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { captureError = e.message ?: "Unable to read app Logcat" }
-            } finally { process?.destroy() }
+                try {
+                    while (isActive && reader.isActive) {
+                        delay(LOGCAT_BATCH_INTERVAL_MS)
+                        val batch = buildList {
+                            while (size < 512) incoming.tryReceive().getOrNull()?.let(::add) ?: break
+                        }
+                        if (!pausedState && batch.isNotEmpty()) lines = appendLogBatch(lines, batch)
+                    }
+                    reader.join()
+                } finally {
+                    process.destroy()
+                    reader.cancel()
+                }
+            }
+        } catch (e: Exception) {
+            captureError = e.message ?: "Unable to read app Logcat"
+        } finally {
+            incoming.close()
+            process?.destroy()
         }
     }
     LaunchedEffect(lines.size, paused) {
@@ -104,7 +130,7 @@ fun LogsScreen() {
             Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 if (paused) "Resume Logcat" else "Pause Logcat")
         }
-        IconButton(onClick = { lines.clear(); session++ }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
+        IconButton(onClick = { lines = emptyList(); session++ }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
         IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Default.IosShare, "Export diagnostics") }
     }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -191,7 +217,7 @@ private fun logColor(level: String) = when (level) {
 
 private val THREADTIME_LOG = Regex("""^(\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s+([VDIWEF])\s+([^:]+):\s?(.*)$""")
 
-private fun parseLogcatLine(raw: String): LogcatEntry {
+internal fun parseLogcatLine(raw: String): LogcatEntry {
     val match = THREADTIME_LOG.matchEntire(raw)
     return if (match != null) {
         val (date, time, level, tag, message) = match.destructured
@@ -200,3 +226,15 @@ private fun parseLogcatLine(raw: String): LogcatEntry {
         LogcatEntry(raw, "Session", "", "·", "", raw)
     }
 }
+
+internal fun appendLogBatch(current: List<LogcatEntry>, batch: List<LogcatEntry>): List<LogcatEntry> =
+    (current + batch).takeLast(MAX_LOG_LINES)
+
+/** Framework draw diagnostics caused by rendering this viewer must not become viewer input. */
+internal fun isViewerRenderNoise(entry: LogcatEntry): Boolean =
+    (entry.tag == "View" && (
+        entry.message.contains("setRequestedFrameRate") ||
+            entry.message.contains("updateDisplayListIfDirty") ||
+            entry.message.contains("recreateChildDisplayList")
+        )) ||
+        (entry.tag.startsWith("VRI[") && entry.message.contains("Requested frameRateCategory"))
