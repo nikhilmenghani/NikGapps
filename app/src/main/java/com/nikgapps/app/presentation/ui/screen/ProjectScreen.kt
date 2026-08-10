@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -280,14 +281,26 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                     singleLine = true,
-                    label = { Text("Search apps") },
-                    placeholder = { Text("Name or package ID") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    shape = CircleShape,
+                    placeholder = { Text("Search apps") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary)
+                    },
                     trailingIcon = if (searchQuery.isNotEmpty()) {{
                         IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, "Clear search") }
-                    }} else null
+                    }} else null,
+                    supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
+                        Text("No apps match “${searchQuery.trim()}”")
+                    }} else null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
                 )
                 Spacer(Modifier.height(12.dp))
                 Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
