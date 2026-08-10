@@ -248,18 +248,38 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         AnimatedVisibility(summaryExpanded) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    FilterChip(false, { updateAllSelections("select") },
-                                        { Text("Select all", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
-                                        modifier = Modifier.weight(1f))
-                                    FilterChip(false, { updateAllSelections("clear") },
-                                        { Text("Unselect all", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
-                                        modifier = Modifier.weight(1f))
-                                    FilterChip(false, { updateAllSelections("invert") },
-                                        { Text("Invert", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
-                                        modifier = Modifier.weight(1f))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilledTonalButton(
+                                        onClick = { updateAllSelections("select") },
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                        shape = RoundedCornerShape(18.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                    ) {
+                                        Icon(Icons.Default.SelectAll, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Select", maxLines = 1, style = MaterialTheme.typography.labelMedium)
+                                    }
+                                    FilledTonalButton(
+                                        onClick = { updateAllSelections("clear") },
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                        shape = RoundedCornerShape(18.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                    ) {
+                                        Icon(Icons.Default.Deselect, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Clear", maxLines = 1, style = MaterialTheme.typography.labelMedium)
+                                    }
+                                    FilledTonalButton(
+                                        onClick = { updateAllSelections("invert") },
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                        shape = RoundedCornerShape(18.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                    ) {
+                                        Icon(Icons.Default.SwapHoriz, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Invert", maxLines = 1, style = MaterialTheme.typography.labelMedium)
+                                    }
                                 }
-                                if (current.selectedAppIds.isEmpty()) Text("No apps selected yet", style = MaterialTheme.typography.bodyMedium)
                                 val selectedPackages = displayedPackages.filter { it.id in current.selectedAppIds }
                                 selectedPackages.forEachIndexed { index, selectedPkg ->
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
