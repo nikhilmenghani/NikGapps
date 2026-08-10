@@ -9,11 +9,10 @@ object RegistryTestFixtures {
     fun catalog(dependency: String = "", cycle: Boolean = false) = """{
       "schemaVersion":1,"updatedAt":"2026-08-02T00:00:00Z","androidVersion":"16","platformApi":36,
       "architecture":"arm64-v8a","packages":[
-      ${pkg("gms_core", false, true, if (cycle) "{\"id\":\"support_common\"}" else dependency,
+      ${pkg("gms_core", false, true, if (cycle) "{\"id\":\"gms_core_extra_files\"}" else dependency,
         "{\"stable\":\"s\",\"beta\":\"b\",\"canary\":\"c\"}")},
-      ${pkg("support_common", true, false, if (cycle) "{\"id\":\"gms_core\"}" else "", "{\"stable\":\"s\"}")},
-      ${pkg("support_standard", true, false, "", "{\"stable\":\"s\"}")},
-      ${pkg("support_go", true, false, "", "{\"stable\":\"s\"}")}
+      ${pkg("gms_core_extra_files", true, false, if (cycle) "{\"id\":\"gms_core\"}" else "", "{\"stable\":\"s\"}")},
+      ${pkg("gms_core_extra_files_go", true, false, "", "{\"stable\":\"s\"}")}
       ]} """
     private fun pkg(id: String, internal: Boolean, selectable: Boolean, deps: String, channels: String) = """
       {"id":"$id","name":"$id","selectable":$selectable,"internal":$internal,"dependencies":[${deps}],
@@ -25,8 +24,8 @@ object RegistryTestFixtures {
       "apk":{"path":"priv-app/Test/Test.apk","replaceable":true},"artifact":{"url":"https://example.test/$name.zip",
       "sha256":"${"a".repeat(64)}","size":1},"contentSha256":"x"}"""
     fun appSets() = """{"schemaVersion":1,"appSets":[
-      {"id":"core","name":"Core","packages":["gms_core"],"resolvedPackages":["gms_core"],"legacyPackageNames":{"gms_core":"GmsCore"}},
-      {"id":"core_go","name":"CoreGo","packages":["gms_core"],"resolvedPackages":["gms_core"],"legacyPackageNames":{"gms_core":"GmsCore"}}]}"""
+      {"id":"core","name":"Core","packages":["gms_core"],"resolvedPackages":["gms_core","gms_core_extra_files"],"legacyPackageNames":{"gms_core":"GmsCore","gms_core_extra_files":"ExtraFiles"}},
+      {"id":"core_go","name":"CoreGo","packages":["gms_core"],"resolvedPackages":["gms_core","gms_core_extra_files_go"],"legacyPackageNames":{"gms_core":"GmsCore","gms_core_extra_files_go":"ExtraFilesGo"}}]}"""
     fun artifact(directory: File, id: String = "gms_core"): Pair<File, String> {
         val payload = "apk".toByteArray(); val payloadHash = hash(payload)
         val metadata = """{"schemaVersion":1,"id":"$id","packageName":"test.app","defaultPartition":"product",
