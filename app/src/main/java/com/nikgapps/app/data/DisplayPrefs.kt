@@ -45,7 +45,7 @@ object DisplayPrefs {
 
     var enforceAppUpdates by prefMutableState(
         keyName = "enforceAppUpdates",
-        defaultValue = false,
+        defaultValue = true,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 }
