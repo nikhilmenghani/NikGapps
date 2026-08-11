@@ -14,11 +14,7 @@ object VersionFetcher {
             val response = NetworkClient.executeRequest(request)
 
             if (response.isSuccessful) {
-                response.body.string().let { responseBody ->
-                    val jsonElement: JsonElement = Json.decodeFromString(JsonElement.serializer(), responseBody)
-                    val jsonObject = jsonElement as? JsonObject
-                    jsonObject?.get("name")?.jsonPrimitive?.content?.replace("v", "") ?: "Unknown"
-                }
+                parseReleaseVersion(response.body.string())
             } else {
                 "Unknown"
             }
@@ -26,5 +22,14 @@ object VersionFetcher {
             e.printStackTrace()
             "Unknown"
         }
+    }
+
+    internal fun parseReleaseVersion(responseBody: String): String {
+        val jsonElement: JsonElement = Json.decodeFromString(JsonElement.serializer(), responseBody)
+        val jsonObject = jsonElement as? JsonObject ?: return "Unknown"
+        val version = jsonObject["tag_name"]?.jsonPrimitive?.content
+            ?: jsonObject["name"]?.jsonPrimitive?.content
+            ?: return "Unknown"
+        return version.trim().removePrefix("v").ifEmpty { "Unknown" }
     }
 }

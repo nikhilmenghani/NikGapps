@@ -139,7 +139,8 @@ fun HomeScreen(navController: NavHostController) {
                 workDataOf(
                     DownloadWorker.DOWNLOAD_URL_KEY to getNikGappsAppDownloadUrl(latestVersion),
                     DownloadWorker.DEST_FILE_PATH_KEY to destination,
-                    DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_APK
+                    DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_APK,
+                    DownloadWorker.VERSION_KEY to latestVersion
                 )
             )
             .setConstraints(
