@@ -62,16 +62,10 @@ fun NikGappsTheme(
     val manager = globalClass.preferencesManager
     val context = LocalContext.current
     val useDynamicColor = manager.displayPrefs.useDynamicColor
-    val darkTheme: Boolean = if (useDynamicColor) {
-        isSystemInDarkTheme()
-    } else {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (manager.displayPrefs.theme == ThemePreference.SYSTEM.ordinal) {
-                isSystemInDarkTheme()
-            } else manager.displayPrefs.theme == ThemePreference.DARK.ordinal
-        } else {
-            manager.displayPrefs.theme == ThemePreference.DARK.ordinal
-        }
+    val darkTheme = when (manager.displayPrefs.theme) {
+        ThemePreference.LIGHT.ordinal -> false
+        ThemePreference.DARK.ordinal -> true
+        else -> isSystemInDarkTheme()
     }
 
     val colorScheme = when {

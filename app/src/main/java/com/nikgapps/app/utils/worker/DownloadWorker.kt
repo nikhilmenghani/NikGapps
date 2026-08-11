@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.nikgapps.app.utils.download.ApkDownloadStrategy
 import com.nikgapps.app.utils.download.DownloadStrategy
 import com.nikgapps.app.utils.download.FileDownloadStrategy
+import com.nikgapps.app.utils.NotificationUtility
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -21,6 +22,7 @@ class DownloadWorker(
         const val DOWNLOAD_TYPE_KEY = "DOWNLOAD_TYPE"
         const val DOWNLOAD_TYPE_APK = "apk"
         const val DOWNLOAD_TYPE_FILE = "file"
+        const val VERSION_KEY = "VERSION"
     }
 
     override suspend fun doWork(): Result {
@@ -48,6 +50,13 @@ class DownloadWorker(
                 val downloadSuccess = downloadStrategy.download(downloadUrl, destFilePath)
                 if (downloadSuccess) {
                     Log.d("NikGapps-DownloadWorker", "Download successful: $destFilePath")
+                    if (downloadType == DOWNLOAD_TYPE_APK) {
+                        NotificationUtility.showUpdateReady(
+                            applicationContext,
+                            inputData.getString(VERSION_KEY).orEmpty(),
+                            destFilePath
+                        )
+                    }
                     Result.success()
                 } else {
                     Log.e("NikGapps-DownloadWorker", "Download failed.")

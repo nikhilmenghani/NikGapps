@@ -80,16 +80,18 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
         try {
             log("Loading the NikGapps package catalog…")
             operationLabel = "Loading package catalog"
-            val metadata = withContext(Dispatchers.IO) { CatalogRepository(context.cacheDir).load() }
+            val metadata = withContext(Dispatchers.IO) { CatalogRepository(context.cacheDir).load(
+                catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
+                project.architecture.value) }
             log("Resolving ${project.selectedAppIds.size} selected apps and their dependencies…")
             operationLabel = "Resolving packages and dependencies"
-            val defaultChannel = ReleaseChannel.STABLE
-            val overrides = emptyMap<String, ReleaseChannel>()
+            val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
+            val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
             val selections = project.selectedAppIds.associateWith { id ->
                 project.selectedPackageAppSets[id] ?: metadata.appSets.appSets.firstOrNull { id in it.packages }?.id
                 ?: error("No AppSet owns selected package '$id'")
             }
-            val resolution = withContext(Dispatchers.IO) { CatalogResolver(metadata.catalog, metadata.appSets).resolveAcrossAppSets(
+            val resolution = withContext(Dispatchers.IO) { CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolveAcrossAppSets(
                 selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value) }
             AppDiagnostics.info("build", "resolved", mapOf("run" to activeRunId,
                 "selected" to project.selectedAppIds.size, "total" to resolution.packages.size,

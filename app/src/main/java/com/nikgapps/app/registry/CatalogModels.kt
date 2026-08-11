@@ -9,15 +9,19 @@ enum class ReleaseChannel { STABLE, BETA, CANARY;
 }
 
 data class Catalog(val schemaVersion: Int, val updatedAt: String, val androidVersion: String,
-    val platformApi: Int, val architecture: String, val packages: List<CatalogPackage>)
+    val platformApi: Int, val architecture: String, val packages: List<CatalogPackage>,
+    val defaults: CatalogDefaults = CatalogDefaults())
+data class CatalogDefaults(val architectures: List<String> = listOf("arm64-v8a"),
+    val deviceTypes: List<String> = listOf("phone"))
 data class CatalogPackage(val id: String, val name: String, val selectable: Boolean,
     val internal: Boolean, val dependencies: List<Dependency>, val channels: Map<String, String>,
-    val versions: Map<String, PackageVersion>)
+    val versions: Map<String, PackageVersion>, val appSets: List<String> = emptyList())
 data class Dependency(val id: String, val whenAppSet: String? = null)
 data class PackageVersion(val versionName: String, val versionCode: Long, val packageName: String?,
     val android: AndroidCompatibility, val architectures: List<String>, val defaultPartition: String,
     val apk: ApkMetadata?, val artifact: Artifact, val files: List<CatalogFile> = emptyList(),
-    val install: InstallMetadata? = null)
+    val install: InstallMetadata? = null, val supportedAndroidVersions: List<String> = emptyList(),
+    val sources: List<String> = emptyList(), val deviceTypes: List<String> = listOf("phone"))
 data class CatalogFile(val path: String, val archivePath: String?, val installPath: String?,
     val sha256: String, val size: Long, val type: String)
 data class InstallMetadata(val format: String, val title: String, val packageTitle: String,
@@ -30,6 +34,13 @@ data class Artifact(val url: String, val sha256: String, val size: Long?)
 data class AppSetCatalog(val schemaVersion: Int, val appSets: List<CatalogAppSet>)
 data class CatalogAppSet(val id: String, val name: String, val packages: List<String>,
     val resolvedPackages: List<String>, val legacyPackageNames: Map<String, String>)
+data class ReleaseSummary(val id: String, val androidVersion: String, val platformApi: Int,
+    val architecture: String, val channel: String, val source: String, val createdAt: String, val manifest: String)
+data class ReleaseIndex(val schemaVersion: Int, val updatedAt: String,
+    val latest: Map<String, Map<String, Map<String, String>>>, val releases: List<ReleaseSummary>)
+data class CatalogRelease(val schemaVersion: Int, val id: String, val createdAt: String,
+    val androidVersion: String, val platformApi: Int, val architecture: String, val channel: String,
+    val source: String, val packages: Map<String, String>, val appSets: List<CatalogAppSet>)
 
 class MetadataException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
@@ -38,6 +49,13 @@ object CatalogParser {
     fun parseCatalog(text: String): Catalog = wrap("catalog") {
         val root = json.parseToJsonElement(text).jsonObject
         schema(root)
+        val defaultsObject = root["defaults"]?.jsonObject
+        val defaults = CatalogDefaults(
+            defaultsObject?.optionalStrings("architectures")?.ifEmpty { listOf("arm64-v8a") }
+                ?: listOf(root.string("architecture")),
+            defaultsObject?.optionalStrings("deviceTypes")?.ifEmpty { listOf("phone") }
+                ?: listOf("phone")
+        )
         Catalog(root.int("schemaVersion"), root.string("updatedAt"), root.string("androidVersion"),
             root.int("platformApi"), root.string("architecture"), root.array("packages").map { item ->
                 val p = item.jsonObject
@@ -46,8 +64,9 @@ object CatalogParser {
                         val d = dependency.jsonObject
                         Dependency(d.string("id"), d["when"]?.jsonObject?.get("appSet")?.jsonPrimitive?.content)
                     }, p.obj("channels").mapValues { it.value.jsonPrimitive.content },
-                    p.obj("versions").mapValues { (_, value) -> version(value.jsonObject) })
-            }).also { catalog ->
+                    p.obj("versions").mapValues { (_, value) -> version(value.jsonObject, defaults) },
+                    p.optionalStrings("appSets"))
+            }, defaults).also { catalog ->
                 require(catalog.packages.isNotEmpty()) { "packages is empty" }
                 require(catalog.packages.map { it.id }.distinct().size == catalog.packages.size) { "duplicate package id" }
             }
@@ -63,12 +82,44 @@ object CatalogParser {
         }).also { require(it.appSets.isNotEmpty()) { "appSets is empty" } }
     }
 
-    private fun version(v: JsonObject): PackageVersion {
+    fun parseReleaseIndex(text: String): ReleaseIndex = wrap("release index") {
+        val root = json.parseToJsonElement(text).jsonObject
+        schema(root)
+        val latest = root.obj("latest").mapValues { (_, channels) ->
+            channels.jsonObject.mapValues { (_, architectures) ->
+                architectures.jsonObject.mapValues { it.value.jsonPrimitive.content }
+            }
+        }
+        ReleaseIndex(root.int("schemaVersion"), root.string("updatedAt"), latest,
+            root.array("releases").map { value -> val r = value.jsonObject
+                ReleaseSummary(r.string("id"), r.string("androidVersion"), r.int("platformApi"),
+                    r.string("architecture"), r.string("channel"), r["source"]?.jsonPrimitive?.content ?: "legacy",
+                    r.string("createdAt"), r.string("manifest"))
+            })
+    }
+
+    fun parseRelease(text: String): CatalogRelease = wrap("release manifest") {
+        val root = json.parseToJsonElement(text).jsonObject
+        schema(root)
+        CatalogRelease(root.int("schemaVersion"), root.string("id"), root.string("createdAt"),
+            root.string("androidVersion"), root.int("platformApi"), root.string("architecture"),
+            root.string("channel"), root["source"]?.jsonPrimitive?.content ?: "legacy",
+            root.obj("packages").mapValues { (_, value) ->
+                value.jsonObject.string("version")
+            }, root.array("appSets").map { item -> appSet(item.jsonObject) })
+    }
+
+    private fun appSet(a: JsonObject) = CatalogAppSet(a.string("id"), a.string("name"),
+        a.strings("packages"), a.strings("resolvedPackages"),
+        a.obj("legacyPackageNames").mapValues { it.value.jsonPrimitive.content })
+
+    private fun version(v: JsonObject, defaults: CatalogDefaults): PackageVersion {
         val android = v.obj("android")
         val artifact = v.obj("artifact")
         return PackageVersion(v.string("versionName"), v.long("versionCode"),
             v["packageName"].nullableString(), AndroidCompatibility(android.nullableInt("minApi"),
-                android.nullableInt("targetApi"), android.nullableInt("maxApi")), v.strings("architectures"),
+                android.nullableInt("targetApi"), android.nullableInt("maxApi")),
+            if (v.containsKey("architectures")) v.strings("architectures") else defaults.architectures,
             v.string("defaultPartition"), v["apk"]?.takeUnless { it is JsonNull }?.jsonObject?.let {
                 ApkMetadata(it.string("path"), it.bool("replaceable"))
             }, Artifact(artifact.string("url"), artifact.string("sha256").lowercase(), artifact.nullableLong("size")),
@@ -81,7 +132,8 @@ object CatalogParser {
                     install.optionalStrings("removeOverlays"), install.optionalStrings("privilegedPermissions"),
                     install["cleanFlashOnly"]?.jsonPrimitive?.boolean ?: false,
                     install["addonIndex"]?.jsonPrimitive?.content ?: "09")
-            })
+            }, v.optionalStrings("supportedAndroidVersions"), v.optionalStrings("sources"),
+            if (v.containsKey("deviceTypes")) v.strings("deviceTypes") else defaults.deviceTypes)
             .also { require(it.artifact.sha256.matches(Regex("[0-9a-f]{64}"))) { "invalid artifact sha256" } }
     }
 

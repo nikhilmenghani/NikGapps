@@ -90,6 +90,7 @@ import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.CatalogRepository
+import com.nikgapps.app.registry.catalogAndroidVersion
 import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.extensions.navigateWithState
@@ -518,12 +519,13 @@ private fun ProjectSheet(
     var metadataVersions by remember { mutableStateOf(setOf(AndroidVersion.ANDROID_16)) }
     val developerPrefs = globalClass.preferencesManager.displayPrefs
     LaunchedEffect(Unit) {
-        runCatching { CatalogRepository(context.cacheDir).load().catalog.androidVersion }
-            .getOrNull()?.let { published ->
-                AndroidVersion.entries.firstOrNull {
-                    it.displayName.removePrefix("Android ").equals(published, ignoreCase = true)
-                }?.let { metadataVersions = setOf(it) }
+        runCatching { CatalogRepository(context.cacheDir).load() }.getOrNull()?.let { metadata ->
+            val published = metadata.releaseIndex?.releases?.map { it.androidVersion }?.toSet()
+                ?: setOf(metadata.catalog.androidVersion)
+            metadataVersions = AndroidVersion.entries.filterTo(mutableSetOf()) {
+                catalogAndroidVersion(it.displayName) in published
             }
+        }
     }
     val selectableVersions = if (developerPrefs.developerOptionsEnabled &&
         developerPrefs.allowUnsupportedAndroidVersions) AndroidVersion.entries else AndroidVersion.entries.filter { it in metadataVersions }

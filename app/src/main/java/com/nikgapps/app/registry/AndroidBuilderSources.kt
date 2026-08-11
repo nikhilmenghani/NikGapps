@@ -23,8 +23,7 @@ class AndroidBuilderAssetSource(private val context: Context,
             return target.readBytes()
         val part = File(directory, "${metadata.sha256}.part")
         try {
-            OkHttpClient().newCall(Request.Builder().url(metadata.url).build()).execute().use { response ->
-                if (!response.isSuccessful) error("HTTP ${response.code} downloading '$name'")
+            OkHttpClient().executeRegistryRequest(Request.Builder().url(metadata.url).build()) { response ->
                 part.outputStream().use { output -> response.body.byteStream().use { it.copyTo(output) } }
             }
             require(part.length() == metadata.size) { "Size mismatch for builder asset '$name'" }

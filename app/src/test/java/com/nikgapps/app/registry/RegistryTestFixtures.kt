@@ -26,6 +26,12 @@ object RegistryTestFixtures {
     fun appSets() = """{"schemaVersion":1,"appSets":[
       {"id":"core","name":"Core","packages":["gms_core"],"resolvedPackages":["gms_core","gms_core_extra_files"],"legacyPackageNames":{"gms_core":"GmsCore","gms_core_extra_files":"ExtraFiles"}},
       {"id":"core_go","name":"CoreGo","packages":["gms_core"],"resolvedPackages":["gms_core","gms_core_extra_files_go"],"legacyPackageNames":{"gms_core":"GmsCore","gms_core_extra_files_go":"ExtraFilesGo"}}]}"""
+    fun release() = """{"schemaVersion":1,"id":"release-17","createdAt":"2026-08-10T00:00:00Z",
+      "androidVersion":"17","platformApi":37,"architecture":"arm64-v8a","channel":"canary",
+      "packages":{"gms_core":{"version":"c"},"gms_core_extra_files":{"version":"s"}},
+      "appSets":[{"id":"core","name":"Core","packages":["gms_core"],
+      "resolvedPackages":["gms_core","gms_core_extra_files"],
+      "legacyPackageNames":{"gms_core":"GmsCore","gms_core_extra_files":"ExtraFiles"}}]}"""
     fun artifact(directory: File, id: String = "gms_core"): Pair<File, String> {
         val payload = "apk".toByteArray(); val payloadHash = hash(payload)
         val metadata = """{"schemaVersion":1,"id":"$id","packageName":"test.app","defaultPartition":"product",

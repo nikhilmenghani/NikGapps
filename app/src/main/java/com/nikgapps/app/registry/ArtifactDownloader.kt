@@ -11,10 +11,11 @@ import okhttp3.Request
 import com.nikgapps.app.utils.AppDiagnostics
 
 data class DownloadProgress(val packageId: String, val downloaded: Long, val total: Long?)
-class ArtifactDownloadException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class ArtifactDownloadException(message: String, cause: Throwable? = null,
+    val retryAfterMillis: Long? = null) : Exception(message, cause)
 
 class ArtifactDownloader(private val cacheDirectory: File, private val client: OkHttpClient = OkHttpClient(),
-    private val maxAttempts: Int = 3) {
+    private val maxAttempts: Int = 5) {
     suspend fun obtain(pkg: ResolvedPackage, onProgress: suspend (DownloadProgress) -> Unit = {}): File =
         withContext(Dispatchers.IO) {
             val artifact = pkg.version.artifact
@@ -50,7 +51,10 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
                         mapOf("package" to pkg.catalogPackage.id, "attempt" to attempt + 1))
                     last = e
                     if (e is ArtifactDownloadException && (e.message?.contains("mismatch") == true)) part.delete()
-                    if (attempt + 1 < maxAttempts) delay(500L * (attempt + 1))
+                    if (attempt + 1 < maxAttempts) delay(
+                        (e as? ArtifactDownloadException)?.retryAfterMillis
+                            ?: (1_000L shl attempt).coerceAtMost(30_000L)
+                    )
                 }
             }
             part.delete()
@@ -61,7 +65,10 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
         val offset = part.takeIf { it.isFile }?.length() ?: 0L
         val request = Request.Builder().url(artifact.url).apply { if (offset > 0) header("Range", "bytes=$offset-") }.build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw ArtifactDownloadException("HTTP ${response.code} while downloading '$id'")
+            if (!response.isSuccessful) throw ArtifactDownloadException(
+                "HTTP ${response.code} while downloading '$id'",
+                retryAfterMillis = response.header("Retry-After")?.toLongOrNull()?.let { it * 1_000L }
+            )
             val append = offset > 0 && response.code == 206
             if (offset > 0 && !append) part.delete()
             val start = if (append) offset else 0L

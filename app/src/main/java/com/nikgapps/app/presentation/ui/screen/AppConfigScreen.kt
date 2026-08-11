@@ -31,8 +31,10 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
     var error by remember { mutableStateOf<String?>(null) }
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
-    LaunchedEffect(Unit) {
-        try { metadata = catalogRepository.load() }
+    LaunchedEffect(project?.androidVersion, project?.architecture, project?.defaultChannel) {
+        val selected = project ?: return@LaunchedEffect
+        try { metadata = catalogRepository.load(catalogAndroidVersion(selected.androidVersion.displayName),
+            selected.defaultChannel, selected.architecture.value) }
         catch (e: Exception) { error = e.message ?: "Unable to load package information" }
     }
     val current = project
@@ -41,7 +43,9 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
         loaded.catalog.publicPackages(set).any { it.id == packageId }
     } }.orEmpty()
     val channel = ReleaseChannel.STABLE
-    val version = pkg?.channels?.get(channel.wireName)?.let { pkg.versions[it] } ?: pkg?.versions?.values?.firstOrNull()
+    val version = metadata?.release?.packages?.get(packageId)?.let { pkg?.versions?.get(it) }
+        ?: pkg?.channels?.get(channel.wireName)?.let { pkg.versions[it] }
+        ?: pkg?.versions?.values?.firstOrNull()
     val owner = memberAppSets.firstOrNull { it.id == current?.selectedPackageAppSets?.get(packageId) } ?: memberAppSets.firstOrNull()
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }

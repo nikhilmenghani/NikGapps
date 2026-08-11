@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,6 +46,7 @@ import com.nikgapps.app.data.toVariantString
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
+import com.nikgapps.app.update.AppUpdateManager
 
 @Composable
 fun AppearancePreferences() {
@@ -65,8 +67,7 @@ fun AppearancePreferences() {
                 onSwitchChange = { preferences.useDynamicColor = it }
             )
 
-            if (!preferences.useDynamicColor) {
-                PreferenceItem(
+            PreferenceItem(
                     label = stringResource(R.string.theme),
                     supportingText = when (preferences.theme) {
                         ThemePreference.LIGHT.ordinal -> stringResource(R.string.light)
@@ -87,8 +88,7 @@ fun AppearancePreferences() {
                             onSelect = { preferences.theme = it }
                         )
                     }
-                )
-            }
+            )
         }
     }
 }
@@ -173,6 +173,8 @@ fun SystemPreferences(
     onAppSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val dialog = globalClass.singleChoiceDialog
+    val updatePrefs = globalClass.preferencesManager.updatePrefs
     val developerPreference = globalClass.preferencesManager.displayPrefs
     var developerTapCount by remember { mutableStateOf(0) }
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
@@ -211,6 +213,25 @@ fun SystemPreferences(
             )
 
             PreferenceSubtitle(text = stringResource(R.string.settings_background))
+            PreferenceItem(
+                label = "Automatic update checks",
+                supportingText = updateIntervalLabel(updatePrefs.intervalHours),
+                icon = Icons.Outlined.SystemUpdate,
+                onClick = {
+                    val intervals = listOf(0, 12, 24, 168)
+                    dialog.show(
+                        title = "Automatic update checks",
+                        description = "Choose how often NikGapps checks for a new app release",
+                        choices = intervals.map(::updateIntervalLabel),
+                        selectedChoice = intervals.indexOf(updatePrefs.intervalHours).coerceAtLeast(0),
+                        onSelect = { index ->
+                            updatePrefs.intervalHours = intervals[index]
+                            AppUpdateManager.scheduleChecks(context, intervals[index])
+                            if (intervals[index] > 0) AppUpdateManager.checkOnAppStart(context)
+                        }
+                    )
+                }
+            )
             PreferenceItem(
                 label = stringResource(R.string.settings_battery_optimization),
                 supportingText = stringResource(
@@ -253,6 +274,14 @@ fun SystemPreferences(
             )
         }
     }
+}
+
+private fun updateIntervalLabel(hours: Int) = when (hours) {
+    0 -> "Off"
+    12 -> "Every 12 hours"
+    24 -> "Daily"
+    168 -> "Weekly"
+    else -> "Every $hours hours"
 }
 
 @Composable

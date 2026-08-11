@@ -9,7 +9,7 @@ class RegistryBuildService(private val downloader: ArtifactDownloader,
     private val validator: PackageZipValidator, private val assembler: RegistryZipAssembler) {
     suspend fun build(cacheDirectory: File, outputDirectory: File, metadata: RegistryMetadata,
         request: BuildRequest, onProgress: suspend (DownloadProgress) -> Unit = {}): File {
-        val resolved = CatalogResolver(metadata.catalog, metadata.appSets).resolve(request.appSet.id,
+        val resolved = CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolve(request.appSet.id,
             request.selectedIds, request.defaultChannel, request.channelOverrides, request.api, request.architecture)
         val downloadBytes = resolved.sumOf { it.version.artifact.size ?: 0L }
         // Downloads plus nested and final ZIPs can coexist during assembly.

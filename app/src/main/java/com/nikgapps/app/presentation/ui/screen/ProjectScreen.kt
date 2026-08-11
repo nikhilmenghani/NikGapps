@@ -73,11 +73,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
-    LaunchedEffect(Unit) {
-        try { metadata = catalogRepository.load() }
+    val current = project
+    LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel) {
+        if (current == null) return@LaunchedEffect
+        try { metadata = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
+            current.defaultChannel, current.architecture.value) }
         catch (e: Exception) { loadError = e.message ?: "Unable to load the NikGapps catalog" }
     }
-    val current = project
     if (current == null) { Text("Project not found", Modifier.padding(24.dp)); return }
     val registry = metadata
     val selectedAppSet = registry?.appSets?.appSets?.firstOrNull { it.id == current.selectedAppSetId }
@@ -168,13 +170,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         scope.launch {
             try {
                 progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
-                val defaultChannel = ReleaseChannel.STABLE
-                val overrides = emptyMap<String, ReleaseChannel>()
+                val defaultChannel = ReleaseChannel.valueOf(current.defaultChannel.uppercase())
+                val overrides = current.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
                 val selections = current.selectedAppIds.associateWith { id ->
                     current.selectedPackageAppSets[id] ?: loaded.appSets.appSets.firstOrNull { id in it.packages }?.id
                     ?: throw IllegalArgumentException("No AppSet owns selected package '$id'")
                 }
-                val resolution = withContext(Dispatchers.IO) { CatalogResolver(loaded.catalog, loaded.appSets).resolveAcrossAppSets(
+                val resolution = withContext(Dispatchers.IO) { CatalogResolver(loaded.catalog, loaded.appSets, loaded.release).resolveAcrossAppSets(
                     selections, defaultChannel, overrides, current.androidVersion.apiLevel, current.architecture.value) }
                 val resolved = resolution.packages
                 val visibleTotal = resolved.count { !it.hidden }

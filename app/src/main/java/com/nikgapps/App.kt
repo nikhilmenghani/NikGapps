@@ -11,6 +11,8 @@ import com.nikgapps.app.utils.managers.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.nikgapps.app.data.UpdatePrefs
+import com.nikgapps.app.update.AppUpdateManager
 
 class App: Application() {
     companion object {
@@ -30,6 +32,8 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
+        AppUpdateManager.scheduleChecks(this, UpdatePrefs.intervalHours)
+        if (UpdatePrefs.intervalHours > 0) AppUpdateManager.checkOnAppStart(this)
     }
 
     fun showMsg(@StringRes msgSrc: Int) {

@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -13,11 +15,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.nikgapps.R
+import com.nikgapps.app.update.UpdateActionReceiver
 
 object NotificationUtility {
 
     const val CHANNEL_ID = "progress_channel_id"
     const val NOTIFICATION_ID = 1
+    const val UPDATE_AVAILABLE_NOTIFICATION_ID = 2202
+    const val UPDATE_READY_NOTIFICATION_ID = 2203
+    private const val UPDATE_CHANNEL_ID = "app_updates"
 
     fun startFileDownload(context: Context) {
         createNotificationChannel(context)
@@ -86,6 +92,45 @@ object NotificationUtility {
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showUpdateAvailable(context: Context, version: String, downloadUrl: String) {
+        createNotificationChannel(context, "App updates", "New versions and installation status",
+            NotificationManager.IMPORTANCE_DEFAULT, UPDATE_CHANNEL_ID)
+        val intent = Intent(context, UpdateActionReceiver::class.java).apply {
+            action = UpdateActionReceiver.ACTION_DOWNLOAD
+            putExtra(UpdateActionReceiver.EXTRA_VERSION, version)
+            putExtra(UpdateActionReceiver.EXTRA_URL, downloadUrl)
+        }
+        val action = PendingIntent.getBroadcast(context, version.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("NikGapps v$version is available")
+            .setContentText("Download and install the update")
+            .setContentIntent(action).addAction(android.R.drawable.stat_sys_download, "Download", action)
+            .setAutoCancel(true).setOnlyAlertOnce(true).build()
+        runCatching { NotificationManagerCompat.from(context).notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification) }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showUpdateReady(context: Context, version: String, apkPath: String) {
+        createNotificationChannel(context, "App updates", "New versions and installation status",
+            NotificationManager.IMPORTANCE_DEFAULT, UPDATE_CHANNEL_ID)
+        val intent = Intent(context, UpdateActionReceiver::class.java).apply {
+            action = UpdateActionReceiver.ACTION_INSTALL
+            putExtra(UpdateActionReceiver.EXTRA_APK_PATH, apkPath)
+        }
+        val action = PendingIntent.getBroadcast(context, apkPath.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("NikGapps v$version is ready")
+            .setContentText("Tap to review and install")
+            .setContentIntent(action).addAction(android.R.drawable.stat_sys_download_done, "Install", action)
+            .setAutoCancel(true).build()
+        runCatching { NotificationManagerCompat.from(context).notify(UPDATE_READY_NOTIFICATION_ID, notification) }
     }
 }
 

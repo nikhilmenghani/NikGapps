@@ -27,4 +27,12 @@ class CatalogResolverTest {
         val r = resolver().resolve("core", setOf("gms_core"), ReleaseChannel.STABLE, emptyMap(), 35, "arm64-v8a")
         assertEquals(r, resolver().resolve("core", setOf("gms_core"), ReleaseChannel.STABLE, emptyMap(), 35, "arm64-v8a"))
     }
+    @Test fun releaseSnapshotOverridesGlobalChannel() {
+        val catalog = CatalogParser.parseCatalog(RegistryTestFixtures.catalog())
+        val release = CatalogParser.parseRelease(RegistryTestFixtures.release())
+        val appSets = AppSetCatalog(1, release.appSets)
+        val resolved = CatalogResolver(catalog, appSets, release).resolve(
+            "core", setOf("gms_core"), ReleaseChannel.STABLE, emptyMap(), 35, "arm64-v8a")
+        assertEquals("canary", resolved.last().version.versionName)
+    }
 }
