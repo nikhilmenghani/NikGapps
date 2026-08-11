@@ -14,6 +14,7 @@ import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.security.AppLock
 import com.nikgapps.app.security.canUseAppLock
+import com.nikgapps.app.network.InternetRequiredGate
 import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
@@ -25,10 +26,12 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.RELEASE.toInt()  <= 12 || Permissions.hasAllRequiredPermissions(this)) {
             setContent {
                 NikGappsTheme {
-                    AppLock(
-                        enabled = globalClass.preferencesManager.displayPrefs.biometricLockEnabled && canUseAppLock(this@MainActivity),
-                        activity = this@MainActivity
-                    ) { ScreenNavigator(progressLogViewModel) }
+                    InternetRequiredGate {
+                        AppLock(
+                            enabled = globalClass.preferencesManager.displayPrefs.biometricLockEnabled && canUseAppLock(this@MainActivity),
+                            activity = this@MainActivity
+                        ) { ScreenNavigator(progressLogViewModel) }
+                    }
                 }
             }
         } else {
