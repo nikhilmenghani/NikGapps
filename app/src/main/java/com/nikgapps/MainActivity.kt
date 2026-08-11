@@ -11,6 +11,9 @@ import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.navigation.ScreenNavigator
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.permissions.Permissions
+import com.nikgapps.App.Companion.globalClass
+import com.nikgapps.app.security.AppLock
+import com.nikgapps.app.security.canUseAppLock
 import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
@@ -22,8 +25,10 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.RELEASE.toInt()  <= 12 || Permissions.hasAllRequiredPermissions(this)) {
             setContent {
                 NikGappsTheme {
-                    // Your composable content
-                    ScreenNavigator(progressLogViewModel)
+                    AppLock(
+                        enabled = globalClass.preferencesManager.displayPrefs.biometricLockEnabled && canUseAppLock(this@MainActivity),
+                        activity = this@MainActivity
+                    ) { ScreenNavigator(progressLogViewModel) }
                 }
             }
         } else {

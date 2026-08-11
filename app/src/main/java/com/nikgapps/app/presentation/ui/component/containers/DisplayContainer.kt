@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +44,7 @@ import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
 import com.nikgapps.app.update.AppUpdateManager
+import com.nikgapps.app.security.canUseAppLock
 
 @Composable
 fun AppearancePreferences() {
@@ -102,6 +104,19 @@ fun AdvancedPreferences() {
         ) {
             if (developerPreference.developerOptionsEnabled) {
                 PreferenceSubtitle(text = "Developer options")
+                PreferenceItem(
+                    label = "Biometric lock",
+                    supportingText = "Require biometrics or the device screen lock when opening the app",
+                    icon = Icons.Outlined.Fingerprint,
+                    switchState = developerPreference.biometricLockEnabled,
+                    onSwitchChange = { enabled ->
+                        if (!enabled || canUseAppLock(globalClass)) {
+                            developerPreference.biometricLockEnabled = enabled
+                        } else {
+                            Toast.makeText(globalClass, "Set up a supported screen lock or fingerprint first", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                )
                 PreferenceItem(
                     label = "Allow unsupported Android versions",
                     supportingText = "Show Android versions without published package metadata",

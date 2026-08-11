@@ -30,4 +30,10 @@ object DisplayPrefs {
         defaultValue = false,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
+
+    var biometricLockEnabled by prefMutableState(
+        keyName = "biometricLockEnabled",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
 }
