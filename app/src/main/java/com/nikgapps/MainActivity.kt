@@ -14,6 +14,7 @@ import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.security.AppLock
 import com.nikgapps.app.security.canUseAppLock
+import com.nikgapps.app.update.AppUpdateManager
 import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +37,11 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(this, PermissionsActivity::class.java))
             finish()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppUpdateManager.checkOnAppStart(this)
     }
 
     fun restartActivity() {

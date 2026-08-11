@@ -33,7 +33,6 @@ class App: Application() {
         super.onCreate()
         appContext = this
         AppUpdateManager.scheduleChecks(this, UpdatePrefs.intervalHours)
-        AppUpdateManager.checkOnAppStart(this)
     }
 
     fun showMsg(@StringRes msgSrc: Int) {

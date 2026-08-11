@@ -37,7 +37,7 @@ object AppUpdateManager {
         val request = OneTimeWorkRequestBuilder<UpdateCheckWorker>()
             .setConstraints(networkConstraints()).build()
         WorkManager.getInstance(context).enqueueUniqueWork(
-            STARTUP_WORK, ExistingWorkPolicy.REPLACE, request
+            STARTUP_WORK, ExistingWorkPolicy.KEEP, request
         )
     }
 

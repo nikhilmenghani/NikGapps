@@ -1,6 +1,7 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
@@ -47,6 +48,7 @@ import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
 import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.security.canUseAppLock
+import com.nikgapps.app.security.authenticateForAppLock
 
 @Composable
 fun AppearancePreferences() {
@@ -95,6 +97,7 @@ fun AppearancePreferences() {
 
 @Composable
 fun AdvancedPreferences() {
+    val context = LocalContext.current
     val textDialog = globalClass.singleTextDialog
     val githubPreference = globalClass.preferencesManager.githubPrefs
     val developerPreference = globalClass.preferencesManager.displayPrefs
@@ -126,10 +129,23 @@ fun AdvancedPreferences() {
                     icon = Icons.Outlined.Fingerprint,
                     switchState = developerPreference.biometricLockEnabled,
                     onSwitchChange = { enabled ->
-                        if (!enabled || canUseAppLock(globalClass)) {
-                            developerPreference.biometricLockEnabled = enabled
+                        if (!enabled) {
+                            developerPreference.biometricLockEnabled = false
+                        } else if (!canUseAppLock(context)) {
+                            Toast.makeText(context, "Set up a supported screen lock or fingerprint first", Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(globalClass, "Set up a supported screen lock or fingerprint first", Toast.LENGTH_LONG).show()
+                            val activity = context as? Activity
+                            if (activity == null) {
+                                Toast.makeText(context, "Unable to start authentication", Toast.LENGTH_LONG).show()
+                            } else {
+                                authenticateForAppLock(
+                                    activity = activity,
+                                    title = "Enable biometric lock",
+                                    subtitle = "Authenticate once to verify app lock",
+                                    onSuccess = { developerPreference.biometricLockEnabled = true },
+                                    onError = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+                                )
+                            }
                         }
                     }
                 )

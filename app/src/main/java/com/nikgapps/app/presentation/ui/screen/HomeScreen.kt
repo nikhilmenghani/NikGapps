@@ -77,12 +77,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.workDataOf
+import androidx.lifecycle.Observer
 import com.nikgapps.MainActivity
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.AndroidVersion
@@ -95,11 +92,10 @@ import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.registry.catalogAndroidVersion
-import com.nikgapps.app.utils.constants.ApplicationConstants.getExternalStorageDir
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
+import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
-import com.nikgapps.app.utils.worker.DownloadWorker
 import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
@@ -135,41 +131,35 @@ fun HomeScreen(navController: NavHostController) {
 
     fun downloadUpdate() {
         isDownloading = true
-        val destination = "${getExternalStorageDir()}/Download/NikGapps.apk"
-        val request = OneTimeWorkRequestBuilder<DownloadWorker>()
-            .setInputData(
-                workDataOf(
-                    DownloadWorker.DOWNLOAD_URL_KEY to getNikGappsAppDownloadUrl(latestVersion),
-                    DownloadWorker.DEST_FILE_PATH_KEY to destination,
-                    DownloadWorker.DOWNLOAD_TYPE_KEY to DownloadWorker.DOWNLOAD_TYPE_APK,
-                    DownloadWorker.VERSION_KEY to latestVersion
-                )
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        workManager.enqueue(request)
-        workManager.getWorkInfoByIdLiveData(request.id).observeForever { info ->
+        val destination = AppUpdateManager.downloadedApk(context, latestVersion)
+        val workId = AppUpdateManager.enqueueDownload(
+            context,
+            latestVersion,
+            getNikGappsAppDownloadUrl(latestVersion)
+        )
+        val workInfo = workManager.getWorkInfoByIdLiveData(workId)
+        lateinit var observer: Observer<WorkInfo?>
+        observer = Observer { info ->
             when (info?.state) {
                 WorkInfo.State.SUCCEEDED -> {
+                    workInfo.removeObserver(observer)
                     isDownloading = false
                     if (
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                         context.packageManager.canRequestPackageInstalls()
                     ) {
-                        installApk(context, destination)
+                        installApk(context, destination.absolutePath)
                     }
                 }
                 WorkInfo.State.FAILED -> {
+                    workInfo.removeObserver(observer)
                     isDownloading = false
                     Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
                 }
                 else -> Unit
             }
         }
+        workInfo.observeForever(observer)
     }
 
     Scaffold(

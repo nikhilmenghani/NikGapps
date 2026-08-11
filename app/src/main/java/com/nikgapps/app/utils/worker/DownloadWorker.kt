@@ -60,12 +60,12 @@ class DownloadWorker(
                     Result.success()
                 } else {
                     Log.e("NikGapps-DownloadWorker", "Download failed.")
-                    Result.retry()
+                    if (runAttemptCount < 2) Result.retry() else Result.failure()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.e("NikGapps-DownloadWorker", "Exception during download: ${e.message}")
-                Result.retry()
+                if (runAttemptCount < 2) Result.retry() else Result.failure()
             }
         }
     }

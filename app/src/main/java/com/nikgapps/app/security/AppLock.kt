@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.hardware.biometrics.BiometricPrompt
+import android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import android.os.Build
 import android.os.CancellationSignal
 import androidx.annotation.RequiresApi
@@ -40,7 +42,7 @@ fun AppLock(enabled: Boolean, activity: Activity, content: @Composable () -> Uni
 
     LaunchedEffect(request) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            authenticate(activity, { unlocked = true }, { error = it })
+            authenticateForAppLock(activity, { unlocked = true }, { error = it })
         } else error = "App lock is unavailable on this Android version"
     }
     Column(
@@ -56,16 +58,33 @@ fun AppLock(enabled: Boolean, activity: Activity, content: @Composable () -> Uni
 }
 
 @RequiresApi(Build.VERSION_CODES.P)
-private fun authenticate(activity: Activity, onSuccess: () -> Unit, onError: (String) -> Unit) {
+fun authenticateForAppLock(
+    activity: Activity,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit,
+    title: String = "Unlock NikGapps",
+    subtitle: String = "Authenticate to continue"
+) {
     val callback = object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) = onSuccess()
         override fun onAuthenticationError(code: Int, message: CharSequence?) =
             onError(message?.toString().orEmpty().ifBlank { "Authentication cancelled" })
     }
-    val builder = BiometricPrompt.Builder(activity)
-        .setTitle("Unlock NikGapps")
-        .setSubtitle("Authenticate to continue")
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setDeviceCredentialAllowed(true)
-    else builder.setNegativeButton("Cancel", activity.mainExecutor) { _, _ -> onError("Authentication cancelled") }
-    builder.build().authenticate(CancellationSignal(), activity.mainExecutor, callback)
+    runCatching {
+        val builder = BiometricPrompt.Builder(activity)
+            .setTitle(title)
+            .setSubtitle(subtitle)
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
+                builder.setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                @Suppress("DEPRECATION") builder.setDeviceCredentialAllowed(true)
+            else -> builder.setNegativeButton("Cancel", activity.mainExecutor) { _, _ ->
+                onError("Authentication cancelled")
+            }
+        }
+        builder.build().authenticate(CancellationSignal(), activity.mainExecutor, callback)
+    }.onFailure { failure ->
+        onError(failure.message ?: "Authentication is unavailable")
+    }
 }

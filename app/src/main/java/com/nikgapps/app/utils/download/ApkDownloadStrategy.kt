@@ -7,9 +7,16 @@ import okio.Buffer
 import okio.buffer
 import okio.sink
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class ApkDownloadStrategy : DownloadStrategy {
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(5, TimeUnit.MINUTES)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
 
     override suspend fun download(downloadUrl: String, destFilePath: String): Boolean {
         return downloadApk(downloadUrl, destFilePath)
