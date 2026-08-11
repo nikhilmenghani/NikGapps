@@ -28,6 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+private var appLockSessionAuthenticated = false
+
+fun markAppLockSessionAuthenticated() {
+    appLockSessionAuthenticated = true
+}
+
 fun canUseAppLock(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
     return context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
@@ -35,14 +41,19 @@ fun canUseAppLock(context: Context): Boolean {
 
 @Composable
 fun AppLock(enabled: Boolean, activity: Activity, content: @Composable () -> Unit) {
-    var unlocked by remember(enabled) { mutableStateOf(!enabled) }
+    var unlocked by remember(enabled) {
+        mutableStateOf(!enabled || appLockSessionAuthenticated)
+    }
     var request by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     if (unlocked) { content(); return }
 
     LaunchedEffect(request) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            authenticateForAppLock(activity, { unlocked = true }, { error = it })
+            authenticateForAppLock(activity, {
+                markAppLockSessionAuthenticated()
+                unlocked = true
+            }, { error = it })
         } else error = "App lock is unavailable on this Android version"
     }
     Column(

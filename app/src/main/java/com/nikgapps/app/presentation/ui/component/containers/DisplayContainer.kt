@@ -49,6 +49,7 @@ import com.nikgapps.app.utils.managers.emptyString
 import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.security.canUseAppLock
 import com.nikgapps.app.security.authenticateForAppLock
+import com.nikgapps.app.security.markAppLockSessionAuthenticated
 
 @Composable
 fun AppearancePreferences() {
@@ -142,7 +143,10 @@ fun AdvancedPreferences() {
                                     activity = activity,
                                     title = "Enable biometric lock",
                                     subtitle = "Authenticate once to verify app lock",
-                                    onSuccess = { developerPreference.biometricLockEnabled = true },
+                                    onSuccess = {
+                                        markAppLockSessionAuthenticated()
+                                        developerPreference.biometricLockEnabled = true
+                                    },
                                     onError = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
                                 )
                             }
