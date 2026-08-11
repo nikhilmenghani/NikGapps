@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
+import com.nikgapps.BuildConfig
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -43,7 +44,11 @@ object ApplicationConstants {
     }
 
     fun getNikGappsAppDownloadUrl(latestVersion: String): String {
-        return "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
+        return if (BuildConfig.DEBUG) {
+            "https://github.com/nikhilmenghani/nikgapps/releases/download/dev-v$latestVersion/NikGapps-debug-dev-v$latestVersion.apk"
+        } else {
+            "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
+        }
     }
 
     fun getExternalStorageDir(): String {

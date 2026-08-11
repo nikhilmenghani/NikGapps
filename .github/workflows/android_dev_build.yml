@@ -1,0 +1,100 @@
+name: Android Development Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'dev.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-development-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JetBrains JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'jetbrains'
+          cache: gradle
+
+      - name: Read development version
+        shell: bash
+        run: |
+          DEV_VERSION="$(tr -d '[:space:]' < dev.txt)"
+          if [[ ! "$DEV_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "dev.txt must contain a semantic version such as 0.80.1"
+            exit 1
+          fi
+
+          IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$DEV_VERSION"
+          VERSION_CODE=$((10#$V_MAJOR * 1000000 + 10#$V_MINOR * 1000 + 10#$V_PATCH))
+
+          echo "DEV_VERSION=$DEV_VERSION" >> "$GITHUB_ENV"
+          echo "DEV_TAG=dev-v$DEV_VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
+      - name: Apply development version
+        shell: bash
+        run: |
+          sed -i "s/versionName = \".*\"/versionName = \"${DEV_VERSION}\"/" app/build.gradle.kts
+          sed -i "s/versionCode = .*/versionCode = ${VERSION_CODE}/" app/build.gradle.kts
+
+      - name: Configure signing key for development APK
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.KEYSTORE }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -z "$RELEASE_KEYSTORE_BASE64" || -z "$RELEASE_KEYSTORE_PASSWORD" ]]; then
+            echo "The existing KEYSTORE and KEYSTORE_PASSWORD GitHub secrets are required."
+            exit 1
+          fi
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/nikgapps-dev.keystore"
+
+          KEY_ALIAS=$(keytool -list -v \
+            -keystore "$RUNNER_TEMP/nikgapps-dev.keystore" \
+            -storepass "$RELEASE_KEYSTORE_PASSWORD" | \
+            sed -n 's/^Alias name: //p' | head -n 1)
+
+          if [[ -z "$KEY_ALIAS" ]]; then
+            echo "Could not determine the signing-key alias from KEYSTORE."
+            exit 1
+          fi
+          echo "DEV_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+
+      - name: Build signed debug APK
+        env:
+          DEV_KEYSTORE_PATH: ${{ runner.temp }}/nikgapps-dev.keystore
+          DEV_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          DEV_KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          mv app/build/outputs/apk/debug/app-debug.apk \
+             "app/build/outputs/apk/debug/NikGapps-debug-${DEV_TAG}.apk"
+
+      - name: Publish development prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/NikGapps-debug-${{ env.DEV_TAG }}.apk
+          tag_name: ${{ env.DEV_TAG }}
+          name: Development ${{ env.DEV_VERSION }}
+          prerelease: true
+          generate_release_notes: true

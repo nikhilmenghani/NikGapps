@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'release.txt'
-      - '**/*.yml'
     tags-ignore:
       - '**'
 

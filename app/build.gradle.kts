@@ -14,6 +14,16 @@ android {
             keyAlias = "myKeyAlias"
             keyPassword = System.getenv("KEYSTORE_PASSWORD")
         }
+
+        val devKeystorePath = System.getenv("DEV_KEYSTORE_PATH")
+        if (!devKeystorePath.isNullOrBlank()) {
+            create("ciDev") {
+                storeFile = file(devKeystorePath)
+                storePassword = System.getenv("DEV_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("DEV_KEY_ALIAS")
+                keyPassword = System.getenv("DEV_KEY_PASSWORD")
+            }
+        }
     }
 
     defaultConfig {
@@ -29,6 +39,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("ciDev")
+                ?: signingConfigs.getByName("debug")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
@@ -46,6 +64,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

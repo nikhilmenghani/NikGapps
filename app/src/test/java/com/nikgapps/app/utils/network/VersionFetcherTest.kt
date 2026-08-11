@@ -17,4 +17,16 @@ class VersionFetcherTest {
 
         assertEquals("1.2.3", VersionFetcher.parseReleaseVersion(release))
     }
+
+    @Test
+    fun `development channel selects highest valid prerelease`() {
+        val releases = """[
+            {"tag_name":"v0.81","prerelease":false},
+            {"tag_name":"dev-v0.80.2","prerelease":true},
+            {"tag_name":"dev-v0.80.12","prerelease":true},
+            {"tag_name":"other-v9.9.9","prerelease":true}
+        ]"""
+
+        assertEquals("0.80.12", VersionFetcher.parseLatestDevelopmentVersion(releases))
+    }
 }
