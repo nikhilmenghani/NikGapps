@@ -1,7 +1,6 @@
 package com.nikgapps.app.presentation.navigation
 
 import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -85,7 +84,6 @@ val excludedScreens = listOf(
     BUILD_ZIP_ROUTE
 )
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
@@ -157,7 +155,6 @@ private fun ExpressiveNavigationItem(item: NavItem, selected: Boolean, onClick: 
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun NavigationHost(
     navController: NavHostController,

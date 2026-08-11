@@ -3,7 +3,6 @@ package com.nikgapps.app.presentation.ui.screen
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +41,6 @@ import com.nikgapps.app.utils.constants.PermissionConstants.permissionMap
 import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.app.utils.settings.Settings
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionsScreen(
@@ -173,8 +171,12 @@ fun PermissionsManagerCard(
         permissionsText = permissionsText,
         onRequestPermission = {
             if (!hasPermission) {
-                when (permissionName) {
-                    PermissionConstants.INSTALL_APPS, PermissionConstants.STORAGE -> {
+                when {
+                    permissionName == PermissionConstants.INSTALL_APPS -> {
+                        Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
+                    }
+                    permissionName == PermissionConstants.STORAGE &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                         Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                     }
                     else -> {
@@ -198,7 +200,6 @@ fun PermissionsManagerCard(
     )
 }
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Preview(name = "Dark Theme", showBackground = true)
 @Composable
 fun PreviewDarkPermissionsScreen() {

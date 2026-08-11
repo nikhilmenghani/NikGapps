@@ -9,7 +9,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -22,7 +21,6 @@ object Permissions {
     private const val PREFS_NAME = "permission_prefs"
     private const val KEY_PERMISSION_REQUESTED = "requested_"
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun hasAllRequiredPermissions(context: Context): Boolean {
 //        if (ApplicationMode.isInPreviewMode()) return true // Allow preview mode to skip permissions)
         permissionMap.forEach { (permissionName) ->
@@ -33,16 +31,22 @@ object Permissions {
         return true
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionGranted(context: Context, permissionName: String): Boolean {
 //        if (ApplicationMode.isInPreviewMode()) return true // Allow preview mode to skip permissions
         val permissions = permissionMap[permissionName]?.permission ?: return false
         return when (permissionName) {
             PermissionConstants.INSTALL_APPS -> {
-                context.packageManager.canRequestPackageInstalls()
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                    context.packageManager.canRequestPackageInstalls()
             }
             PermissionConstants.STORAGE -> {
-                Environment.isExternalStorageManager()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Environment.isExternalStorageManager()
+                } else {
+                    permissions.all { permission ->
+                        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+                    }
+                }
             }
             else -> {
                 permissions.all { permission ->
@@ -52,7 +56,6 @@ object Permissions {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun isPermissionPermanentlyDenied(context: Context, permissionName: String): Boolean {
 //        if (ApplicationMode.isInPreviewMode()) return false // Allow preview mode to skip permissions
         val permissions = permissionMap[permissionName]?.permission ?: return false
@@ -79,7 +82,6 @@ object Permissions {
         sharedPreferences.edit().putBoolean(KEY_PERMISSION_REQUESTED + permissionName, true).apply()
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     fun requestPermission(
         context: Context,
