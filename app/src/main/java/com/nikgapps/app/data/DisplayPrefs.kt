@@ -36,4 +36,16 @@ object DisplayPrefs {
         defaultValue = false,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
+
+    var requireInternetAccess by prefMutableState(
+        keyName = "requireInternetAccess",
+        defaultValue = true,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
+    var enforceAppUpdates by prefMutableState(
+        keyName = "enforceAppUpdates",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
 }

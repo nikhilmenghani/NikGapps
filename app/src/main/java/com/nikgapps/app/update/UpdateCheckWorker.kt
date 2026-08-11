@@ -12,7 +12,7 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val latest = VersionFetcher.fetchLatestVersion()
         if (latest == "Unknown") return Result.retry()
-        if (!isNewer(latest, getCurrentVersion(applicationContext))) return Result.success()
+        if (!VersionFetcher.isNewer(latest, getCurrentVersion(applicationContext))) return Result.success()
         NotificationUtility.showUpdateAvailable(
             applicationContext,
             latest,
@@ -21,13 +21,4 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
         return Result.success()
     }
 
-    private fun isNewer(candidate: String, installed: String): Boolean {
-        val left = candidate.trimStart('v').split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
-        val right = installed.trimStart('v').split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
-        repeat(maxOf(left.size, right.size)) { index ->
-            val comparison = left.getOrElse(index) { 0 }.compareTo(right.getOrElse(index) { 0 })
-            if (comparison != 0) return comparison > 0
-        }
-        return false
-    }
 }

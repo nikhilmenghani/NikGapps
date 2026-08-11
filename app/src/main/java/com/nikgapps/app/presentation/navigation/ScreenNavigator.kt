@@ -48,6 +48,9 @@ import com.nikgapps.app.presentation.ui.screen.ProjectScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.extensions.navigateWithState
+import com.nikgapps.App.Companion.globalClass
+import com.nikgapps.app.network.InternetRequiredGate
+import com.nikgapps.app.update.MandatoryUpdateGate
 
 
 data class NavItem(
@@ -88,15 +91,28 @@ fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
 ) {
     val navController: NavHostController = rememberNavController()
-    Scaffold(
-        bottomBar = { BottomNavigationBar(navController) },
-        contentWindowInsets = WindowInsets(left = 0, top = 0, right = 0, bottom = 0)
-    ) { innerPadding ->
-        NavigationHost(
-            navController = navController,
-            progressLogViewModel,
-            modifier = Modifier.padding(innerPadding)
-        )
+    val currentEntry by navController.currentBackStackEntryAsState()
+    InternetRequiredGate(
+        required = globalClass.preferencesManager.displayPrefs.requireInternetAccess,
+        allowOffline = currentEntry?.destination?.route == Screens.Settings.name,
+        onOpenAppSettings = { navController.navigateWithState(Screens.Settings.name) }
+    ) {
+        MandatoryUpdateGate(
+            enabled = globalClass.preferencesManager.displayPrefs.enforceAppUpdates,
+            allowSettings = currentEntry?.destination?.route == Screens.Settings.name,
+            onOpenSettings = { navController.navigateWithState(Screens.Settings.name) }
+        ) {
+            Scaffold(
+                bottomBar = { BottomNavigationBar(navController) },
+                contentWindowInsets = WindowInsets(left = 0, top = 0, right = 0, bottom = 0)
+            ) { innerPadding ->
+                NavigationHost(
+                    navController = navController,
+                    progressLogViewModel,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+        }
     }
 }
 

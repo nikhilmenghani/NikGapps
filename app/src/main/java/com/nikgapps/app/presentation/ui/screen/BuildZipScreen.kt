@@ -35,6 +35,7 @@ import com.nikgapps.app.data.*
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.worker.BuildZipWorker
+import com.nikgapps.app.network.LocalInternetAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +47,7 @@ private enum class BuildStage { RUNNING, AWAITING_FILE_CHOICE, COMPLETE, FAILED 
 @Composable
 fun BuildZipScreen(projectId: String, navController: NavHostController) {
     val context = LocalActivity.current ?: return
+    val isOnline = LocalInternetAvailable.current
     val project = remember(projectId) { BuildProjectRepository(context).getProjects().firstOrNull { it.id == projectId } }
     val logs = remember { mutableStateListOf<String>() }
     var stage by remember { mutableStateOf(BuildStage.RUNNING) }
@@ -110,6 +112,11 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
     BackHandler(enabled = stage == BuildStage.RUNNING) { }
     LaunchedEffect(projectId, retryKey) {
+        if (!isOnline) {
+            stage = BuildStage.FAILED
+            log("Internet connection is required before building the ZIP")
+            return@LaunchedEffect
+        }
         val request = OneTimeWorkRequestBuilder<BuildZipWorker>()
             .setInputData(workDataOf(BuildZipWorker.KEY_PROJECT_ID to projectId))
             .build()
@@ -266,7 +273,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 Spacer(Modifier.width(8.dp))
                 Text("Build log", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))
-                if (stage == BuildStage.RUNNING) Text("LIVE", style = MaterialTheme.typography.labelSmall,
+                if (stage == BuildStage.RUNNING) Text("RUNNING", style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(8.dp))

@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
 import android.widget.Toast
+import com.nikgapps.app.network.LocalInternetAvailable
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -111,6 +112,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavHostController) {
+    val isOnline = LocalInternetAvailable.current
     val context = LocalActivity.current as MainActivity
     val workManager = WorkManager.getInstance(context)
     val currentVersion = remember { getCurrentVersion(context) }
@@ -270,7 +272,14 @@ fun HomeScreen(navController: NavHostController) {
                     ProjectCard(
                         project = project,
                         onOpen = { navController.navigate(projectRoute(project.id)) },
-                        onBuild = { navController.navigate(buildZipRoute(project.id)) },
+                        onBuild = {
+                            if (isOnline) navController.navigate(buildZipRoute(project.id))
+                            else Toast.makeText(
+                                context,
+                                "Internet connection is required before building the ZIP",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        },
                         onOpenZip = latestBuild?.let { saved -> { context.openPublishedZip(saved) } },
                         onDuplicate = {
                             projects = projectRepository.addProject(

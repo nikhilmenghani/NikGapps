@@ -24,6 +24,8 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -104,6 +106,20 @@ fun AdvancedPreferences() {
         ) {
             if (developerPreference.developerOptionsEnabled) {
                 PreferenceSubtitle(text = "Developer options")
+                PreferenceItem(
+                    label = "Enforce app updates",
+                    supportingText = "Block normal app use on startup when a newer NikGapps version is available",
+                    icon = Icons.Outlined.SystemUpdateAlt,
+                    switchState = developerPreference.enforceAppUpdates,
+                    onSwitchChange = { developerPreference.enforceAppUpdates = it }
+                )
+                PreferenceItem(
+                    label = "Require internet access",
+                    supportingText = "Show the offline gate whenever the package catalog cannot be reached",
+                    icon = Icons.Outlined.Wifi,
+                    switchState = developerPreference.requireInternetAccess,
+                    onSwitchChange = { developerPreference.requireInternetAccess = it }
+                )
                 PreferenceItem(
                     label = "Biometric lock",
                     supportingText = "Require biometrics or the device screen lock when opening the app",

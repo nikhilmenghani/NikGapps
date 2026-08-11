@@ -41,7 +41,7 @@ object AppUpdateManager {
         )
     }
 
-    fun enqueueDownload(context: Context, version: String, url: String) {
+    fun enqueueDownload(context: Context, version: String, url: String): java.util.UUID {
         val directory = checkNotNull(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS))
         val destination = File(directory, "NikGapps-v$version.apk")
         val request = OneTimeWorkRequestBuilder<DownloadWorker>().setInputData(
@@ -55,6 +55,12 @@ object AppUpdateManager {
         WorkManager.getInstance(context).enqueueUniqueWork(
             DOWNLOAD_WORK, ExistingWorkPolicy.REPLACE, request
         )
+        return request.id
+    }
+
+    fun downloadedApk(context: Context, version: String): File {
+        val directory = checkNotNull(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS))
+        return File(directory, "NikGapps-v$version.apk")
     }
 
     private fun networkConstraints() = Constraints.Builder()

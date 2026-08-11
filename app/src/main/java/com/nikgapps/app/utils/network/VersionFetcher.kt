@@ -8,6 +8,16 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 
 object VersionFetcher {
+    fun isNewer(candidate: String, installed: String): Boolean {
+        val left = candidate.trimStart('v').split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
+        val right = installed.trimStart('v').split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
+        repeat(maxOf(left.size, right.size)) { index ->
+            val comparison = left.getOrElse(index) { 0 }.compareTo(right.getOrElse(index) { 0 })
+            if (comparison != 0) return comparison > 0
+        }
+        return false
+    }
+
     suspend fun fetchLatestVersion(): String {
         return try {
             val request = Request.Builder().url(latestVersionUrl).build()

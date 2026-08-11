@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -29,6 +30,7 @@ import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
+import com.nikgapps.app.network.LocalInternetAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,6 +58,7 @@ private enum class SelectionFilter(val label: String) {
 @Composable
 fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: NavHostController) {
     val context = LocalActivity.current ?: return
+    val isOnline = LocalInternetAvailable.current
     val repository = remember { BuildProjectRepository(context) }
     var project by remember(projectId) { mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId }) }
     var metadata by remember { mutableStateOf<RegistryMetadata?>(null) }
@@ -74,8 +77,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
     val current = project
-    LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel) {
+    LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel, isOnline) {
         if (current == null) return@LaunchedEffect
+        if (!isOnline) {
+            metadata = null
+            loadError = "Internet connection is required to list the supported packages"
+            return@LaunchedEffect
+        }
+        loadError = null
         try { metadata = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
             current.defaultChannel, current.architecture.value) }
         catch (e: Exception) { loadError = e.message ?: "Unable to load the NikGapps catalog" }
@@ -149,6 +158,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
     fun updateAllSelections(action: String) {
+        if (!isOnline) {
+            Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
+            return
+        }
         val eligibleIds = displayedPackages.mapTo(linkedSetOf()) { it.id }
         val newSelection = when (action) {
             "select" -> current.selectedAppIds + eligibleIds
@@ -225,6 +238,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }) }, floatingActionButton = {
         if (metadata != null && current.selectedAppIds.isNotEmpty()) {
             ExtendedFloatingActionButton(onClick = {
+                if (!isOnline) {
+                    Toast.makeText(context, "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
+                    return@ExtendedFloatingActionButton
+                }
                 AppDiagnostics.info("navigation", "build_opened", mapOf("project" to projectId.take(8),
                     "selected" to current.selectedAppIds.size))
                 navController.navigate(buildZipRoute(projectId))
@@ -400,6 +417,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 navController.navigate(appConfigRoute(projectId, pkg.id))
                             },
                             onSelected = { enabled ->
+                                if (!isOnline) {
+                                    Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
+                                    return@ProjectPackageRow
+                                }
                                 AppDiagnostics.info("selection", if (enabled) "package_selected" else "package_cleared",
                                     mapOf("project" to projectId.take(8), "package" to pkg.id, "appSet" to owner?.id))
                                 save(current.copy(
