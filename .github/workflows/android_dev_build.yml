@@ -28,7 +28,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'zulu'
-          cache: 'gradle'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Read development version
         shell: bash
@@ -82,7 +84,7 @@ jobs:
           DEV_KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --build-cache --parallel
 
       - name: Rename APK
         shell: bash
