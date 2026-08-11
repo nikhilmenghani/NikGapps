@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.AppSettingsAlt
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.BatterySaver
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
@@ -39,10 +38,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
-import com.nikgapps.app.data.DownloadPrefs
-import com.nikgapps.app.data.GappsVariantPreference
 import com.nikgapps.app.data.ThemePreference
-import com.nikgapps.app.data.toVariantString
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
@@ -95,7 +91,6 @@ fun AppearancePreferences() {
 
 @Composable
 fun AdvancedPreferences() {
-    val dialog = globalClass.singleChoiceDialog
     val textDialog = globalClass.singleTextDialog
     val githubPreference = globalClass.preferencesManager.githubPrefs
     val developerPreference = globalClass.preferencesManager.displayPrefs
@@ -105,24 +100,6 @@ fun AdvancedPreferences() {
             title = stringResource(R.string.settings_advanced),
             initiallyExpanded = true
         ) {
-            PreferenceSubtitle(text = stringResource(R.string.settings_download_defaults))
-            PreferenceItem(
-                label = stringResource(R.string.gapps_variant),
-                supportingText = GappsVariantPreference.entries[
-                    DownloadPrefs.gappsVariant.coerceIn(GappsVariantPreference.entries.indices)
-                ].toVariantString(),
-                icon = Icons.Outlined.Cloud,
-                onClick = {
-                    dialog.show(
-                        title = globalClass.getString(R.string.gapps_variant),
-                        description = globalClass.getString(R.string.select_variant_preference),
-                        choices = GappsVariantPreference.entries.map { it.toVariantString() },
-                        selectedChoice = DownloadPrefs.gappsVariant,
-                        onSelect = { DownloadPrefs.gappsVariant = it }
-                    )
-                }
-            )
-
             if (developerPreference.developerOptionsEnabled) {
                 PreferenceSubtitle(text = "Developer options")
                 PreferenceItem(
@@ -141,26 +118,26 @@ fun AdvancedPreferences() {
                         developerPreference.developerOptionsEnabled = false
                     }
                 )
-            }
 
-            PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
-            PreferenceItem(
-                label = stringResource(R.string.settings_github_token),
-                supportingText = if (githubPreference.token.isBlank()) {
-                    stringResource(R.string.settings_not_configured)
-                } else {
-                    stringResource(R.string.settings_configured)
-                },
-                icon = Icons.Outlined.Key,
-                onClick = {
-                    textDialog.show(
-                        title = globalClass.getString(R.string.settings_github_token),
-                        description = globalClass.getString(R.string.settings_github_token_description),
-                        text = githubPreference.token,
-                        onConfirm = { githubPreference.token = it.trim() }
-                    )
-                }
-            )
+                PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
+                PreferenceItem(
+                    label = stringResource(R.string.settings_github_token),
+                    supportingText = if (githubPreference.token.isBlank()) {
+                        stringResource(R.string.settings_not_configured)
+                    } else {
+                        stringResource(R.string.settings_configured)
+                    },
+                    icon = Icons.Outlined.Key,
+                    onClick = {
+                        textDialog.show(
+                            title = globalClass.getString(R.string.settings_github_token),
+                            description = globalClass.getString(R.string.settings_github_token_description),
+                            text = githubPreference.token,
+                            onConfirm = { githubPreference.token = it.trim() }
+                        )
+                    }
+                )
+            }
         }
     }
 }

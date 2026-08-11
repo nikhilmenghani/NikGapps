@@ -21,7 +21,6 @@
     <string name="settings_advanced">Advanced</string>
     <string name="settings_system">System</string>
     <string name="settings_colors_and_theme">Colors &amp; theme</string>
-    <string name="settings_download_defaults">Download defaults</string>
     <string name="settings_authentication">Authentication</string>
     <string name="settings_github_token">GitHub token</string>
     <string name="settings_github_token_description">Enter your GitHub personal access token</string>

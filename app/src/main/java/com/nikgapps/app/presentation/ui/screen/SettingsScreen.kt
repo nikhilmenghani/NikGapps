@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.PermissionsActivity
 import com.nikgapps.R
+import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.presentation.ui.component.containers.AdvancedPreferences
 import com.nikgapps.app.presentation.ui.component.containers.AppearancePreferences
 import com.nikgapps.app.presentation.ui.component.containers.SystemPreferences
@@ -76,8 +77,11 @@ private enum class SettingsCategory(
     val icon: ImageVector
 ) {
     APPEARANCE(R.string.settings_appearance, Icons.Outlined.Palette),
-    ADVANCED(R.string.settings_advanced, Icons.Outlined.Tune),
-    SYSTEM(R.string.settings_system, Icons.Outlined.PhoneAndroid)
+    SYSTEM(R.string.settings_system, Icons.Outlined.PhoneAndroid),
+    ADVANCED(R.string.settings_advanced, Icons.Outlined.Tune);
+
+    fun isApplicable(developerOptionsEnabled: Boolean): Boolean =
+        this != ADVANCED || developerOptionsEnabled
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,17 +92,31 @@ fun SettingsScreen(navController: NavHostController) {
     val versionName = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
-    val pagerState = rememberPagerState(pageCount = { SettingsCategory.entries.size })
-    var selectedPage by rememberSaveable { mutableIntStateOf(SettingsCategory.APPEARANCE.ordinal) }
+    val developerOptionsEnabled = globalClass.preferencesManager.displayPrefs.developerOptionsEnabled
+    val visibleCategories = SettingsCategory.entries.filter {
+        it.isApplicable(developerOptionsEnabled)
+    }
+    val pagerState = rememberPagerState(pageCount = { visibleCategories.size })
+    var selectedPage by rememberSaveable { mutableIntStateOf(0) }
     val useSideNavigation = LocalConfiguration.current.screenWidthDp >= 600
 
     LaunchedEffect(pagerState.currentPage) {
         selectedPage = pagerState.currentPage
     }
 
+    LaunchedEffect(visibleCategories.size) {
+        if (pagerState.currentPage !in visibleCategories.indices) {
+            val fallbackPage = visibleCategories.lastIndex
+            pagerState.scrollToPage(fallbackPage)
+            selectedPage = fallbackPage
+        }
+    }
+
     fun selectCategory(category: SettingsCategory) {
-        selectedPage = category.ordinal
-        scope.launch { pagerState.animateScrollToPage(category.ordinal) }
+        val page = visibleCategories.indexOf(category)
+        if (page < 0) return
+        selectedPage = page
+        scope.launch { pagerState.animateScrollToPage(page) }
     }
 
     Scaffold(
@@ -119,7 +137,8 @@ fun SettingsScreen(navController: NavHostController) {
         bottomBar = {
             if (!useSideNavigation) {
                 SettingsBottomNavigation(
-                    currentCategory = SettingsCategory.entries[selectedPage],
+                    categories = visibleCategories,
+                    currentCategory = visibleCategories[selectedPage.coerceIn(visibleCategories.indices)],
                     onCategorySelected = ::selectCategory
                 )
             }
@@ -135,7 +154,8 @@ fun SettingsScreen(navController: NavHostController) {
         ) {
             if (useSideNavigation) {
                 SettingsSideNavigation(
-                    currentCategory = SettingsCategory.entries[selectedPage],
+                    categories = visibleCategories,
+                    currentCategory = visibleCategories[selectedPage.coerceIn(visibleCategories.indices)],
                     onCategorySelected = ::selectCategory
                 )
                 VerticalDivider(modifier = Modifier.fillMaxHeight())
@@ -147,7 +167,7 @@ fun SettingsScreen(navController: NavHostController) {
                     .weight(1f)
                     .fillMaxHeight()
             ) { page ->
-                when (SettingsCategory.entries[page]) {
+                when (visibleCategories[page]) {
                     SettingsCategory.APPEARANCE -> AppearancePreferences()
                     SettingsCategory.ADVANCED -> AdvancedPreferences()
                     SettingsCategory.SYSTEM -> SystemPreferences(
@@ -175,6 +195,7 @@ fun SettingsScreen(navController: NavHostController) {
 
 @Composable
 private fun SettingsBottomNavigation(
+    categories: List<SettingsCategory>,
     currentCategory: SettingsCategory,
     onCategorySelected: (SettingsCategory) -> Unit
 ) {
@@ -192,42 +213,22 @@ private fun SettingsBottomNavigation(
                 .animateContentSize(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SettingsNavigationItem(
-                category = SettingsCategory.APPEARANCE,
-                selected = currentCategory == SettingsCategory.APPEARANCE,
-                onClick = { onCategorySelected(SettingsCategory.APPEARANCE) },
-                modifier = if (currentCategory == SettingsCategory.APPEARANCE) {
-                    Modifier.weight(1f)
-                } else {
-                    Modifier.width(64.dp)
-                }
-            )
-            SettingsNavigationItem(
-                category = SettingsCategory.ADVANCED,
-                selected = currentCategory == SettingsCategory.ADVANCED,
-                onClick = { onCategorySelected(SettingsCategory.ADVANCED) },
-                modifier = if (currentCategory == SettingsCategory.ADVANCED) {
-                    Modifier.weight(1f)
-                } else {
-                    Modifier.width(64.dp)
-                }
-            )
-            SettingsNavigationItem(
-                category = SettingsCategory.SYSTEM,
-                selected = currentCategory == SettingsCategory.SYSTEM,
-                onClick = { onCategorySelected(SettingsCategory.SYSTEM) },
-                modifier = if (currentCategory == SettingsCategory.SYSTEM) {
-                    Modifier.weight(1f)
-                } else {
-                    Modifier.width(64.dp)
-                }
-            )
+            categories.forEach { category ->
+                SettingsNavigationItem(
+                    category = category,
+                    selected = currentCategory == category,
+                    onClick = { onCategorySelected(category) },
+                    modifier = if (currentCategory == category) Modifier.weight(1f)
+                    else Modifier.width(64.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun SettingsSideNavigation(
+    categories: List<SettingsCategory>,
     currentCategory: SettingsCategory,
     onCategorySelected: (SettingsCategory) -> Unit
 ) {
@@ -238,7 +239,7 @@ private fun SettingsSideNavigation(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
     ) {
-        SettingsCategory.entries.forEach { category ->
+        categories.forEach { category ->
             SettingsNavigationItem(
                 category = category,
                 selected = currentCategory == category,
