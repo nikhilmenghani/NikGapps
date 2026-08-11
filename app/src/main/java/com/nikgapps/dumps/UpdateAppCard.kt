@@ -41,6 +41,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nikgapps.App
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
+import com.nikgapps.app.utils.network.VersionFetcher.isNewer
 import com.nikgapps.app.utils.worker.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ fun UpdateAppCard() {
     LaunchedEffect(Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             latestVersion = fetchLatestVersion()
-            isLatestVersion = (currentVersion == latestVersion)
+            isLatestVersion = latestVersion == "Unknown" || !isNewer(latestVersion, currentVersion)
         }
     }
 

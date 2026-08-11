@@ -96,6 +96,7 @@ import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownl
 import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
+import com.nikgapps.app.utils.network.VersionFetcher.isNewer
 import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +127,7 @@ fun HomeScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         latestVersion = withContext(Dispatchers.IO) { fetchLatestVersion() }
-        isLatestVersion = currentVersion == latestVersion || latestVersion == "Unknown"
+        isLatestVersion = latestVersion == "Unknown" || !isNewer(latestVersion, currentVersion)
     }
 
     fun downloadUpdate() {

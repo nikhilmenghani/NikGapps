@@ -5,6 +5,12 @@ import org.junit.Test
 
 class VersionFetcherTest {
     @Test
+    fun `debug suffix does not make installed version look outdated`() {
+        assertEquals(false, VersionFetcher.isNewer("0.80.4", "0.80.4-debug"))
+        assertEquals(true, VersionFetcher.isNewer("0.80.5", "0.80.4-debug"))
+    }
+
+    @Test
     fun `uses release tag instead of display name`() {
         val release = """{"tag_name":"v1.2.3","name":"NikGapps release 1.2.3"}"""
 
