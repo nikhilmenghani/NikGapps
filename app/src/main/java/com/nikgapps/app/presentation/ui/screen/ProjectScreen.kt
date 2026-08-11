@@ -331,31 +331,28 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
-                Spacer(Modifier.height(12.dp))
-                Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                Spacer(Modifier.height(8.dp))
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth().animateContentSize()) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(Modifier.fillMaxWidth().clickable { sortFilterExpanded = !sortFilterExpanded },
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(Modifier.fillMaxWidth()
+                            .clickable { sortFilterExpanded = !sortFilterExpanded }
+                            .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.AutoMirrored.Filled.Sort, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text("Sort and filter", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                             Icon(if (sortFilterExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                if (sortFilterExpanded) "Collapse" else "Expand")
+                                if (sortFilterExpanded) "Collapse" else "Expand", Modifier.size(20.dp))
                         }
                         AnimatedVisibility(sortFilterExpanded) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Sort by", style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                                    IconButton(onClick = { sortDescending = !sortDescending }) {
-                                        Icon(if (sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                            if (sortDescending) "Descending" else "Ascending")
-                                    }
-                                }
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Sort", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp)) {
                                     PackageSort.entries.forEach { option ->
                                         FilterChip(selected = packageSort == option, onClick = { packageSort = option },
                                             label = { Text(option.label) },
@@ -363,16 +360,17 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                                 Icon(Icons.Default.Check, null, Modifier.size(18.dp))
                                             }} else null)
                                     }
+                                    AssistChip(onClick = { sortDescending = !sortDescending },
+                                        label = { Text(if (sortDescending) "Desc" else "Asc") })
                                 }
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                Text("Filters", style = MaterialTheme.typography.labelMedium,
+                                Text("Filter", style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                FilterChip(selected = installedOnly, onClick = { installedOnly = !installedOnly },
-                                    label = { Text("Installed only") },
-                                    leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(18.dp)) })
-                                Text("Selection", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                    FilterChip(selected = installedOnly, onClick = { installedOnly = !installedOnly },
+                                        label = { Text("Installed") },
+                                        leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(16.dp)) })
                                     SelectionFilter.entries.forEach { option ->
                                         FilterChip(selected = selectionFilter == option,
                                             onClick = { selectionFilter = option }, label = { Text(option.label) },

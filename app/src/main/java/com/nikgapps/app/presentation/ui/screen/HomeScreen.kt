@@ -68,7 +68,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
@@ -100,6 +103,7 @@ import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -512,12 +516,23 @@ private fun ProjectSheet(
     onSave: (BuildProject) -> Unit
 ) {
     val context = LocalActivity.current ?: return
+    val nameFocusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
     var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
     var versionMenuExpanded by remember { mutableStateOf(false) }
     var metadataVersions by remember { mutableStateOf(setOf(AndroidVersion.ANDROID_16)) }
     val developerPrefs = globalClass.preferencesManager.displayPrefs
+    LaunchedEffect(project) {
+        if (project == null) {
+            // Wait for the modal sheet window to become focusable before
+            // requesting the IME; an immediate request is commonly dropped.
+            delay(250)
+            nameFocusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
     LaunchedEffect(Unit) {
         runCatching { CatalogRepository(context.cacheDir).load() }.getOrNull()?.let { metadata ->
             val published = metadata.releaseIndex?.releases?.map { it.androidVersion }?.toSet()
@@ -550,7 +565,7 @@ private fun ProjectSheet(
                 onValueChange = { name = it },
                 label = { Text("Project name") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().focusRequester(nameFocusRequester)
             )
             ExposedDropdownMenuBox(expanded = versionMenuExpanded, onExpandedChange = { versionMenuExpanded = it }) {
                 OutlinedTextField(value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",

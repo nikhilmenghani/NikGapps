@@ -13,7 +13,7 @@ import com.nikgapps.app.utils.AppDiagnostics
 data class BuildRequest(val androidVersion: String, val api: Int, val architecture: String,
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
-    val packageAppSets: Map<String, CatalogAppSet> = emptyMap())
+    val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null)
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -27,7 +27,16 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         val date = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC).format(request.timestamp)
         val appSetIds = request.packageAppSets.values.map { it.id }.distinct().ifEmpty { listOf(request.appSet.id) }
         val variant = if (appSetIds.size > 1) "custom" else appSetIds.single()
-        val output = File(outputDirectory.apply { mkdirs() }, "NikGapps-$variant-${request.architecture}-$date.zip")
+        val projectName = (request.projectName ?: variant).trim()
+            .replace(Regex("[^A-Za-z0-9._-]+"), "-").trim('-').ifBlank { "custom" }
+        val architecture = when (request.architecture) {
+            "arm64-v8a" -> "arm64"
+            "armeabi-v7a" -> "arm"
+            else -> request.architecture
+        }
+        val androidVersion = catalogAndroidVersion(request.androidVersion)
+        val output = File(outputDirectory.apply { mkdirs() },
+            "NikGapps-$projectName-$architecture-$androidVersion-$date.zip")
         val part = File(output.parentFile, "${output.name}.part")
         AppDiagnostics.info("assembly", "started", mapOf("packages" to artifacts.size,
             "appSets" to appSetIds.joinToString(","), "android" to request.androidVersion,

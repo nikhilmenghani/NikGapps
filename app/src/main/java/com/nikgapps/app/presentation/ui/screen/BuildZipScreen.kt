@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,15 +26,21 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.nikgapps.app.data.*
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.AppDiagnostics
+import com.nikgapps.app.utils.worker.BuildZipWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private enum class BuildStage { RUNNING, COMPLETE, FAILED }
+private enum class BuildStage { RUNNING, AWAITING_FILE_CHOICE, COMPLETE, FAILED }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +56,16 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var operationLabel by remember { mutableStateOf("Preparing build") }
     var retryKey by remember { mutableIntStateOf(0) }
     var confirmClearCache by remember { mutableStateOf(false) }
+    var pendingSource by remember { mutableStateOf<String?>(null) }
+    var existingName by remember { mutableStateOf<String?>(null) }
     var activeRunId by remember { mutableStateOf("none") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val workManager = remember(context) { WorkManager.getInstance(context) }
+    val workInfos by remember(workManager, projectId) {
+        workManager.getWorkInfosForUniqueWorkFlow(BuildZipWorker.uniqueName(projectId))
+    }.collectAsState(initial = emptyList())
+    val workInfo = workInfos.lastOrNull()
 
     fun log(message: String) {
         if (logs.lastOrNull() != message) logs += message
@@ -65,7 +79,46 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
 
     LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex) }
+    LaunchedEffect(workInfo?.state, workInfo?.progress, workInfo?.outputData) {
+        val info = workInfo ?: return@LaunchedEffect
+        BuildZipWorker.logFile(context, projectId).takeIf(File::isFile)?.readLines()?.let {
+            logs.clear(); logs.addAll(it)
+        }
+        operationLabel = info.progress.getString(BuildZipWorker.KEY_LABEL) ?: operationLabel
+        completed = info.progress.getInt(BuildZipWorker.KEY_COMPLETED, completed)
+        total = info.progress.getInt(BuildZipWorker.KEY_TOTAL, total)
+        operationProgress = info.progress.getInt(BuildZipWorker.KEY_PERCENT, -1)
+            .takeIf { it >= 0 }?.div(100f)
+        when (info.state) {
+            WorkInfo.State.SUCCEEDED -> {
+                pendingSource = info.outputData.getString(BuildZipWorker.KEY_PENDING_SOURCE)
+                existingName = info.outputData.getString(BuildZipWorker.KEY_EXISTING_NAME)
+                if (pendingSource != null) {
+                    stage = BuildStage.AWAITING_FILE_CHOICE
+                } else {
+                    location = info.outputData.getString(BuildZipWorker.KEY_LOCATION)
+                        ?: LatestBuildRepository(context).get(projectId)
+                    stage = BuildStage.COMPLETE
+                }
+            }
+            WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> {
+                info.outputData.getString(BuildZipWorker.KEY_ERROR)?.let { if (logs.lastOrNull() != it) logs += it }
+                stage = BuildStage.FAILED
+            }
+            else -> stage = BuildStage.RUNNING
+        }
+    }
+    BackHandler(enabled = stage == BuildStage.RUNNING) { }
     LaunchedEffect(projectId, retryKey) {
+        val request = OneTimeWorkRequestBuilder<BuildZipWorker>()
+            .setInputData(workDataOf(BuildZipWorker.KEY_PROJECT_ID to projectId))
+            .build()
+        workManager.enqueueUniqueWork(
+            BuildZipWorker.uniqueName(projectId),
+            if (retryKey == 0) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE,
+            request
+        )
+        if (retryKey < 0) {
         activeRunId = java.util.UUID.randomUUID().toString().take(8)
         logs.clear()
         completed = 0
@@ -145,10 +198,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 "stage" to operationLabel, "prepared" to completed, "total" to total))
             stage = BuildStage.FAILED
         }
+        }
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Build flashable ZIP") }, navigationIcon = {
-        IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+        IconButton(onClick = navController::navigateUp, enabled = stage != BuildStage.RUNNING) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+        }
     }) }, bottomBar = {
         Surface(tonalElevation = 3.dp) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
@@ -162,6 +218,11 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                             ?: "$operationLabel · $completed of $total apps prepared",
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    BuildStage.AWAITING_FILE_CHOICE -> Text(
+                        "Choose whether to replace the existing ZIP or keep both files",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     BuildStage.COMPLETE -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
                         OutlinedButton(onClick = { context.openNikGappsFolder() }) {
                             Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(6.dp)); Text("Open folder")
@@ -190,11 +251,12 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     else -> MaterialTheme.colorScheme.secondaryContainer
                 }) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(when (stage) { BuildStage.COMPLETE -> Icons.Default.CheckCircle; BuildStage.FAILED -> Icons.Default.Error; else -> Icons.Default.Inventory2 }, null)
+                    Icon(when (stage) { BuildStage.COMPLETE, BuildStage.AWAITING_FILE_CHOICE -> Icons.Default.CheckCircle; BuildStage.FAILED -> Icons.Default.Error; else -> Icons.Default.Inventory2 }, null)
                     Spacer(Modifier.width(12.dp)); Column {
-                        Text(when (stage) { BuildStage.COMPLETE -> "ZIP ready"; BuildStage.FAILED -> "Build failed"; else -> "Building ${project?.name.orEmpty()}" },
+                        Text(when (stage) { BuildStage.COMPLETE -> "ZIP ready"; BuildStage.AWAITING_FILE_CHOICE -> "ZIP ready to save"; BuildStage.FAILED -> "Build failed"; else -> "Building ${project?.name.orEmpty()}" },
                             style = MaterialTheme.typography.titleMedium)
-                        Text(location ?: "Keep this screen open while the package is created", style = MaterialTheme.typography.bodySmall)
+                        Text(location ?: "You can leave the app; the build will continue in the background",
+                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -244,6 +306,33 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     }
             }
         }) { Text("Clear & rebuild") } }
+    )
+    if (stage == BuildStage.AWAITING_FILE_CHOICE && pendingSource != null) AlertDialog(
+        onDismissRequest = {},
+        title = { Text("ZIP already exists") },
+        text = { Text("$existingName already exists in Downloads/NikGapps. Do you want to replace it?") },
+        dismissButton = { TextButton(onClick = {
+            val source = pendingSource ?: return@TextButton
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) {
+                    ZipPublisher(context).publish(File(source), ZipPublisher.ConflictResolution.RENAME)
+                } }.onSuccess { saved ->
+                    location = saved; LatestBuildRepository(context).save(projectId, saved)
+                    File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
+                }.onFailure { error -> logs += "Unable to save ZIP: ${error.message}"; stage = BuildStage.FAILED }
+            }
+        }) { Text("Keep both") } },
+        confirmButton = { TextButton(onClick = {
+            val source = pendingSource ?: return@TextButton
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) {
+                    ZipPublisher(context).publish(File(source), ZipPublisher.ConflictResolution.REPLACE)
+                } }.onSuccess { saved ->
+                    location = saved; LatestBuildRepository(context).save(projectId, saved)
+                    File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
+                }.onFailure { error -> logs += "Unable to replace ZIP: ${error.message}"; stage = BuildStage.FAILED }
+            }
+        }) { Text("Replace") } }
     )
 }
 
