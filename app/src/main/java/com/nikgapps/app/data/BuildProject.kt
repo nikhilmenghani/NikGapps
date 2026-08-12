@@ -5,6 +5,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
+const val MAX_PROJECT_NAME_LENGTH = 20
+
 data class BuildProject(
     val id: String = UUID.randomUUID().toString(),
     val name: String,

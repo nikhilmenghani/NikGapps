@@ -106,6 +106,7 @@ import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.LatestBuildRepository
+import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
@@ -294,7 +295,7 @@ fun HomeScreen(navController: NavHostController) {
                         onDuplicate = {
                             projects = projectRepository.addProject(
                                 BuildProject(
-                                    name = "${project.name} copy",
+                                    name = "${project.name} copy".take(MAX_PROJECT_NAME_LENGTH),
                                     androidVersion = project.androidVersion,
                                     architecture = project.architecture,
                                     selectedAppSetId = project.selectedAppSetId,
@@ -581,7 +582,7 @@ private fun ProjectSheet(
         onSave(
             BuildProject(
                 id = project?.id ?: java.util.UUID.randomUUID().toString(),
-                name = name.trim(),
+                name = name.trim().take(MAX_PROJECT_NAME_LENGTH),
                 androidVersion = androidVersion,
                 architecture = architecture,
                 selectedAppSetId = project?.selectedAppSetId ?: "core",
@@ -645,8 +646,9 @@ private fun ProjectSheet(
             )
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { name = it.take(MAX_PROJECT_NAME_LENGTH) },
                 label = { Text("Project name") },
+                supportingText = { Text("${name.length}/$MAX_PROJECT_NAME_LENGTH") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { saveProject() }),
