@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,7 +35,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -49,13 +49,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -64,6 +61,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.surfaceColorAtElevation
@@ -542,8 +542,7 @@ private fun ProjectSheet(
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
     var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
-    var versionMenuExpanded by remember { mutableStateOf(false) }
-    var metadataVersions by remember { mutableStateOf(setOf(AndroidVersion.ANDROID_16)) }
+    var metadataVersions by remember { mutableStateOf<Set<AndroidVersion>?>(null) }
     val developerPrefs = globalClass.preferencesManager.displayPrefs
     LaunchedEffect(project) {
         sheetVisible = true
@@ -556,22 +555,28 @@ private fun ProjectSheet(
         }
     }
     LaunchedEffect(Unit) {
-        runCatching { CatalogRepository(context.cacheDir).load() }.getOrNull()?.let { metadata ->
+        metadataVersions = runCatching { CatalogRepository(context.cacheDir).load() }
+            .getOrNull()?.let { metadata ->
             val published = metadata.releaseIndex?.releases?.map { it.androidVersion }?.toSet()
                 ?: setOf(metadata.catalog.androidVersion)
-            metadataVersions = AndroidVersion.entries.filterTo(mutableSetOf()) {
+            AndroidVersion.entries.filterTo(mutableSetOf()) {
                 catalogAndroidVersion(it.displayName) in published
             }
-        }
+        }.orEmpty()
     }
-    val selectableVersions = if (developerPrefs.developerOptionsEnabled &&
-        developerPrefs.allowUnsupportedAndroidVersions) AndroidVersion.entries else AndroidVersion.entries.filter { it in metadataVersions }
+    val selectableVersions = when {
+        metadataVersions == null -> null
+        developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions -> AndroidVersion.entries
+        else -> AndroidVersion.entries.filter { it in metadataVersions.orEmpty() }
+    }
     LaunchedEffect(selectableVersions) {
-        if (androidVersion !in selectableVersions && selectableVersions.isNotEmpty()) androidVersion = selectableVersions.last()
+        selectableVersions?.let { versions ->
+            if (androidVersion !in versions && versions.isNotEmpty()) androidVersion = versions.last()
+        }
     }
 
     fun saveProject() {
-        if (name.isBlank()) return
+        if (name.isBlank() || selectableVersions.isNullOrEmpty()) return
         keyboard?.hide()
         onSave(
             BuildProject(
@@ -647,24 +652,73 @@ private fun ProjectSheet(
                 keyboardActions = KeyboardActions(onDone = { saveProject() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(nameFocusRequester)
             )
-            ExposedDropdownMenuBox(expanded = versionMenuExpanded, onExpandedChange = { versionMenuExpanded = it }) {
-                OutlinedTextField(value = "${androidVersion.displayName} (API ${androidVersion.apiLevel})",
-                    onValueChange = {}, readOnly = true, label = { Text("Android version") },
-                    supportingText = {
-                        Text(if (developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions)
-                            "Developer override enabled" else "Versions with published metadata")
-                    },
-                    leadingIcon = { Icon(Icons.Default.Android, null) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(versionMenuExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
-                ExposedDropdownMenu(expanded = versionMenuExpanded, onDismissRequest = { versionMenuExpanded = false }) {
-                    selectableVersions.forEach { option ->
-                        DropdownMenuItem(text = { Text("${option.displayName} (API ${option.apiLevel})") }, onClick = {
-                            androidVersion = option
-                            versionMenuExpanded = false
-                        })
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Android version", style = MaterialTheme.typography.labelLarge)
+                if (selectableVersions == null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Loading supported versions…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                } else if (selectableVersions.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        val minimumSegmentWidth = 88.dp
+                        val availableWidth = (LocalConfiguration.current.screenWidthDp - 48).dp
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier.width(
+                                maxOf(availableWidth, minimumSegmentWidth * selectableVersions.size)
+                            )
+                        ) {
+                            selectableVersions.forEachIndexed { index, option ->
+                                SegmentedButton(
+                                    selected = androidVersion == option,
+                                    onClick = { androidVersion = option },
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index = index,
+                                        count = selectableVersions.size
+                                    ),
+                                    icon = {
+                                        SegmentedButtonDefaults.Icon(
+                                            active = androidVersion == option
+                                        )
+                                    }
+                                ) {
+                                    Text(option.displayName.removePrefix("Android "), maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        "No supported Android versions are currently available.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
+                Text(
+                    if (selectableVersions == null)
+                        "Checking published metadata"
+                    else if (developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions)
+                        "Developer override enabled"
+                    else
+                        "Versions with published metadata",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             OutlinedTextField(value = "${architecture.displayName} (${architecture.value})",
                 onValueChange = {}, readOnly = true, label = { Text("Architecture") },
@@ -672,7 +726,7 @@ private fun ProjectSheet(
                 leadingIcon = { Icon(Icons.Default.Memory, null) }, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = ::saveProject,
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (project == null) "Create project" else "Save changes")
