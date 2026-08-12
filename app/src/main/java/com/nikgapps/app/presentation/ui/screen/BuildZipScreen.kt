@@ -189,7 +189,9 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val output = withContext(Dispatchers.IO) { RegistryZipAssembler(AndroidBuilderAssetSource(context, metadata.builderAssets)).build(
                 File(context.cacheDir, "zip-builds"), BuildRequest(project.androidVersion.displayName,
                     project.androidVersion.apiLevel, project.architecture.value, primarySet, defaultChannel,
-                    overrides, project.selectedAppIds, packageAppSets = resolution.packageAppSets), artifacts) }
+                    overrides, project.selectedAppIds, packageAppSets = resolution.packageAppSets,
+                    timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
+                    releaseId = metadata.release?.id), artifacts) }
             log("Saving ${output.name} to Downloads/NikGapps…")
             operationLabel = "Saving ZIP to Downloads/NikGapps"
             location = withContext(Dispatchers.IO) { ZipPublisher(context).publish(output) }

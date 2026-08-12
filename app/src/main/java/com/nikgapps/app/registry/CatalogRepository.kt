@@ -5,25 +5,35 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import com.nikgapps.app.utils.AppDiagnostics
 
 data class BuilderAsset(val url: String, val sha256: String, val size: Long)
 data class RegistryMetadata(val catalog: Catalog, val appSets: AppSetCatalog,
     val builderAssets: Map<String, BuilderAsset>, val releaseIndex: ReleaseIndex?,
-    val release: CatalogRelease?, val fromCache: Boolean)
+    val release: CatalogRelease?, val fromCache: Boolean, val fetchedAtMillis: Long)
 
 fun catalogAndroidVersion(displayName: String): String =
     displayName.removePrefix("Android ").replace("12L", "12.1")
 
 class CatalogRepository(private val cacheDirectory: File, private val client: OkHttpClient = OkHttpClient()) {
     suspend fun load(androidVersion: String? = null, channel: String = "stable",
-        architecture: String = "arm64-v8a", releaseId: String? = null): RegistryMetadata = withContext(Dispatchers.IO) {
+        architecture: String = "arm64-v8a", releaseId: String? = null,
+        forceRefresh: Boolean = false): RegistryMetadata = withContext(Dispatchers.IO) {
+        CACHE_MUTEX.withLock {
         val directory = File(cacheDirectory, "nikgapps/metadata").apply { mkdirs() }
         val catalogCache = File(directory, "catalog.json")
         val appSetsCache = File(directory, "appsets.json")
         val builderAssetsCache = File(directory, "builder-assets.json")
         val releaseIndexCache = File(directory, "release-index.json")
+        val fetchedAtCache = File(directory, "fetched-at.txt")
+        val fetchedAt = fetchedAtCache.takeIf(File::isFile)?.readText()?.trim()?.toLongOrNull() ?: 0L
+        if (!forceRefresh && System.currentTimeMillis() - fetchedAt < CACHE_TTL_MILLIS) {
+            loadCached(catalogCache, appSetsCache, builderAssetsCache, releaseIndexCache,
+                androidVersion, channel, architecture, releaseId, fetchedAt)?.let { return@withContext it }
+        }
         try {
             val catalogText = download(CATALOG_URL)
             val appSetsText = download(APPSETS_URL)
@@ -39,10 +49,12 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             atomicWrite(builderAssetsCache, builderAssetsText)
             releaseIndexText?.let { atomicWrite(releaseIndexCache, it) }
             if (summary != null && releaseText != null) atomicWrite(File(directory, "release-${summary.id}.json"), releaseText)
+            val networkFetchedAt = System.currentTimeMillis()
+            atomicWrite(fetchedAtCache, networkFetchedAt.toString())
             AppDiagnostics.info("metadata", "loaded", mapOf("source" to "network",
                 "android" to (parsed.release?.androidVersion ?: parsed.catalog.androidVersion),
                 "release" to parsed.release?.id, "packages" to parsed.catalog.packages.size))
-            parsed
+            parsed.copy(fetchedAtMillis = networkFetchedAt)
         } catch (networkOrMetadata: Exception) {
             if (!catalogCache.isFile || !appSetsCache.isFile || !builderAssetsCache.isFile) throw MetadataException(
                 "Unable to load valid NikGapps metadata and no offline cache is available: ${networkOrMetadata.message}", networkOrMetadata)
@@ -52,7 +64,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
                 val releaseText = summary?.let { File(directory, "release-${it.id}.json").takeIf(File::isFile)?.readText() }
                 parsePair(catalogCache.readText(), appSetsCache.readText(), builderAssetsCache.readText(),
-                    indexText, releaseText, true).also {
+                    indexText, releaseText, true, fetchedAt).also {
                 AppDiagnostics.info("metadata", "loaded", mapOf("source" to "cache",
                     "android" to (it.release?.androidVersion ?: it.catalog.androidVersion),
                     "release" to it.release?.id, "packages" to it.catalog.packages.size,
@@ -61,7 +73,19 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             }
             catch (cacheError: Exception) { throw MetadataException("Downloaded metadata failed and cached metadata is invalid: ${cacheError.message}", cacheError) }
         }
+        }
     }
+    private fun loadCached(catalog: File, appSets: File, assets: File, indexFile: File,
+        androidVersion: String?, channel: String, architecture: String, releaseId: String?,
+        fetchedAt: Long): RegistryMetadata? = runCatching {
+        if (!catalog.isFile || !appSets.isFile || !assets.isFile) return@runCatching null
+        val indexText = indexFile.takeIf(File::isFile)?.readText()
+        val index = indexText?.let(CatalogParser::parseReleaseIndex)
+        val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
+        val releaseText = summary?.let { File(catalog.parentFile, "release-${it.id}.json").takeIf(File::isFile)?.readText() }
+        if (summary != null && releaseText == null) return@runCatching null
+        parsePair(catalog.readText(), appSets.readText(), assets.readText(), indexText, releaseText, true, fetchedAt)
+    }.getOrNull()
     private fun selectRelease(index: ReleaseIndex?, androidVersion: String?, channel: String,
         architecture: String, releaseId: String?): ReleaseSummary? {
         if (androidVersion == null) return null
@@ -73,7 +97,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             ?: throw MetadataException("Release '$selectedId' is absent from release history")
     }
     private fun parsePair(c: String, a: String, b: String, indexText: String?, releaseText: String?,
-        cached: Boolean): RegistryMetadata {
+        cached: Boolean, fetchedAtMillis: Long = System.currentTimeMillis()): RegistryMetadata {
         val catalog = CatalogParser.parseCatalog(c)
         val releaseIndex = indexText?.let(CatalogParser::parseReleaseIndex)
         val release = releaseText?.let(CatalogParser::parseRelease)
@@ -98,7 +122,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 ?: throw MetadataException("Release references missing package '$id'")
             require(version in pkg.versions) { "Release references missing version '$id:$version'" }
         }
-        return RegistryMetadata(catalog, appSets, assets, releaseIndex, release, cached)
+        return RegistryMetadata(catalog, appSets, assets, releaseIndex, release, cached, fetchedAtMillis)
     }
     private fun download(url: String): String {
         return client.executeRegistryRequest(Request.Builder().url(url).build()) { response ->
@@ -117,5 +141,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         const val METADATA_BASE_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main"
         const val RELEASE_INDEX_URL = "$METADATA_BASE_URL/releases/index.json"
         const val GITLAB_PROJECT_ID = 85036487
+        const val CACHE_TTL_MILLIS = 30L * 60L * 1_000L
+        private val CACHE_MUTEX = Mutex()
     }
 }

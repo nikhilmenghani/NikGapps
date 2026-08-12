@@ -66,6 +66,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val repository = remember { BuildProjectRepository(context) }
     var project by remember(projectId) { mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId }) }
     var metadata by remember { mutableStateOf<RegistryMetadata?>(null) }
+    var metadataRefreshes by rememberSaveable(projectId) { mutableIntStateOf(0) }
+    var consumedMetadataRefreshes by rememberSaveable(projectId) { mutableIntStateOf(0) }
+    var metadataLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<ZipBuildProgress?>(null) }
     var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
@@ -75,6 +78,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var selectionFilter by rememberSaveable(projectId) { mutableStateOf(SelectionFilter.BOTH) }
     var sortExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var filterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
+    var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var searchQuery by rememberSaveable(projectId) { mutableStateOf("") }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
@@ -82,7 +86,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
     val current = project
-    LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel, isOnline) {
+    LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel, isOnline, metadataRefreshes) {
         if (current == null) return@LaunchedEffect
         if (!isOnline) {
             metadata = null
@@ -90,9 +94,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             return@LaunchedEffect
         }
         loadError = null
+        metadataLoading = true
+        val forceRefresh = metadataRefreshes > consumedMetadataRefreshes
         try { metadata = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
-            current.defaultChannel, current.architecture.value) }
+            current.defaultChannel, current.architecture.value, forceRefresh = forceRefresh) }
         catch (e: Exception) { loadError = e.message ?: "Unable to load the NikGapps catalog" }
+        finally {
+            if (forceRefresh) consumedMetadataRefreshes = metadataRefreshes
+            metadataLoading = false
+        }
     }
     if (current == null) { Text("Project not found", Modifier.padding(24.dp)); return }
     val registry = metadata
@@ -185,6 +195,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     fun startBuild() {
         val loaded = metadata ?: return
         val appSet = selectedAppSet ?: return
+        val quota = BuildQuotaRepository(context)
+        if (!quota.status().allowed) {
+            Toast.makeText(context, "Build limit reached. Try again after the 6-hour window resets.", Toast.LENGTH_LONG).show()
+            return
+        }
         scope.launch {
             try {
                 progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
@@ -222,9 +237,12 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     RegistryZipAssembler(AndroidBuilderAssetSource(context, requireNotNull(registry).builderAssets)).build(
                         File(context.cacheDir, "zip-builds"), BuildRequest(current.androidVersion.displayName,
                             current.androidVersion.apiLevel, current.architecture.value, appSet, defaultChannel,
-                            overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets), artifacts)
+                            overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets,
+                            timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
+                            releaseId = loaded.release?.id), artifacts)
                 }
                 val published = withContext(Dispatchers.IO) { ZipPublisher(context).publish(output) }
+                quota.recordSuccess()
                 output.delete()
                 progress = null; result = false to "Flashable ZIP created:\n$published"
             } catch (e: Exception) { progress = null; result = true to (e.message ?: "Build failed") }
@@ -246,14 +264,23 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         IconButton(onClick = {
             sortExpanded = !sortExpanded
             filterExpanded = false
+            notificationsExpanded = false
         }) {
             Icon(Icons.AutoMirrored.Filled.Sort, if (sortExpanded) "Close sort options" else "Sort apps")
         }
         IconButton(onClick = {
             filterExpanded = !filterExpanded
             sortExpanded = false
+            notificationsExpanded = false
         }) {
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
+        }
+        IconButton(onClick = {
+            notificationsExpanded = !notificationsExpanded
+            sortExpanded = false
+            filterExpanded = false
+        }) {
+            Icon(Icons.Default.Notifications, if (notificationsExpanded) "Close project updates" else "Project updates")
         }
     }) }, floatingActionButton = {
         if (metadata != null && current.selectedAppIds.isNotEmpty()) {
@@ -274,7 +301,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             AnimatedVisibility(
-                visible = sortExpanded || filterExpanded,
+                visible = sortExpanded || filterExpanded || notificationsExpanded,
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
             ) {
@@ -288,7 +315,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(if (sortExpanded) "Sort apps" else "Filter apps", style = MaterialTheme.typography.labelLarge)
+                        Text(when {
+                            sortExpanded -> "Sort apps"
+                            filterExpanded -> "Filter apps"
+                            else -> "Project updates"
+                        }, style = MaterialTheme.typography.labelLarge)
                         if (sortExpanded) {
                             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().height(48.dp)) {
                                 PackageSort.entries.forEachIndexed { index, option ->
@@ -308,7 +339,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                     ) { Text(label) }
                                 }
                             }
-                        } else {
+                        } else if (filterExpanded) {
                             FilterChip(
                                 selected = installedOnly,
                                 onClick = { installedOnly = !installedOnly },
@@ -323,6 +354,46 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         onClick = { selectionFilter = option },
                                         shape = SegmentedButtonDefaults.itemShape(index, SelectionFilter.entries.size)
                                     ) { Text(option.label, maxLines = 1) }
+                                }
+                            }
+                        } else {
+                            val releaseDate = metadata?.release?.createdAt?.take(10)
+                            val quotaStatus = BuildQuotaRepository(context).status()
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(Icons.Default.NewReleases, null, Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(metadata?.release?.let {
+                                        "Apps are from release ${releaseDate ?: it.id}."
+                                    } ?: "Release information is not available yet.",
+                                        style = MaterialTheme.typography.bodyMedium)
+                                    Text("Metadata refreshes automatically after 30 minutes.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(Icons.Default.Inventory2, null, Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(10.dp))
+                                Text("${quotaStatus.remaining} of ${quotaStatus.limit} builds remain in the current " +
+                                    "${quotaStatus.windowMillis / 3_600_000L}-hour window.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f))
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                FilledTonalButton(
+                                    onClick = { metadataRefreshes++ },
+                                    enabled = isOnline && !metadataLoading,
+                                    modifier = Modifier.height(40.dp),
+                                    shape = CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(if (metadataLoading) "Fetching…" else "Fetch latest")
                                 }
                             }
                         }

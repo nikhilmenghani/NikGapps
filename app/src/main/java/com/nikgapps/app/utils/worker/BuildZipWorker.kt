@@ -12,6 +12,7 @@ import androidx.work.workDataOf
 import com.nikgapps.R
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.LatestBuildRepository
+import com.nikgapps.app.data.BuildQuotaRepository
 import com.nikgapps.app.registry.*
 import java.io.File
 
@@ -24,11 +25,15 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         logFile.parentFile?.mkdirs(); logFile.writeText("")
         val project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
+        val quota = BuildQuotaRepository(applicationContext)
+        val quotaStatus = quota.status()
+        if (!quotaStatus.allowed) return failure("Build limit reached. Try again after the current 6-hour window resets.")
         return try {
             progress("Loading package catalog", 0, project.selectedAppIds.size)
             val metadata = CatalogRepository(applicationContext.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value)
+            metadata.release?.let { log("Using release ${it.id} · ${it.createdAt.take(10)}") }
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
             val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
             val selections = project.selectedAppIds.associateWith { id ->
@@ -67,16 +72,20 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     project.androidVersion.displayName, project.androidVersion.apiLevel,
                     project.architecture.value, primarySet, defaultChannel, overrides,
                     project.selectedAppIds, packageAppSets = resolution.packageAppSets,
-                    projectName = project.name
+                    projectName = project.name,
+                    timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
+                    releaseId = metadata.release?.id
                 ), artifacts)
             progress("Saving ZIP to Downloads/NikGapps", completed, visibleTotal)
             val publisher = ZipPublisher(applicationContext)
             if (publisher.exists(output.name)) {
+                quota.recordSuccess()
                 log("A ZIP named ${output.name} already exists")
                 return Result.success(workDataOf(KEY_PENDING_SOURCE to output.absolutePath,
                     KEY_EXISTING_NAME to output.name))
             }
             val location = publisher.publish(output)
+            quota.recordSuccess()
             LatestBuildRepository(applicationContext).save(projectId, location)
             output.delete()
             log("Build complete")

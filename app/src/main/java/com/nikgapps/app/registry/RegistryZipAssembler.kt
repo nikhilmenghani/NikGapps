@@ -13,7 +13,8 @@ import com.nikgapps.app.utils.AppDiagnostics
 data class BuildRequest(val androidVersion: String, val api: Int, val architecture: String,
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
-    val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null)
+    val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
+    val releaseId: String? = null)
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -109,6 +110,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         template.replace(Regex("(?m)^AndroidVersion=.*$"), "AndroidVersion=${r.androidVersion.filter { it.isDigit() }}")
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
+        r.releaseId?.let { put("releaseId", it) }
         put("androidVersion", r.androidVersion); put("androidApi", r.api); put("architecture", r.architecture)
         put("selectedAppSet", r.appSet.id)
         put("selectedAppSets", buildJsonArray {
