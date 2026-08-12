@@ -5,7 +5,10 @@ import android.widget.Toast
 import com.nikgapps.app.network.LocalInternetAvailable
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,10 +18,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.BorderStroke
@@ -62,6 +70,11 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,11 +84,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -519,6 +538,7 @@ private fun ProjectSheet(
     val context = LocalActivity.current ?: return
     val nameFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    var sheetVisible by remember { mutableStateOf(false) }
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
     var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
@@ -526,10 +546,11 @@ private fun ProjectSheet(
     var metadataVersions by remember { mutableStateOf(setOf(AndroidVersion.ANDROID_16)) }
     val developerPrefs = globalClass.preferencesManager.displayPrefs
     LaunchedEffect(project) {
+        sheetVisible = true
         if (project == null) {
-            // Wait for the modal sheet window to become focusable before
-            // requesting the IME; an immediate request is commonly dropped.
-            delay(250)
+            // Let the top sheet begin its entrance before showing the IME. Since
+            // the sheet is top-anchored, the inset animation cannot move it.
+            delay(120)
             nameFocusRequester.requestFocus()
             keyboard?.show()
         }
@@ -549,14 +570,70 @@ private fun ProjectSheet(
         if (androidVersion !in selectableVersions && selectableVersions.isNotEmpty()) androidVersion = selectableVersions.last()
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
+    fun saveProject() {
+        if (name.isBlank()) return
+        keyboard?.hide()
+        onSave(
+            BuildProject(
+                id = project?.id ?: java.util.UUID.randomUUID().toString(),
+                name = name.trim(),
+                androidVersion = androidVersion,
+                architecture = architecture,
+                selectedAppSetId = project?.selectedAppSetId ?: "core",
+                selectedPackageAppSets = project?.selectedPackageAppSets.orEmpty(),
+                defaultChannel = project?.defaultChannel ?: "stable",
+                channelOverrides = project?.channelOverrides.orEmpty()
+            )
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.42f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
         ) {
+            AnimatedVisibility(
+                visible = sheetVisible,
+                enter = slideInVertically(initialOffsetY = { -it / 2 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it / 2 }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        ),
+                    shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 24.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
             Text(
                 if (project == null) "Create project" else "Edit project",
                 style = MaterialTheme.typography.headlineSmall
@@ -566,6 +643,8 @@ private fun ProjectSheet(
                 onValueChange = { name = it },
                 label = { Text("Project name") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { saveProject() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(nameFocusRequester)
             )
             ExposedDropdownMenuBox(expanded = versionMenuExpanded, onExpandedChange = { versionMenuExpanded = it }) {
@@ -592,24 +671,14 @@ private fun ProjectSheet(
                 supportingText = { Text("ARM64 is currently the supported architecture") },
                 leadingIcon = { Icon(Icons.Default.Memory, null) }, modifier = Modifier.fillMaxWidth())
             Button(
-                onClick = {
-                    onSave(
-                        BuildProject(
-                            id = project?.id ?: java.util.UUID.randomUUID().toString(),
-                            name = name.trim(),
-                            androidVersion = androidVersion,
-                            architecture = architecture,
-                            selectedAppSetId = project?.selectedAppSetId ?: "core",
-                            selectedPackageAppSets = project?.selectedPackageAppSets.orEmpty(),
-                            defaultChannel = project?.defaultChannel ?: "stable",
-                            channelOverrides = project?.channelOverrides.orEmpty()
-                        )
-                    )
-                },
+                onClick = ::saveProject,
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (project == null) "Create project" else "Save changes")
+            }
+                    }
+                }
             }
         }
     }
