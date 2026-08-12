@@ -347,10 +347,23 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
 
 private fun Context.openNikGappsFolder() {
     val uri = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download/NikGapps")
+    val documentsPicker = Intent(Intent.ACTION_OPEN_DOCUMENT)
+        .setType("application/zip")
+        .addCategory(Intent.CATEGORY_OPENABLE)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        .apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
+            }
+        }
+    if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) {
+        startActivity(documentsPicker)
+        return
+    }
     val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     runCatching { startActivity(intent) }.getOrElse {
-        startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/zip").addCategory(Intent.CATEGORY_OPENABLE))
+        startActivity(documentsPicker)
     }
 }
 

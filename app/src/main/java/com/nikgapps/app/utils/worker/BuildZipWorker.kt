@@ -33,7 +33,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val metadata = CatalogRepository(applicationContext.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value)
-            metadata.release?.let { log("Using release ${it.id} · ${it.createdAt.take(10)}") }
+            metadata.release?.let { log("Using release ${it.createdAt.take(10)}") }
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
             val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
             val selections = project.selectedAppIds.associateWith { id ->
