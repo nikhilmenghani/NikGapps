@@ -147,7 +147,10 @@ fun AdvancedPreferences() {
                                         markAppLockSessionAuthenticated()
                                         developerPreference.biometricLockEnabled = true
                                     },
-                                    onError = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+                                    onError = { message ->
+                                        developerPreference.biometricLockEnabled = false
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    }
                                 )
                             }
                         }
