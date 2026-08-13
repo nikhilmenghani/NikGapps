@@ -14,6 +14,7 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.security.AppLock
 import com.nikgapps.app.security.canUseAppLock
 import com.nikgapps.app.update.AppUpdateManager
+import com.nikgapps.app.utils.AppDiagnostics
 import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
@@ -21,6 +22,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppDiagnostics.info("app", "launched", mapOf(
+            "version" to BuildConfig.VERSION_NAME,
+            "androidApi" to Build.VERSION.SDK_INT
+        ))
         if (Permissions.hasAllRequiredPermissions(this)) {
             setContent {
                 NikGappsTheme {

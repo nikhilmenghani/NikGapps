@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.network.InternetRequiredGate
 import com.nikgapps.app.update.MandatoryUpdateGate
+import com.nikgapps.app.utils.AppDiagnostics
 
 
 data class NavItem(
@@ -90,6 +92,11 @@ fun ScreenNavigator(
 ) {
     val navController: NavHostController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(currentEntry) {
+        currentEntry?.destination?.route?.let { route ->
+            AppDiagnostics.info("navigation", "screen_opened", mapOf("screen" to route))
+        }
+    }
     InternetRequiredGate(
         required = globalClass.preferencesManager.displayPrefs.requireInternetAccess,
         allowOffline = currentEntry?.destination?.route == Screens.Settings.name,

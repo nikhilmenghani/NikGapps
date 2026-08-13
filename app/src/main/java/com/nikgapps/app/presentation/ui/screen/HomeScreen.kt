@@ -113,6 +113,7 @@ import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.registry.catalogAndroidVersion
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
+import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
@@ -282,7 +283,10 @@ fun HomeScreen(navController: NavHostController) {
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
-                        onOpen = { navController.navigate(projectRoute(project.id)) },
+                        onOpen = {
+                            AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
+                            navController.navigate(projectRoute(project.id))
+                        },
                         onBuild = {
                             if (isOnline) navController.navigate(buildZipRoute(project.id))
                             else Toast.makeText(
@@ -306,9 +310,16 @@ fun HomeScreen(navController: NavHostController) {
                                     appSources = project.appSources
                                 )
                             )
+                            AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
                         },
-                        onEdit = { projectToEdit = project },
-                        onDelete = { projectToDelete = project }
+                        onEdit = {
+                            AppDiagnostics.info("project", "edit_opened", mapOf("project" to project.id.take(8)))
+                            projectToEdit = project
+                        },
+                        onDelete = {
+                            AppDiagnostics.info("project", "delete_requested", mapOf("project" to project.id.take(8)))
+                            projectToDelete = project
+                        }
                     )
                 }
             }
@@ -320,6 +331,11 @@ fun HomeScreen(navController: NavHostController) {
             onDismiss = { showCreateProject = false },
             onSave = { project ->
                 projects = projectRepository.addProject(project)
+                AppDiagnostics.info("project", "created", mapOf(
+                    "project" to project.id.take(8),
+                    "android" to project.androidVersion.displayName,
+                    "architecture" to project.architecture.value
+                ))
                 showCreateProject = false
                 navController.navigate(projectRoute(project.id))
             }
@@ -331,6 +347,7 @@ fun HomeScreen(navController: NavHostController) {
             onDismiss = { projectToEdit = null },
             onSave = { updatedProject ->
                 projects = projectRepository.updateProject(updatedProject)
+                AppDiagnostics.info("project", "updated", mapOf("project" to updatedProject.id.take(8)))
                 projectToEdit = null
             }
         )
@@ -345,6 +362,7 @@ fun HomeScreen(navController: NavHostController) {
                     onClick = {
                         projects = projectRepository.deleteProject(project.id)
                         latestBuildRepository.remove(project.id)
+                        AppDiagnostics.info("project", "deleted", mapOf("project" to project.id.take(8)))
                         projectToDelete = null
                     }
                 ) {

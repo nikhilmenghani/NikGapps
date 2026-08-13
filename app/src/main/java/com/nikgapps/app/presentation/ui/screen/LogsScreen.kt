@@ -32,8 +32,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
-private const val MAX_LOG_LINES = 2_000
+private const val MAX_LOG_LINES = 10_000
 private const val LOGCAT_BATCH_INTERVAL_MS = 250L
 internal data class LogcatEntry(val raw: String, val date: String, val time: String,
     val level: String, val tag: String, val message: String)
@@ -49,14 +50,21 @@ fun LogsScreen() {
     var session by remember { mutableIntStateOf(0) }
     var captureError by remember { mutableStateOf<String?>(null) }
     val pausedState by rememberUpdatedState(paused)
+    val clearGeneration = remember { AtomicInteger(0) }
 
     LaunchedEffect(session) {
         captureError = null
-        val incoming = Channel<LogcatEntry>(capacity = 2_048, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val incoming = Channel<Pair<Int, LogcatEntry>>(capacity = 4_096, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         var process: java.lang.Process? = null
         try {
             process = withContext(Dispatchers.IO) {
-                ProcessBuilder("logcat", "--pid=${Process.myPid()}", "-v", "threadtime", "-T", MAX_LOG_LINES.toString(), "*:V")
+                ProcessBuilder(
+                    "logcat",
+                    "--pid=${Process.myPid()}",
+                    "-v", "threadtime",
+                    "-T", MAX_LOG_LINES.toString(),
+                    "NikGappsFlow:I", "*:W"
+                )
                     .redirectErrorStream(true).start()
             }
             coroutineScope {
@@ -64,7 +72,7 @@ fun LogsScreen() {
                     process.inputStream.bufferedReader().useLines { output ->
                         output.forEach { raw ->
                             val entry = parseLogcatLine(raw)
-                            if (!isViewerRenderNoise(entry)) incoming.trySend(entry)
+                            if (!isViewerRenderNoise(entry)) incoming.trySend(clearGeneration.get() to entry)
                         }
                     }
                 }
@@ -72,7 +80,10 @@ fun LogsScreen() {
                     while (isActive && reader.isActive) {
                         delay(LOGCAT_BATCH_INTERVAL_MS)
                         val batch = buildList {
-                            while (size < 512) incoming.tryReceive().getOrNull()?.let(::add) ?: break
+                            while (size < 1_024) {
+                                val item = incoming.tryReceive().getOrNull() ?: break
+                                if (item.first == clearGeneration.get()) add(item.second)
+                            }
                         }
                         if (!pausedState && batch.isNotEmpty()) lines = appendLogBatch(lines, batch)
                     }
@@ -130,7 +141,10 @@ fun LogsScreen() {
             Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 if (paused) "Resume Logcat" else "Pause Logcat")
         }
-        IconButton(onClick = { lines = emptyList(); session++ }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
+        IconButton(onClick = {
+            clearGeneration.incrementAndGet()
+            lines = emptyList()
+        }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
         IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Default.IosShare, "Export diagnostics") }
     }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -200,7 +214,7 @@ fun LogsScreen() {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text("${lines.size.coerceAtMost(MAX_LOG_LINES)} lines · only this app's process is captured",
+            Text("${lines.size.coerceAtMost(MAX_LOG_LINES)} of $MAX_LOG_LINES lines · actions, warnings and errors",
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
