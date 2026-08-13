@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
@@ -14,6 +15,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -80,10 +87,26 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var filterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
-    var searchQuery by rememberSaveable(projectId) { mutableStateOf("") }
+    var searchInput by rememberSaveable(projectId, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
+    val searchQuery = searchInput.text
+    var searchVisible by rememberSaveable(projectId) { mutableStateOf(false) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val appsListState = rememberLazyListState()
+    val keyboardClearance = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+
+    LaunchedEffect(searchVisible) {
+        if (searchVisible) {
+            searchInput = searchInput.copy(selection = TextRange(searchInput.text.length))
+            searchFocusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
 
     val current = project
     LaunchedEffect(current?.androidVersion, current?.architecture, current?.defaultChannel, isOnline, metadataRefreshes) {
@@ -168,6 +191,16 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 compareByDescending<CatalogPackage> { it.id in current.selectedAppIds }
                 else compareBy<CatalogPackage> { it.id in current.selectedAppIds })
                 .thenBy { it.name.lowercase() }.let(filtered::sortedWith)
+        }
+    }
+
+    DisposableEffect(searchVisible) {
+        if (!searchVisible) return@DisposableEffect onDispose { }
+        val window = context.window
+        val previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        onDispose {
+            window.setSoftInputMode(previousSoftInputMode)
         }
     }
 
@@ -283,7 +316,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             Icon(Icons.Default.Notifications, if (notificationsExpanded) "Close project updates" else "Project updates")
         }
     }) }, floatingActionButton = {
-        if (metadata != null && current.selectedAppIds.isNotEmpty()) {
+        if (!searchVisible) {
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ExtendedFloatingActionButton(
+                onClick = { searchVisible = true },
+                icon = { Icon(Icons.Default.Search, null) },
+                text = { Text("Search apps") },
+                modifier = Modifier.width(168.dp).height(56.dp)
+            )
+            if (metadata != null && current.selectedAppIds.isNotEmpty()) {
             ExtendedFloatingActionButton(onClick = {
                 if (!isOnline) {
                     Toast.makeText(context, "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
@@ -292,13 +333,17 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 AppDiagnostics.info("navigation", "build_opened", mapOf("project" to projectId.take(8),
                     "selected" to current.selectedAppIds.size))
                 navController.navigate(buildZipRoute(projectId))
-            },
+                },
                 icon = { Icon(Icons.Default.Inventory2, null) },
                 text = { Text("Build ZIP · ${current.selectedAppIds.size}") },
+                modifier = Modifier.width(168.dp).height(56.dp),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+        }
         }
     }) { padding ->
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             AnimatedVisibility(
                 visible = sortExpanded || filterExpanded || notificationsExpanded,
@@ -400,12 +445,20 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     }
                 }
             }
-            LazyColumn(Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+            LazyColumn(
+            state = appsListState,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = if (searchVisible) maxOf(96.dp, keyboardClearance + 80.dp) else 96.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                Text("Build your app set", style = MaterialTheme.typography.headlineMedium)
-                Text("Pick any supported package and the AppSet used for shared apps.",
-                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
+                Text("Pick the apps you want to include in your build.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.fillMaxWidth().clickable { summaryExpanded = !summaryExpanded }) {
@@ -471,31 +524,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    singleLine = true,
-                    shape = CircleShape,
-                    placeholder = { Text("Search apps") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary)
-                    },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {{
-                        IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, "Clear search") }
-                    }} else null,
-                    supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
-                        Text("No apps match “${searchQuery.trim()}”")
-                    }} else null,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
@@ -529,6 +557,53 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 }
             }
             }
+        }
+        AnimatedVisibility(
+            visible = searchVisible,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+            enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+        ) {
+            Surface(shape = RoundedCornerShape(28.dp), tonalElevation = 6.dp, shadowElevation = 8.dp) {
+                OutlinedTextField(
+                    value = searchInput,
+                    onValueChange = { searchInput = it },
+                    modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+                    singleLine = true,
+                    shape = CircleShape,
+                    placeholder = { Text("Search apps") },
+                    leadingIcon = { Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary) },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            if (searchInput.text.isNotEmpty()) {
+                                searchInput = TextFieldValue("")
+                            } else {
+                                searchVisible = false
+                                keyboard?.hide()
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Close,
+                                if (searchInput.text.isNotEmpty()) "Clear search" else "Close search"
+                            )
+                        }
+                    },
+                    supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
+                        Text("No apps match “${searchQuery.trim()}”")
+                    }} else null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
+        }
         }
     }
     progress?.let { p -> AlertDialog({}, title = { Text("Building flashable ZIP") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
