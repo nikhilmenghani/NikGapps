@@ -310,6 +310,24 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }, actions = {
         IconButton(onClick = {
+            notificationsExpanded = !notificationsExpanded
+            sortExpanded = false
+            filterExpanded = false
+        }) {
+            val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
+            Box(Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Notifications,
+                    if (notificationsExpanded) "Close project updates" else
+                        "Project updates, ${quotaStatus.remaining} builds available",
+                    modifier = Modifier.align(Alignment.Center).size(24.dp)
+                )
+                Badge(modifier = Modifier.align(Alignment.TopEnd)) {
+                    Text(quotaStatus.remaining.toString())
+                }
+            }
+        }
+        IconButton(onClick = {
             sortExpanded = !sortExpanded
             filterExpanded = false
             notificationsExpanded = false
@@ -322,24 +340,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             notificationsExpanded = false
         }) {
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
-        }
-        IconButton(onClick = {
-            notificationsExpanded = !notificationsExpanded
-            sortExpanded = false
-            filterExpanded = false
-        }) {
-            val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
-            Box(Modifier.size(48.dp)) {
-                Icon(
-                    Icons.Default.Notifications,
-                    if (notificationsExpanded) "Close project updates" else
-                        "Project updates, ${quotaStatus.remaining} builds available",
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                Badge(modifier = Modifier.align(Alignment.TopEnd)) {
-                    Text(quotaStatus.remaining.toString())
-                }
-            }
         }
     }) }, floatingActionButton = {
         if (!searchVisible) {
