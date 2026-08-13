@@ -317,13 +317,21 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
             Box(Modifier.size(32.dp)) {
                 Icon(
-                    Icons.Default.Notifications,
+                    Icons.Default.DataUsage,
                     if (notificationsExpanded) "Close project updates" else
-                        "Project updates, ${quotaStatus.remaining} builds available",
+                        "Build usage, ${quotaStatus.remaining} of ${quotaStatus.limit} builds available",
                     modifier = Modifier.align(Alignment.Center).size(24.dp)
                 )
-                Badge(modifier = Modifier.align(Alignment.TopEnd)) {
-                    Text(quotaStatus.remaining.toString())
+                if (quotaStatus.remaining < quotaStatus.limit) {
+                    Badge(
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        containerColor = if (quotaStatus.remaining == 0) MaterialTheme.colorScheme.error
+                            else BadgeDefaults.containerColor,
+                        contentColor = if (quotaStatus.remaining == 0) MaterialTheme.colorScheme.onError
+                            else MaterialTheme.colorScheme.onError
+                    ) {
+                        Text(quotaStatus.remaining.toString())
+                    }
                 }
             }
         }
@@ -449,8 +457,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                     tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text("${quotaStatus.remaining} of ${quotaStatus.limit} builds available.",
-                                        style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        if (quotaStatus.remaining == 0)
+                                            "Build limit reached · 0 of ${quotaStatus.limit} builds available."
+                                        else
+                                            "${quotaStatus.remaining} of ${quotaStatus.limit} builds available.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (quotaStatus.remaining == 0) MaterialTheme.colorScheme.error
+                                            else MaterialTheme.colorScheme.onSurface
+                                    )
                                     val resetsAt = quotaStatus.resetsAtMillis
                                     if (resetsAt != null) {
                                         val resetTime = DateFormat.getTimeFormat(context).format(Date(resetsAt))
