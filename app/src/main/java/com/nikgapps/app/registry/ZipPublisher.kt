@@ -7,6 +7,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 import com.nikgapps.app.utils.AppDiagnostics
+import com.nikgapps.app.analytics.AppAnalytics
 
 class ZipPublisher(private val context: Context) {
     enum class ConflictResolution { REPLACE, RENAME }
@@ -26,6 +27,7 @@ class ZipPublisher(private val context: Context) {
             source.inputStream().use { input -> output.outputStream().use(input::copyTo) }
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
+            AppAnalytics.zipCreationSucceeded(source.length(), conflictResolution.name.lowercase())
             return output.absolutePath
         }
         if (conflictResolution == ConflictResolution.REPLACE) {
@@ -43,9 +45,11 @@ class ZipPublisher(private val context: Context) {
             values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0); resolver.update(uri, values, null, null)
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
+            AppAnalytics.zipCreationSucceeded(source.length(), conflictResolution.name.lowercase())
             return "Downloads/NikGapps/$fileName"
         } catch (e: Exception) {
             AppDiagnostics.failure("publication", "failed", e, mapOf("file" to source.name))
+            AppAnalytics.zipCreationFailed(e)
             resolver.delete(uri, null, null); throw e
         }
     }

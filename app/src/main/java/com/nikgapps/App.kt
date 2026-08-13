@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.nikgapps.app.data.UpdatePrefs
 import com.nikgapps.app.update.AppUpdateManager
+import com.nikgapps.app.analytics.AppAnalytics
 
 class App: Application() {
     companion object {
@@ -32,6 +33,7 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
+        AppAnalytics.initialize(this, preferencesManager.displayPrefs.analyticsEnabled)
         AppUpdateManager.scheduleChecks(this, UpdatePrefs.intervalHours)
     }
 

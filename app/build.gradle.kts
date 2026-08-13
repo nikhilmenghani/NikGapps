@@ -1,5 +1,14 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val postHogApiKey = providers.gradleProperty("POSTHOG_API_KEY")
+    .orElse(providers.environmentVariable("POSTHOG_API_KEY"))
+    .orElse("")
+val postHogHost = providers.gradleProperty("POSTHOG_HOST")
+    .orElse(providers.environmentVariable("POSTHOG_HOST"))
+    .orElse("https://us.i.posthog.com")
+
 plugins {
     id("com.android.application")
     alias(libs.plugins.compose.compiler)
@@ -34,6 +43,8 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "POSTHOG_API_KEY", postHogApiKey.get().asBuildConfigString())
+        buildConfigField("String", "POSTHOG_HOST", postHogHost.get().asBuildConfigString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -107,4 +118,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.work.runtime.ktx)
     implementation(libs.android.device.names)
+    implementation(libs.posthog.android)
 }

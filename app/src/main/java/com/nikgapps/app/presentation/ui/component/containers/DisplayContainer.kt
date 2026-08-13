@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
+import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.security.canUseAppLock
 import com.nikgapps.app.security.authenticateForAppLock
 import com.nikgapps.app.security.markAppLockSessionAuthenticated
+import com.nikgapps.app.analytics.AppAnalytics
 
 @Composable
 fun AppearancePreferences() {
@@ -243,6 +245,17 @@ fun SystemPreferences(
                 onClick = onAppSettingsClick
             )
 
+            PreferenceSubtitle(text = "Privacy")
+            PreferenceItem(
+                label = "Anonymous usage analytics",
+                supportingText = "Share ZIP success and failure events. No filenames, paths, or personal details are sent.",
+                icon = Icons.Outlined.Analytics,
+                switchState = developerPreference.analyticsEnabled,
+                onSwitchChange = { enabled ->
+                    developerPreference.analyticsEnabled = enabled
+                    AppAnalytics.setEnabled(enabled)
+                }
+            )
             PreferenceSubtitle(text = stringResource(R.string.settings_background))
             PreferenceItem(
                 label = "Automatic update checks",
