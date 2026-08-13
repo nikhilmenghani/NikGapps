@@ -447,9 +447,26 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         "Apps are from release ${releaseDate ?: it.id}."
                                     } ?: "Release information is not available yet.",
                                         style = MaterialTheme.typography.bodyMedium)
-                                    Text("Metadata refreshes automatically after 30 minutes.",
+                                    val fetchedAt = metadata?.fetchedAtMillis
+                                    val nextFetchAt = fetchedAt?.plus(CatalogRepository.CACHE_TTL_MILLIS)
+                                    Text(
+                                        buildString {
+                                            append("App data is cached for 30 minutes. Refresh manually to check now.")
+                                            when {
+                                                nextFetchAt == null -> Unit
+                                                quotaClock >= nextFetchAt -> append(
+                                                    " The next screen or build load will check for updates."
+                                                )
+                                                else -> append(
+                                                    " The next network fetch is eligible at ${
+                                                        DateFormat.getTimeFormat(context).format(Date(nextFetchAt))
+                                                    } and runs when this screen or a build next loads."
+                                                )
+                                            }
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                             Row(verticalAlignment = Alignment.Top) {
