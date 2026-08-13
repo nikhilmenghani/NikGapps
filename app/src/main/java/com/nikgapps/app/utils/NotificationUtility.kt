@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.nikgapps.R
+import com.nikgapps.MainActivity
 import com.nikgapps.app.update.UpdateActionReceiver
 
 object NotificationUtility {
@@ -23,6 +24,7 @@ object NotificationUtility {
     const val NOTIFICATION_ID = 1
     const val UPDATE_AVAILABLE_NOTIFICATION_ID = 2202
     const val UPDATE_READY_NOTIFICATION_ID = 2203
+    const val UPDATE_DOWNLOAD_NOTIFICATION_ID = 2204
     private const val UPDATE_CHANNEL_ID = "app_updates"
 
     fun startFileDownload(context: Context) {
@@ -98,18 +100,19 @@ object NotificationUtility {
     fun showUpdateAvailable(context: Context, version: String, downloadUrl: String) {
         createNotificationChannel(context, "App updates", "New versions and installation status",
             NotificationManager.IMPORTANCE_DEFAULT, UPDATE_CHANNEL_ID)
-        val intent = Intent(context, UpdateActionReceiver::class.java).apply {
+        val intent = Intent(context, MainActivity::class.java).apply {
             action = UpdateActionReceiver.ACTION_DOWNLOAD
             putExtra(UpdateActionReceiver.EXTRA_VERSION, version)
             putExtra(UpdateActionReceiver.EXTRA_URL, downloadUrl)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val action = PendingIntent.getBroadcast(context, version.hashCode(), intent,
+        val action = PendingIntent.getActivity(context, version.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle("NikGapps v$version is available")
-            .setContentText("Download and install the update")
-            .setContentIntent(action).addAction(android.R.drawable.stat_sys_download, "Download", action)
+            .setContentText("Tap once to download and open the installer")
+            .setContentIntent(action).addAction(android.R.drawable.stat_sys_download, "Download & install", action)
             .setAutoCancel(true).setOnlyAlertOnce(true).build()
         runCatching { NotificationManagerCompat.from(context).notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification) }
     }
@@ -118,11 +121,12 @@ object NotificationUtility {
     fun showUpdateReady(context: Context, version: String, apkPath: String) {
         createNotificationChannel(context, "App updates", "New versions and installation status",
             NotificationManager.IMPORTANCE_DEFAULT, UPDATE_CHANNEL_ID)
-        val intent = Intent(context, UpdateActionReceiver::class.java).apply {
+        val intent = Intent(context, MainActivity::class.java).apply {
             action = UpdateActionReceiver.ACTION_INSTALL
             putExtra(UpdateActionReceiver.EXTRA_APK_PATH, apkPath)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val action = PendingIntent.getBroadcast(context, apkPath.hashCode(), intent,
+        val action = PendingIntent.getActivity(context, apkPath.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
@@ -130,7 +134,12 @@ object NotificationUtility {
             .setContentText("Tap to review and install")
             .setContentIntent(action).addAction(android.R.drawable.stat_sys_download_done, "Install", action)
             .setAutoCancel(true).build()
-        runCatching { NotificationManagerCompat.from(context).notify(UPDATE_READY_NOTIFICATION_ID, notification) }
+        runCatching {
+            NotificationManagerCompat.from(context).apply {
+                cancel(UPDATE_DOWNLOAD_NOTIFICATION_ID)
+                notify(UPDATE_READY_NOTIFICATION_ID, notification)
+            }
+        }
     }
 }
 

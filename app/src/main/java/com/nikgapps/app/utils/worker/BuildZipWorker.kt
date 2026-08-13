@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
+import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -15,6 +16,7 @@ import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.BuildQuotaRepository
 import com.nikgapps.app.registry.*
 import java.io.File
+import java.util.Date
 
 class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     private val projectId = inputData.getString(KEY_PROJECT_ID).orEmpty()
@@ -27,7 +29,13 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
         val quotaStatus = quota.status()
-        if (!quotaStatus.allowed) return failure("Build limit reached. Try again after the current 6-hour window resets.")
+        if (!quotaStatus.allowed) {
+            val resetTime = quotaStatus.resetsAtMillis?.let {
+                DateFormat.getTimeFormat(applicationContext).format(Date(it))
+            }
+            return failure(resetTime?.let { "Build limit reached. All slots reset at $it." }
+                ?: "Build limit reached.")
+        }
         return try {
             progress("Loading package catalog", 0, project.selectedAppIds.size)
             val metadata = CatalogRepository(applicationContext.cacheDir).load(

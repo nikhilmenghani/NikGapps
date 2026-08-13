@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.view.WindowManager
 import android.widget.Toast
+import android.text.format.DateFormat
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -43,9 +44,11 @@ import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.network.LocalInternetAvailable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Date
 
 private data class RegistryDeviceStatus(
     val installed: Boolean,
@@ -92,6 +95,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
     val searchQuery = searchInput.text
     var searchVisible by rememberSaveable(projectId) { mutableStateOf(false) }
+    var quotaClock by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -105,6 +109,12 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             searchInput = searchInput.copy(selection = TextRange(searchInput.text.length))
             searchFocusRequester.requestFocus()
             keyboard?.show()
+        }
+    }
+    LaunchedEffect(notificationsExpanded) {
+        while (notificationsExpanded) {
+            quotaClock = System.currentTimeMillis()
+            delay(30_000L)
         }
     }
 
@@ -229,8 +239,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         val loaded = metadata ?: return
         val appSet = selectedAppSet ?: return
         val quota = BuildQuotaRepository(context)
-        if (!quota.status().allowed) {
-            Toast.makeText(context, "Build limit reached. Try again after the 6-hour window resets.", Toast.LENGTH_LONG).show()
+        val quotaStatus = quota.status()
+        if (!quotaStatus.allowed) {
+            val resetTime = quotaStatus.resetsAtMillis?.let {
+                DateFormat.getTimeFormat(context).format(Date(it))
+            }
+            Toast.makeText(context, resetTime?.let { "Build limit reached. All slots reset at $it." }
+                ?: "Build limit reached.", Toast.LENGTH_LONG).show()
             return
         }
         scope.launch {
@@ -313,7 +328,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             sortExpanded = false
             filterExpanded = false
         }) {
-            Icon(Icons.Default.Notifications, if (notificationsExpanded) "Close project updates" else "Project updates")
+            val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
+            Box(Modifier.size(48.dp)) {
+                Icon(
+                    Icons.Default.Notifications,
+                    if (notificationsExpanded) "Close project updates" else
+                        "Project updates, ${quotaStatus.remaining} builds available",
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                Badge(modifier = Modifier.align(Alignment.TopEnd)) {
+                    Text(quotaStatus.remaining.toString())
+                }
+            }
         }
     }) }, floatingActionButton = {
         if (!searchVisible) {
@@ -403,7 +429,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             }
                         } else {
                             val releaseDate = metadata?.release?.createdAt?.take(10)
-                            val quotaStatus = BuildQuotaRepository(context).status()
+                            val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
                             Row(verticalAlignment = Alignment.Top) {
                                 Icon(Icons.Default.NewReleases, null, Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary)
@@ -422,10 +448,29 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 Icon(Icons.Default.Inventory2, null, Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(10.dp))
-                                Text("${quotaStatus.remaining} of ${quotaStatus.limit} builds remain in the current " +
-                                    "${quotaStatus.windowMillis / 3_600_000L}-hour window.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("${quotaStatus.remaining} of ${quotaStatus.limit} builds available.",
+                                        style = MaterialTheme.typography.bodyMedium)
+                                    val resetsAt = quotaStatus.resetsAtMillis
+                                    if (resetsAt != null) {
+                                        val resetTime = DateFormat.getTimeFormat(context).format(Date(resetsAt))
+                                        val remainingMillis = (resetsAt - quotaClock).coerceAtLeast(0L)
+                                        val hours = remainingMillis / 3_600_000L
+                                        val minutes = (remainingMillis % 3_600_000L) / 60_000L
+                                        Text(
+                                            "All ${quotaStatus.limit} slots reset together at $resetTime " +
+                                                "(in ${if (hours > 0) "${hours}h " else ""}${minutes}m).",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else {
+                                        Text(
+                                            "Your ${quotaStatus.windowMillis / 3_600_000L}-hour window starts after the first successful build.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -438,7 +483,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 ) {
                                     Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(if (metadataLoading) "Fetching…" else "Fetch latest")
+                                    Text(if (metadataLoading) "Refreshing…" else "Refresh app list")
                                 }
                             }
                         }
