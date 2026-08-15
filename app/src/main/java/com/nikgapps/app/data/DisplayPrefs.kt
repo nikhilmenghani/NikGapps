@@ -49,9 +49,4 @@ object DisplayPrefs {
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var analyticsEnabled by prefMutableState(
-        keyName = "analyticsEnabled",
-        defaultValue = true,
-        getPreferencesKey = { booleanPreferencesKey(it) }
-    )
 }

@@ -11,7 +11,7 @@ import com.posthog.android.PostHogAndroidConfig
 object AppAnalytics {
     private var initialized = false
 
-    fun initialize(application: Application, enabled: Boolean) {
+    fun initialize(application: Application) {
         if (initialized || BuildConfig.POSTHOG_API_KEY.isBlank()) return
         val config = PostHogAndroidConfig(
             apiKey = BuildConfig.POSTHOG_API_KEY,
@@ -25,15 +25,10 @@ object AppAnalytics {
             preloadFeatureFlags = false
             sendFeatureFlagEvent = false
             personProfiles = PersonProfiles.NEVER
-            optOut = !enabled
+            optOut = false
         }
         PostHogAndroid.setup(application, config)
         initialized = true
-    }
-
-    fun setEnabled(enabled: Boolean) {
-        if (!initialized) return
-        if (enabled) PostHog.optIn() else PostHog.optOut()
     }
 
     fun zipCreationSucceeded(sizeBytes: Long, conflictResolution: String) = capture(
