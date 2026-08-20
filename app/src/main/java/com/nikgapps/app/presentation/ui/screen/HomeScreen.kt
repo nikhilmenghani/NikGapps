@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -43,10 +42,8 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -110,6 +107,7 @@ import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
+import com.nikgapps.app.presentation.ui.component.HomeUpdateIndicator
 import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.registry.catalogAndroidVersion
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
@@ -219,38 +217,11 @@ fun HomeScreen(navController: NavHostController) {
                 },
                 actions = {
                     if (!isLatestVersion) {
-                        Box(
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
-                        ) {
-                            IconButton(
-                                enabled = !isDownloading,
-                                onClick = { showUpdateChangelog = true },
-                                modifier = Modifier.align(Alignment.CenterStart)
-                            ) {
-                                if (isDownloading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Default.SystemUpdate,
-                                        contentDescription = "Update to version $latestVersion"
-                                    )
-                                }
-                            }
-                            if (!isDownloading) {
-                                Badge(
-                                    modifier = Modifier
-                                        .align(Alignment.TopStart)
-                                        .offset(x = 30.dp, y = 2.dp)
-                                ) {
-                                    Text("v$latestVersion")
-                                }
-                            }
-                        }
+                        HomeUpdateIndicator(
+                            latestVersion = latestVersion,
+                            isDownloading = isDownloading,
+                            onClick = { showUpdateChangelog = true }
+                        )
                     }
                     IconButton(onClick = context::restartActivity) {
                         Icon(Icons.Default.Refresh, contentDescription = "Restart")
