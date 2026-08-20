@@ -4,9 +4,11 @@ fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace(
 
 val postHogApiKey = providers.gradleProperty("POSTHOG_API_KEY")
     .orElse(providers.environmentVariable("POSTHOG_API_KEY"))
+    .map(String::trim)
     .orElse("")
 val postHogHost = providers.gradleProperty("POSTHOG_HOST")
     .orElse(providers.environmentVariable("POSTHOG_HOST"))
+    .map { it.trim().ifBlank { "https://us.i.posthog.com" } }
     .orElse("https://us.i.posthog.com")
 
 plugins {

@@ -82,6 +82,8 @@ jobs:
           DEV_KEYSTORE_PATH: ${{ runner.temp }}/nikgapps-dev.keystore
           DEV_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           DEV_KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
         run: |
           chmod +x ./gradlew
           ./gradlew assembleDebug --build-cache --parallel
