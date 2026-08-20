@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,6 +71,9 @@ import com.nikgapps.app.presentation.ui.component.containers.AppearancePreferenc
 import com.nikgapps.app.presentation.ui.component.containers.SystemPreferences
 import com.nikgapps.app.presentation.ui.component.dialogs.SingleChoiceDialog
 import com.nikgapps.app.presentation.ui.component.dialogs.SingleTextDialog
+import com.nikgapps.app.update.ChangelogDialog
+import com.nikgapps.app.update.ChangelogEntry
+import com.nikgapps.app.update.ChangelogRepository
 import kotlinx.coroutines.launch
 
 private enum class SettingsCategory(
@@ -98,6 +102,9 @@ fun SettingsScreen(navController: NavHostController) {
     }
     val pagerState = rememberPagerState(pageCount = { visibleCategories.size })
     var selectedPage by rememberSaveable { mutableIntStateOf(0) }
+    var showChangelog by remember { mutableStateOf(false) }
+    var changelogLoading by remember { mutableStateOf(false) }
+    var changelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     val useSideNavigation = LocalConfiguration.current.screenWidthDp >= 600
 
     LaunchedEffect(pagerState.currentPage) {
@@ -146,6 +153,14 @@ fun SettingsScreen(navController: NavHostController) {
     ) { paddingValues ->
         SingleChoiceDialog()
         SingleTextDialog()
+        if (showChangelog) {
+            ChangelogDialog(
+                title = "NikGapps changelog",
+                entries = changelog,
+                loading = changelogLoading,
+                onDismiss = { showChangelog = false }
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -185,6 +200,14 @@ fun SettingsScreen(navController: NavHostController) {
                                     Uri.parse("package:${context.packageName}")
                                 )
                             )
+                        },
+                        onChangelogClick = {
+                            showChangelog = true
+                            changelogLoading = true
+                            scope.launch {
+                                changelog = ChangelogRepository.fetch()
+                                changelogLoading = false
+                            }
                         }
                     )
                 }

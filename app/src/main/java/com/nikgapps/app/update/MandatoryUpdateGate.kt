@@ -54,6 +54,7 @@ fun MandatoryUpdateGate(
     val currentVersion = remember { getCurrentVersion(context) }
     var checking by remember(enabled) { mutableStateOf(enabled) }
     var latestVersion by remember(enabled) { mutableStateOf<String?>(null) }
+    var updateChangelog by remember(enabled) { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     var downloadId by remember { mutableStateOf<UUID?>(null) }
     var downloadState by remember { mutableStateOf<WorkInfo.State?>(null) }
 
@@ -62,6 +63,11 @@ fun MandatoryUpdateGate(
         checking = true
         val latest = VersionFetcher.fetchLatestVersion()
         latestVersion = latest.takeUnless { it == "Unknown" }
+        if (latestVersion != null && VersionFetcher.isNewer(latest, currentVersion)) {
+            updateChangelog = ChangelogRepository.between(
+                ChangelogRepository.fetch(), currentVersion, latest
+            )
+        }
         checking = false
     }
 
@@ -100,6 +106,7 @@ fun MandatoryUpdateGate(
                 checking = checking,
                 currentVersion = currentVersion,
                 latestVersion = latestVersion,
+                changelog = updateChangelog,
                 downloadState = downloadState,
                 onUpdate = {
                     val version = latestVersion ?: return@MandatoryUpdateScreen
@@ -120,11 +127,13 @@ private fun MandatoryUpdateScreen(
     checking: Boolean,
     currentVersion: String,
     latestVersion: String?,
+    changelog: List<ChangelogEntry>,
     downloadState: WorkInfo.State?,
     onUpdate: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    var showChangelog by remember { mutableStateOf(false) }
     val downloading = downloadState == WorkInfo.State.ENQUEUED || downloadState == WorkInfo.State.RUNNING
     Surface(
         modifier = Modifier.fillMaxSize().clickable(
@@ -164,6 +173,10 @@ private fun MandatoryUpdateScreen(
                     )
                     if (!checking) {
                         FilledTonalButton(
+                            onClick = { showChangelog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("What’s new") }
+                        FilledTonalButton(
                             onClick = onUpdate,
                             enabled = !downloading,
                             modifier = Modifier.fillMaxWidth()
@@ -175,5 +188,16 @@ private fun MandatoryUpdateScreen(
                 }
             }
         }
+    }
+    if (showChangelog) {
+        ChangelogDialog(
+            title = "What’s new in ${latestVersion.orEmpty()}",
+            entries = changelog,
+            onDismiss = { showChangelog = false },
+            onUpdate = {
+                showChangelog = false
+                onUpdate()
+            }
+        )
     }
 }

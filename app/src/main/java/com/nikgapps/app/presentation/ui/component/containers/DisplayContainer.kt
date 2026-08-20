@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Science
@@ -201,7 +202,8 @@ fun AdvancedPreferences() {
 fun SystemPreferences(
     versionName: String,
     onPermissionsClick: () -> Unit,
-    onAppSettingsClick: () -> Unit
+    onAppSettingsClick: () -> Unit,
+    onChangelogClick: () -> Unit
 ) {
     val context = LocalContext.current
     val dialog = globalClass.singleChoiceDialog
@@ -281,6 +283,12 @@ fun SystemPreferences(
             )
 
             PreferenceSubtitle(text = stringResource(R.string.settings_about))
+            PreferenceItem(
+                label = "Changelog",
+                supportingText = "See the complete NikGapps version history",
+                icon = Icons.Outlined.History,
+                onClick = onChangelogClick
+            )
             PreferenceItem(
                 label = stringResource(R.string.app_name),
                 supportingText = stringResource(R.string.settings_version, versionName),

@@ -115,6 +115,9 @@ import com.nikgapps.app.registry.catalogAndroidVersion
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.update.AppUpdateManager
+import com.nikgapps.app.update.ChangelogDialog
+import com.nikgapps.app.update.ChangelogEntry
+import com.nikgapps.app.update.ChangelogRepository
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
 import com.nikgapps.app.utils.network.VersionFetcher.isNewer
@@ -137,6 +140,8 @@ fun HomeScreen(navController: NavHostController) {
     var latestVersion by remember { mutableStateOf(currentVersion) }
     var isLatestVersion by remember { mutableStateOf(true) }
     var isDownloading by remember { mutableStateOf(false) }
+    var updateChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
+    var showUpdateChangelog by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val reachabilitySpace = (LocalConfiguration.current.screenHeightDp * 0.18f).dp
@@ -149,9 +154,17 @@ fun HomeScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         latestVersion = withContext(Dispatchers.IO) { fetchLatestVersion() }
         isLatestVersion = latestVersion == "Unknown" || !isNewer(latestVersion, currentVersion)
+        if (!isLatestVersion) {
+            updateChangelog = ChangelogRepository.between(
+                ChangelogRepository.fetch(),
+                installedVersion = currentVersion,
+                targetVersion = latestVersion
+            )
+        }
     }
 
     fun downloadUpdate() {
+        showUpdateChangelog = false
         isDownloading = true
         val destination = AppUpdateManager.downloadedApk(context, latestVersion)
         val workId = AppUpdateManager.enqueueDownload(
@@ -213,7 +226,7 @@ fun HomeScreen(navController: NavHostController) {
                         ) {
                             IconButton(
                                 enabled = !isDownloading,
-                                onClick = ::downloadUpdate,
+                                onClick = { showUpdateChangelog = true },
                                 modifier = Modifier.align(Alignment.CenterStart)
                             ) {
                                 if (isDownloading) {
@@ -324,6 +337,14 @@ fun HomeScreen(navController: NavHostController) {
                 }
             }
         }
+    }
+    if (showUpdateChangelog) {
+        ChangelogDialog(
+            title = "What’s new in $latestVersion",
+            entries = updateChangelog,
+            onDismiss = { showUpdateChangelog = false },
+            onUpdate = ::downloadUpdate
+        )
     }
 
     if (showCreateProject) {
