@@ -349,32 +349,82 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }) {
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
         }
-    }) }, floatingActionButton = {
+    }) }, bottomBar = {
         if (!searchVisible) {
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ExtendedFloatingActionButton(
-                onClick = { searchVisible = true },
-                icon = { Icon(Icons.Default.Search, null) },
-                text = { Text("Search apps") },
-                modifier = Modifier.width(168.dp).height(56.dp)
-            )
-            if (metadata != null && current.selectedAppIds.isNotEmpty()) {
-            ExtendedFloatingActionButton(onClick = {
-                if (!isOnline) {
-                    Toast.makeText(context, "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
-                    return@ExtendedFloatingActionButton
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    modifier = Modifier
+                        .widthIn(max = 448.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        onClick = { searchVisible = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Search, null, Modifier.size(24.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text("Search apps", style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        }
+                    }
+                    if (metadata != null && current.selectedAppIds.isNotEmpty()) {
+                        Surface(
+                            onClick = {
+                                if (!isOnline) {
+                                    Toast.makeText(
+                                        context,
+                                        "Internet connection is required before building the ZIP",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                } else {
+                                    AppDiagnostics.info(
+                                        "navigation",
+                                        "build_opened",
+                                        mapOf(
+                                            "project" to projectId.take(8),
+                                            "selected" to current.selectedAppIds.size
+                                        )
+                                    )
+                                    navController.navigate(buildZipRoute(projectId))
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tonalElevation = 2.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Inventory2, null, Modifier.size(24.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "Build ZIP · ${current.selectedAppIds.size}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
                 }
-                AppDiagnostics.info("navigation", "build_opened", mapOf("project" to projectId.take(8),
-                    "selected" to current.selectedAppIds.size))
-                navController.navigate(buildZipRoute(projectId))
-                },
-                icon = { Icon(Icons.Default.Inventory2, null) },
-                text = { Text("Build ZIP · ${current.selectedAppIds.size}") },
-                modifier = Modifier.width(168.dp).height(56.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-        }
         }
     }) { padding ->
         Box(Modifier.fillMaxSize()) {
@@ -529,7 +579,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 start = 16.dp,
                 top = 16.dp,
                 end = 16.dp,
-                bottom = if (searchVisible) maxOf(96.dp, keyboardClearance + 80.dp) else 96.dp
+                bottom = if (searchVisible) maxOf(96.dp, keyboardClearance + 80.dp) else 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {

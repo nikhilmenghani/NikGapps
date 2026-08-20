@@ -41,7 +41,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nikgapps.App.Companion.globalClass
-import com.nikgapps.BuildConfig
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
@@ -163,16 +162,6 @@ fun AdvancedPreferences() {
                     icon = Icons.Outlined.Science,
                     switchState = developerPreference.allowUnsupportedAndroidVersions,
                     onSwitchChange = { developerPreference.allowUnsupportedAndroidVersions = it }
-                )
-                PreferenceItem(
-                    label = "PostHog host",
-                    supportingText = BuildConfig.POSTHOG_HOST.ifBlank { "Not configured" },
-                    icon = Icons.Outlined.Science
-                )
-                PreferenceItem(
-                    label = "PostHog API key",
-                    supportingText = BuildConfig.POSTHOG_API_KEY.ifBlank { "Not configured" },
-                    icon = Icons.Outlined.Key
                 )
                 PreferenceItem(
                     label = "Hide developer options",
