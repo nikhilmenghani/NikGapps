@@ -14,7 +14,11 @@ class ZipPublisher(private val context: Context) {
 
     fun exists(fileName: String): Boolean = existingUri(fileName) != null
 
-    fun publish(source: File, conflictResolution: ConflictResolution = ConflictResolution.RENAME): String {
+    fun publish(
+        source: File,
+        packageCount: Int,
+        conflictResolution: ConflictResolution = ConflictResolution.RENAME
+    ): String {
         val fileName = when {
             !exists(source.name) -> source.name
             conflictResolution == ConflictResolution.REPLACE -> source.name
@@ -27,7 +31,9 @@ class ZipPublisher(private val context: Context) {
             source.inputStream().use { input -> output.outputStream().use(input::copyTo) }
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
-            AppAnalytics.zipCreationSucceeded(source.length(), conflictResolution.name.lowercase())
+            AppAnalytics.zipCreationSucceeded(
+                fileName, packageCount, source.length(), conflictResolution.name.lowercase()
+            )
             return output.absolutePath
         }
         if (conflictResolution == ConflictResolution.REPLACE) {
@@ -45,11 +51,13 @@ class ZipPublisher(private val context: Context) {
             values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0); resolver.update(uri, values, null, null)
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
-            AppAnalytics.zipCreationSucceeded(source.length(), conflictResolution.name.lowercase())
+            AppAnalytics.zipCreationSucceeded(
+                fileName, packageCount, source.length(), conflictResolution.name.lowercase()
+            )
             return "Downloads/NikGapps/$fileName"
         } catch (e: Exception) {
             AppDiagnostics.failure("publication", "failed", e, mapOf("file" to source.name))
-            AppAnalytics.zipCreationFailed(e)
+            AppAnalytics.zipCreationFailed(fileName, packageCount, source.length(), e)
             resolver.delete(uri, null, null); throw e
         }
     }

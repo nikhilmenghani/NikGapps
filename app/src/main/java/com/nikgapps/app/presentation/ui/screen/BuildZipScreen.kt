@@ -194,7 +194,9 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     releaseId = metadata.release?.id), artifacts) }
             log("Saving ${output.name} to Downloads/NikGapps…")
             operationLabel = "Saving ZIP to Downloads/NikGapps"
-            location = withContext(Dispatchers.IO) { ZipPublisher(context).publish(output) }
+            location = withContext(Dispatchers.IO) {
+                ZipPublisher(context).publish(output, project.selectedAppIds.size)
+            }
             LatestBuildRepository(context).save(projectId, location!!)
             output.delete()
             log("Build complete")
@@ -324,7 +326,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val source = pendingSource ?: return@TextButton
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) {
-                    ZipPublisher(context).publish(File(source), ZipPublisher.ConflictResolution.RENAME)
+                    ZipPublisher(context).publish(
+                        File(source), project?.selectedAppIds?.size ?: total,
+                        ZipPublisher.ConflictResolution.RENAME
+                    )
                 } }.onSuccess { saved ->
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
@@ -335,7 +340,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val source = pendingSource ?: return@TextButton
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) {
-                    ZipPublisher(context).publish(File(source), ZipPublisher.ConflictResolution.REPLACE)
+                    ZipPublisher(context).publish(
+                        File(source), project?.selectedAppIds?.size ?: total,
+                        ZipPublisher.ConflictResolution.REPLACE
+                    )
                 } }.onSuccess { saved ->
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE

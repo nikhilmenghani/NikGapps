@@ -289,7 +289,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                             releaseId = loaded.release?.id), artifacts)
                 }
-                val published = withContext(Dispatchers.IO) { ZipPublisher(context).publish(output) }
+                val published = withContext(Dispatchers.IO) {
+                    ZipPublisher(context).publish(output, current.selectedAppIds.size)
+                }
                 quota.recordSuccess()
                 output.delete()
                 progress = null; result = false to "Flashable ZIP created:\n$published"

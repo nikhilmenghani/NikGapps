@@ -92,7 +92,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 return Result.success(workDataOf(KEY_PENDING_SOURCE to output.absolutePath,
                     KEY_EXISTING_NAME to output.name))
             }
-            val location = publisher.publish(output)
+            val location = publisher.publish(output, project.selectedAppIds.size)
             quota.recordSuccess()
             LatestBuildRepository(applicationContext).save(projectId, location)
             output.delete()

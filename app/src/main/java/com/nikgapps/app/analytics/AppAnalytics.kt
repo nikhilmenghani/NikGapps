@@ -17,6 +17,7 @@ object AppAnalytics {
             apiKey = BuildConfig.POSTHOG_API_KEY,
             host = BuildConfig.POSTHOG_HOST
         ).apply {
+            debug = false
             captureApplicationLifecycleEvents = false
             captureScreenViews = false
             captureDeepLinks = false
@@ -31,17 +32,36 @@ object AppAnalytics {
         initialized = true
     }
 
-    fun zipCreationSucceeded(sizeBytes: Long, conflictResolution: String) = capture(
+    fun zipCreationSucceeded(
+        zipName: String,
+        packageCount: Int,
+        sizeBytes: Long,
+        conflictResolution: String
+    ) = capture(
         "zip_creation_succeeded",
         mapOf(
-            "size_mb" to sizeBytes / 1_048_576,
+            "zip_name" to zipName,
+            "package_count" to packageCount,
+            "size_bytes" to sizeBytes,
+            "size_mb" to sizeBytes.toDouble() / 1_048_576,
             "conflict_resolution" to conflictResolution
         )
     )
 
-    fun zipCreationFailed(error: Throwable) = capture(
+    fun zipCreationFailed(
+        zipName: String,
+        packageCount: Int,
+        sizeBytes: Long,
+        error: Throwable
+    ) = capture(
         "zip_creation_failed",
-        mapOf("error_type" to error::class.java.simpleName)
+        mapOf(
+            "zip_name" to zipName,
+            "package_count" to packageCount,
+            "size_bytes" to sizeBytes,
+            "size_mb" to sizeBytes.toDouble() / 1_048_576,
+            "error_type" to error::class.java.simpleName
+        )
     )
 
     private fun capture(event: String, properties: Map<String, Any>) {
