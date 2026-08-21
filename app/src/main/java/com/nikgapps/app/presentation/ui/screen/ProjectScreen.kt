@@ -2,7 +2,6 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.content.pm.PackageManager
 import android.os.Build
-import android.view.WindowManager
 import android.widget.Toast
 import android.text.format.DateFormat
 import androidx.activity.compose.LocalActivity
@@ -102,7 +101,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val searchFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val appsListState = rememberLazyListState()
-    val keyboardClearance = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
 
     LaunchedEffect(searchVisible) {
         if (searchVisible) {
@@ -201,16 +199,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 compareByDescending<CatalogPackage> { it.id in current.selectedAppIds }
                 else compareBy<CatalogPackage> { it.id in current.selectedAppIds })
                 .thenBy { it.name.lowercase() }.let(filtered::sortedWith)
-        }
-    }
-
-    DisposableEffect(searchVisible) {
-        if (!searchVisible) return@DisposableEffect onDispose { }
-        val window = context.window
-        val previousSoftInputMode = window.attributes.softInputMode
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-        onDispose {
-            window.setSoftInputMode(previousSoftInputMode)
         }
     }
 
@@ -427,6 +415,59 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     }
                 }
             }
+        } else {
+            Surface(
+                tonalElevation = 3.dp,
+                modifier = Modifier.imePadding()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    OutlinedTextField(
+                        value = searchInput,
+                        onValueChange = { searchInput = it },
+                        modifier = Modifier
+                            .widthIn(max = 448.dp)
+                            .fillMaxWidth()
+                            .focusRequester(searchFocusRequester),
+                        singleLine = true,
+                        shape = CircleShape,
+                        placeholder = { Text("Search apps") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                if (searchInput.text.isNotEmpty()) {
+                                    searchInput = TextFieldValue("")
+                                } else {
+                                    searchVisible = false
+                                    keyboard?.hide()
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    if (searchInput.text.isNotEmpty()) "Clear search" else "Close search"
+                                )
+                            }
+                        },
+                        supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
+                            Text("No apps match “${searchQuery.trim()}”")
+                        }} else null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+            }
         }
     }) { padding ->
         Box(Modifier.fillMaxSize()) {
@@ -581,7 +622,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 start = 16.dp,
                 top = 16.dp,
                 end = 16.dp,
-                bottom = if (searchVisible) maxOf(96.dp, keyboardClearance + 80.dp) else 16.dp
+                bottom = 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
@@ -685,52 +726,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     }
                 }
             }
-            }
-        }
-        AnimatedVisibility(
-            visible = searchVisible,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
-            enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
-            exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
-        ) {
-            Surface(shape = RoundedCornerShape(28.dp), tonalElevation = 6.dp, shadowElevation = 8.dp) {
-                OutlinedTextField(
-                    value = searchInput,
-                    onValueChange = { searchInput = it },
-                    modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-                    singleLine = true,
-                    shape = CircleShape,
-                    placeholder = { Text("Search apps") },
-                    leadingIcon = { Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary) },
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            if (searchInput.text.isNotEmpty()) {
-                                searchInput = TextFieldValue("")
-                            } else {
-                                searchVisible = false
-                                keyboard?.hide()
-                            }
-                        }) {
-                            Icon(
-                                Icons.Default.Close,
-                                if (searchInput.text.isNotEmpty()) "Clear search" else "Close search"
-                            )
-                        }
-                    },
-                    supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
-                        Text("No apps match “${searchQuery.trim()}”")
-                    }} else null,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
             }
         }
         }
