@@ -1,5 +1,8 @@
 # NikGapps changelog
 
+## 0.80.14
+- Performance Improvements
+
 ## 0.80.13
 - Fix the update icon showing weird badge with new update
 
