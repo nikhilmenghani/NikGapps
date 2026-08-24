@@ -17,7 +17,12 @@ object AppAnalytics {
             apiKey = BuildConfig.POSTHOG_API_KEY,
             host = BuildConfig.POSTHOG_HOST
         ).apply {
-            debug = false
+            debug = BuildConfig.DEBUG
+            if (BuildConfig.DEBUG) {
+                // Make locally tested events visible immediately instead of waiting for a batch.
+                flushAt = 1
+                flushIntervalSeconds = 1
+            }
             captureApplicationLifecycleEvents = false
             captureScreenViews = false
             captureDeepLinks = false
@@ -70,6 +75,9 @@ object AppAnalytics {
     }
 
     private fun capture(event: String, properties: Map<String, Any>) {
-        if (initialized) PostHog.capture(event = event, properties = properties)
+        if (initialized) {
+            PostHog.capture(event = event, properties = properties)
+            if (BuildConfig.DEBUG) PostHog.flush()
+        }
     }
 }
