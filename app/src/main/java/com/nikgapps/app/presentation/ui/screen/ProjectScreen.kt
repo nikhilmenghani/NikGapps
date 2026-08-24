@@ -300,6 +300,23 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }, actions = {
         IconButton(onClick = {
+            if (searchVisible) {
+                searchInput = TextFieldValue("")
+                searchVisible = false
+                keyboard?.hide()
+            } else {
+                searchVisible = true
+            }
+            sortExpanded = false
+            filterExpanded = false
+            notificationsExpanded = false
+        }) {
+            Icon(
+                if (searchVisible) Icons.Default.SearchOff else Icons.Default.Search,
+                if (searchVisible) "Close search" else "Search apps"
+            )
+        }
+        IconButton(onClick = {
             notificationsExpanded = !notificationsExpanded
             sortExpanded = false
             filterExpanded = false
@@ -340,7 +357,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
         }
     }) }, bottomBar = {
-        if (!searchVisible) {
+        if (metadata != null && current.selectedAppIds.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -355,117 +372,45 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        onClick = { searchVisible = true },
-                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            if (!isOnline) {
+                                Toast.makeText(
+                                    context,
+                                    "Internet connection is required before building the ZIP",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                AppDiagnostics.info(
+                                    "navigation",
+                                    "build_opened",
+                                    mapOf(
+                                        "project" to projectId.take(8),
+                                        "selected" to current.selectedAppIds.size
+                                    )
+                                )
+                                navController.navigate(buildZipRoute(projectId))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tonalElevation = 2.dp
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Search, null, Modifier.size(24.dp))
+                            Icon(Icons.Default.Inventory2, null, Modifier.size(24.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text("Search apps", style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            Text(
+                                "Build ZIP · ${current.selectedAppIds.size}",
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1
+                            )
                         }
                     }
-                    if (metadata != null && current.selectedAppIds.isNotEmpty()) {
-                        Surface(
-                            onClick = {
-                                if (!isOnline) {
-                                    Toast.makeText(
-                                        context,
-                                        "Internet connection is required before building the ZIP",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                } else {
-                                    AppDiagnostics.info(
-                                        "navigation",
-                                        "build_opened",
-                                        mapOf(
-                                            "project" to projectId.take(8),
-                                            "selected" to current.selectedAppIds.size
-                                        )
-                                    )
-                                    navController.navigate(buildZipRoute(projectId))
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            tonalElevation = 2.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Inventory2, null, Modifier.size(24.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(
-                                    "Build ZIP · ${current.selectedAppIds.size}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            Surface(
-                tonalElevation = 3.dp,
-                modifier = Modifier.imePadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    OutlinedTextField(
-                        value = searchInput,
-                        onValueChange = { searchInput = it },
-                        modifier = Modifier
-                            .widthIn(max = 448.dp)
-                            .fillMaxWidth()
-                            .focusRequester(searchFocusRequester),
-                        singleLine = true,
-                        shape = CircleShape,
-                        placeholder = { Text("Search apps") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                if (searchInput.text.isNotEmpty()) {
-                                    searchInput = TextFieldValue("")
-                                } else {
-                                    searchVisible = false
-                                    keyboard?.hide()
-                                }
-                            }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    if (searchInput.text.isNotEmpty()) "Clear search" else "Close search"
-                                )
-                            }
-                        },
-                        supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
-                            Text("No apps match “${searchQuery.trim()}”")
-                        }} else null,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
                 }
             }
         }
@@ -615,6 +560,51 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     }
                 }
             }
+            AnimatedVisibility(
+                visible = searchVisible,
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+            ) {
+                OutlinedTextField(
+                    value = searchInput,
+                    onValueChange = { searchInput = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .focusRequester(searchFocusRequester),
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    placeholder = { Text("Search apps") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, "Search apps", tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            if (searchInput.text.isNotEmpty()) {
+                                searchInput = TextFieldValue("")
+                            } else {
+                                searchVisible = false
+                                keyboard?.hide()
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Close,
+                                if (searchInput.text.isNotEmpty()) "Clear search" else "Close search"
+                            )
+                        }
+                    },
+                    supportingText = if (searchQuery.isNotBlank() && sortedPackages.isEmpty()) {{
+                        Text("No apps match “${searchQuery.trim()}”")
+                    }} else null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
             LazyColumn(
             state = appsListState,
             modifier = Modifier.fillMaxWidth().weight(1f),
@@ -624,15 +614,20 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 end = 16.dp,
                 bottom = 16.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
                 Text("Pick the apps you want to include in your build.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.fillMaxWidth().clickable { summaryExpanded = !summaryExpanded }) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AnimatedVisibility(
+                    visible = !searchVisible,
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                ) {
+                    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth().clickable { summaryExpanded = !summaryExpanded }) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null)
                             Spacer(Modifier.width(10.dp))
@@ -692,6 +687,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 }
                             }
                         }
+                        }
                     }
                 }
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
@@ -703,7 +699,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     val owner = owners.firstOrNull { it.id == current.selectedPackageAppSets[pkg.id] }
                         ?: owners.firstOrNull()
                     val deviceStatus = deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false)
-                    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                         ProjectPackageRow(pkg, deviceStatus, pkg.id in current.selectedAppIds,
                             onOpen = {
@@ -867,12 +863,13 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
     selected: Boolean, onOpen: () -> Unit, onSelected: (Boolean) -> Unit) {
     val version = pkg.versions.values.firstOrNull()
-    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(Modifier.size(48.dp), shape = RoundedCornerShape(16.dp),
+    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Surface(Modifier.size(42.dp), shape = RoundedCornerShape(14.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null) }
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(pkg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
