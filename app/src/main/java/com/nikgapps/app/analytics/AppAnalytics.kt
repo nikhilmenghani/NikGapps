@@ -64,6 +64,11 @@ object AppAnalytics {
         )
     )
 
+    /** Records a deliberately selected, anonymous product event. */
+    fun track(event: String, properties: Map<String, Any?> = emptyMap()) {
+        capture(event, properties.filterValues { it != null }.mapValues { it.value!! })
+    }
+
     private fun capture(event: String, properties: Map<String, Any>) {
         if (initialized) PostHog.capture(event = event, properties = properties)
     }

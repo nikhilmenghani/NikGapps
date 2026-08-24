@@ -19,6 +19,7 @@ import com.nikgapps.app.security.AppLock
 import com.nikgapps.app.security.canUseAppLock
 import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.update.UpdateActionReceiver
+import com.nikgapps.app.analytics.AppAnalytics
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.NotificationUtility
 import com.nikgapps.app.utils.worker.DownloadWorker
@@ -33,6 +34,10 @@ class MainActivity : ComponentActivity() {
         AppDiagnostics.info("app", "launched", mapOf(
             "version" to BuildConfig.VERSION_NAME,
             "androidApi" to Build.VERSION.SDK_INT
+        ))
+        AppAnalytics.track("app_launched", mapOf(
+            "app_version" to BuildConfig.VERSION_NAME,
+            "android_api" to Build.VERSION.SDK_INT
         ))
         if (Permissions.hasAllRequiredPermissions(this)) {
             setContent {
