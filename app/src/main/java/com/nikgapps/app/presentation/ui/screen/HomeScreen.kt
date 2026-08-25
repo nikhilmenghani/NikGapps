@@ -3,6 +3,7 @@ package com.nikgapps.app.presentation.ui.screen
 import android.os.Build
 import android.widget.Toast
 import com.nikgapps.app.network.LocalInternetAvailable
+import com.nikgapps.app.analytics.AppAnalytics
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -326,6 +327,10 @@ fun HomeScreen(navController: NavHostController) {
                 AppDiagnostics.info("project", "created", mapOf(
                     "project" to project.id.take(8),
                     "android" to project.androidVersion.displayName,
+                    "architecture" to project.architecture.value
+                ))
+                AppAnalytics.track("project_created", mapOf(
+                    "android_version" to project.androidVersion.displayName,
                     "architecture" to project.architecture.value
                 ))
                 showCreateProject = false

@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             "version" to BuildConfig.VERSION_NAME,
             "androidApi" to Build.VERSION.SDK_INT
         ))
-        AppAnalytics.track("app_launched", mapOf(
+        AppAnalytics.track("app_opened", mapOf(
             "app_version" to BuildConfig.VERSION_NAME,
             "android_api" to Build.VERSION.SDK_INT
         ))

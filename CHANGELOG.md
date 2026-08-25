@@ -1,5 +1,8 @@
 # NikGapps changelog
 
+## 0.80.15
+- Fixed the search UI breaking on some devices
+
 ## 0.80.14
 - Performance Improvements
 

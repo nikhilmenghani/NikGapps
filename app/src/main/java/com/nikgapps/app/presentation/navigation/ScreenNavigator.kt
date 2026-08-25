@@ -52,6 +52,7 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.network.InternetRequiredGate
 import com.nikgapps.app.update.MandatoryUpdateGate
 import com.nikgapps.app.utils.AppDiagnostics
+import com.nikgapps.app.analytics.AppAnalytics
 
 
 data class NavItem(
@@ -95,6 +96,13 @@ fun ScreenNavigator(
     LaunchedEffect(currentEntry) {
         currentEntry?.destination?.route?.let { route ->
             AppDiagnostics.info("navigation", "screen_opened", mapOf("screen" to route))
+            val screen = when (route) {
+                PROJECT_ROUTE -> "project"
+                APP_CONFIG_ROUTE -> "app_config"
+                BUILD_ZIP_ROUTE -> "build_zip"
+                else -> Screens.entries.firstOrNull { it.name == route }?.name?.lowercase() ?: "other"
+            }
+            AppAnalytics.track("app_screen_opened", mapOf("screen" to screen))
         }
     }
     InternetRequiredGate(

@@ -35,7 +35,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.nikgapps.app.analytics.AppAnalytics
 import com.nikgapps.app.data.*
 import com.nikgapps.app.presentation.navigation.appConfigRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
@@ -223,12 +222,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         save(current.copy(selectedAppIds = newSelection, selectedPackageAppSets = owners))
         AppDiagnostics.info("selection", "bulk_changed", mapOf("project" to projectId.take(8),
             "operation" to action, "before" to current.selectedAppIds.size, "after" to newSelection.size))
-        AppAnalytics.track("app_selection_bulk_changed", mapOf(
-            "operation" to action,
-            "before_count" to current.selectedAppIds.size,
-            "after_count" to newSelection.size,
-            "visible_app_count" to displayedPackages.size
-        ))
     }
     fun startBuild() {
         val loaded = metadata ?: return
@@ -308,18 +301,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }, actions = {
         IconButton(onClick = {
             if (searchVisible) {
-                AppAnalytics.track("app_search_closed", mapOf(
-                    "query_length" to searchInput.text.length,
-                    "result_count" to sortedPackages.size
-                ))
                 searchInput = TextFieldValue("")
                 searchVisible = false
                 keyboard?.hide()
             } else {
                 searchVisible = true
-                AppAnalytics.track("app_search_opened", mapOf(
-                    "available_app_count" to displayedPackages.size
-                ))
             }
             sortExpanded = false
             filterExpanded = false
@@ -360,7 +346,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             sortExpanded = !sortExpanded
             filterExpanded = false
             notificationsExpanded = false
-            AppAnalytics.track("app_sort_panel_toggled", mapOf("opened" to sortExpanded))
         }) {
             Icon(Icons.AutoMirrored.Filled.Sort, if (sortExpanded) "Close sort options" else "Sort apps")
         }
@@ -368,7 +353,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             filterExpanded = !filterExpanded
             sortExpanded = false
             notificationsExpanded = false
-            AppAnalytics.track("app_filter_panel_toggled", mapOf("opened" to filterExpanded))
         }) {
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
         }
@@ -404,12 +388,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         "selected" to current.selectedAppIds.size
                                     )
                                 )
-                                AppAnalytics.track("build_screen_opened", mapOf(
-                                    "selected_app_count" to current.selectedAppIds.size,
-                                    "android_api" to current.androidVersion.apiLevel,
-                                    "architecture" to current.architecture.value,
-                                    "channel" to current.defaultChannel
-                                ))
                                 navController.navigate(buildZipRoute(projectId))
                             }
                         },
@@ -464,10 +442,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 PackageSort.entries.forEachIndexed { index, option ->
                                     SegmentedButton(
                                         selected = packageSort == option,
-                                        onClick = {
-                                            packageSort = option
-                                            AppAnalytics.track("app_sort_changed", mapOf("sort" to option.name.lowercase()))
-                                        },
+                                        onClick = { packageSort = option },
                                         shape = SegmentedButtonDefaults.itemShape(index, PackageSort.entries.size)
                                     ) { Text(option.label, maxLines = 1) }
                                 }
@@ -476,12 +451,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 listOf(false to "Ascending", true to "Descending").forEachIndexed { index, (descending, label) ->
                                     SegmentedButton(
                                         selected = sortDescending == descending,
-                                        onClick = {
-                                            sortDescending = descending
-                                            AppAnalytics.track("app_sort_direction_changed", mapOf(
-                                                "direction" to if (descending) "descending" else "ascending"
-                                            ))
-                                        },
+                                        onClick = { sortDescending = descending },
                                         shape = SegmentedButtonDefaults.itemShape(index, 2)
                                     ) { Text(label) }
                                 }
@@ -489,10 +459,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         } else if (filterExpanded) {
                             FilterChip(
                                 selected = installedOnly,
-                                onClick = {
-                                    installedOnly = !installedOnly
-                                    AppAnalytics.track("app_filter_installed_changed", mapOf("enabled" to installedOnly))
-                                },
+                                onClick = { installedOnly = !installedOnly },
                                 label = { Text("Installed only") },
                                 leadingIcon = { Icon(Icons.Default.PhoneAndroid, null, Modifier.size(16.dp)) },
                                 modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -501,12 +468,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 SelectionFilter.entries.forEachIndexed { index, option ->
                                     SegmentedButton(
                                         selected = selectionFilter == option,
-                                        onClick = {
-                                            selectionFilter = option
-                                            AppAnalytics.track("app_filter_selection_changed", mapOf(
-                                                "filter" to option.name.lowercase()
-                                            ))
-                                        },
+                                        onClick = { selectionFilter = option },
                                         shape = SegmentedButtonDefaults.itemShape(index, SelectionFilter.entries.size)
                                     ) { Text(option.label, maxLines = 1) }
                                 }
@@ -583,10 +545,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                 FilledTonalButton(
-                                    onClick = {
-                                        metadataRefreshes++
-                                        AppAnalytics.track("app_catalog_refresh_requested")
-                                    },
+                                    onClick = { metadataRefreshes++ },
                                     enabled = isOnline && !metadataLoading,
                                     modifier = Modifier.height(40.dp),
                                     shape = CircleShape,
@@ -622,18 +581,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     trailingIcon = {
                         IconButton(onClick = {
                             if (searchInput.text.isNotEmpty()) {
-                                AppAnalytics.track("app_search_cleared", mapOf(
-                                    "query_length" to searchInput.text.length,
-                                    "result_count" to sortedPackages.size
-                                ))
                                 searchInput = TextFieldValue("")
                             } else {
                                 searchVisible = false
                                 keyboard?.hide()
-                                AppAnalytics.track("app_search_closed", mapOf(
-                                    "query_length" to 0,
-                                    "result_count" to sortedPackages.size
-                                ))
                             }
                         }) {
                             Icon(
@@ -762,14 +713,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 }
                                 AppDiagnostics.info("selection", if (enabled) "package_selected" else "package_cleared",
                                     mapOf("project" to projectId.take(8), "package" to pkg.id, "appSet" to owner?.id))
-                                AppAnalytics.track(
-                                    if (enabled) "app_selected" else "app_deselected",
-                                    mapOf(
-                                        "selected_app_count" to if (enabled) current.selectedAppIds.size + 1
-                                            else (current.selectedAppIds.size - 1).coerceAtLeast(0),
-                                        "installed" to deviceStatus.installed
-                                    )
-                                )
                                 save(current.copy(
                                     selectedAppSetId = owner?.id ?: current.selectedAppSetId,
                                     selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
