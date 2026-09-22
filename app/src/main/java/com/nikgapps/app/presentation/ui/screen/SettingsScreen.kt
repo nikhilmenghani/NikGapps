@@ -65,7 +65,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
 import com.nikgapps.PermissionsActivity
 import com.nikgapps.R
 import com.nikgapps.App.Companion.globalClass
@@ -95,7 +94,7 @@ private enum class SettingsCategory(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavHostController) {
+fun SettingsScreen(onBack: () -> Unit, startOnAccount: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val versionName = remember(context) {
@@ -105,8 +104,9 @@ fun SettingsScreen(navController: NavHostController) {
     val visibleCategories = SettingsCategory.entries.filter {
         it.isApplicable(developerOptionsEnabled)
     }
-    val pagerState = rememberPagerState(pageCount = { visibleCategories.size })
-    var selectedPage by rememberSaveable { mutableIntStateOf(0) }
+    val initialPage = if (startOnAccount) visibleCategories.indexOf(SettingsCategory.ACCOUNT) else 0
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { visibleCategories.size })
+    var selectedPage by rememberSaveable { mutableIntStateOf(initialPage) }
     var showChangelog by remember { mutableStateOf(false) }
     var changelogLoading by remember { mutableStateOf(false) }
     var changelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
@@ -137,7 +137,7 @@ fun SettingsScreen(navController: NavHostController) {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -189,7 +189,7 @@ fun SettingsScreen(navController: NavHostController) {
             ) { page ->
                 when (visibleCategories[page]) {
                     SettingsCategory.APPEARANCE -> AppearancePreferences()
-                    SettingsCategory.ACCOUNT -> AccountPreferences()
+                    SettingsCategory.ACCOUNT -> AccountPreferences(showSignInHint = startOnAccount)
                     SettingsCategory.ADVANCED -> AdvancedPreferences()
                     SettingsCategory.SYSTEM -> SystemPreferences(
                         versionName = versionName,

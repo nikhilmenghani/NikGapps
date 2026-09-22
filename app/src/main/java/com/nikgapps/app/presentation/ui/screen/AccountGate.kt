@@ -6,18 +6,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,13 +27,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.nikgapps.R
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
-import com.nikgapps.app.presentation.ui.component.containers.GitHubTokenEntry
 
 @Composable
-fun AccountGate() {
+fun AccountGate(onOpenSettings: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(
-        modifier = Modifier.fillMaxSize().background(colors.background).imePadding().padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(colors.background).padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -63,34 +60,22 @@ fun AccountGate() {
                 tonalElevation = 1.dp
             ) {
                 Column(Modifier.padding(24.dp)) {
-                    Text("Sign in with a token", style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Enter your GitHub personal access token to continue.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.onSurfaceVariant)
-                    Spacer(Modifier.height(16.dp))
-                    GitHubTokenEntry(showExplanation = false)
-                    Spacer(Modifier.height(24.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HorizontalDivider(Modifier.weight(1f))
-                        Text("  or  ", color = colors.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium)
-                        HorizontalDivider(Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(24.dp))
-                    Text("Sign in with GitHub", style = MaterialTheme.typography.titleMedium,
+                    Text("Sign in with GitHub", style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
                     Text("Authorize in your browser with a one-time code.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.onSurfaceVariant)
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
                     GitHubAccountPreference(asSignInButton = true)
                 }
             }
             Spacer(Modifier.height(24.dp))
-            Text("Your GitHub password is never entered in NikGapps.",
+            OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                Text("Settings · add a personal access token")
+            }
+            Spacer(Modifier.height(12.dp))
+            Text("You can add a token in Settings to sign in instead.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
                 textAlign = TextAlign.Center)

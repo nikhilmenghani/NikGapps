@@ -10,7 +10,6 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,26 +29,20 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun GitHubTokenPreference(asSignInButton: Boolean = false) {
+fun GitHubTokenPreference() {
     var dialogOpen by remember { mutableStateOf(false) }
-    if (asSignInButton) {
-        OutlinedButton(onClick = { dialogOpen = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Use a personal access token")
-        }
-    } else {
-        PreferenceItem(
-            label = "GitHub token",
-            supportingText = if (GithubPrefs.token.isBlank()) "Not configured" else "Connected as ${GithubPrefs.username}",
-            icon = Icons.Outlined.Key,
-            onClick = { dialogOpen = true }
-        )
-    }
+    PreferenceItem(
+        label = "GitHub token",
+        supportingText = if (GithubPrefs.token.isBlank()) "Not configured" else "Connected as ${GithubPrefs.username}",
+        icon = Icons.Outlined.Key,
+        onClick = { dialogOpen = true }
+    )
 
     if (dialogOpen) {
         AlertDialog(
             onDismissRequest = { dialogOpen = false },
-            title = { Text("Sign in with a GitHub token") },
-            text = { GitHubTokenEntry(onSignedIn = { dialogOpen = false }) },
+            title = { Text("GitHub token") },
+            text = { GitHubTokenEntry(onSaved = { dialogOpen = false }) },
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { dialogOpen = false }) { Text("Cancel") }
@@ -59,16 +52,14 @@ fun GitHubTokenPreference(asSignInButton: Boolean = false) {
 }
 
 @Composable
-fun GitHubTokenEntry(onSignedIn: () -> Unit = {}, showExplanation: Boolean = true) {
-    var token by remember { mutableStateOf("") }
+private fun GitHubTokenEntry(onSaved: () -> Unit) {
+    var token by remember { mutableStateOf(GithubPrefs.token) }
     var verifying by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (showExplanation) {
-            Text("Paste a GitHub personal access token. NikGapps will verify it before continuing.")
-        }
+        Text("Paste a token to connect. Clear the field and save to sign out.")
         OutlinedTextField(
             value = token,
             onValueChange = { token = it; error = null },
@@ -81,15 +72,21 @@ fun GitHubTokenEntry(onSignedIn: () -> Unit = {}, showExplanation: Boolean = tru
         Button(
             onClick = {
                 val candidate = token.trim()
-                verifying = true
                 error = null
+                if (candidate.isEmpty()) {
+                    GithubPrefs.token = ""
+                    GithubPrefs.username = ""
+                    onSaved()
+                    return@Button
+                }
+                verifying = true
                 scope.launch {
                     try {
                         val login = GitHubDeviceAuth.account(candidate)
                         GithubPrefs.token = candidate
                         GithubPrefs.username = login
                         token = ""
-                        onSignedIn()
+                        onSaved()
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (failure: Exception) {
@@ -99,11 +96,11 @@ fun GitHubTokenEntry(onSignedIn: () -> Unit = {}, showExplanation: Boolean = tru
                     }
                 }
             },
-            enabled = token.trim().isNotEmpty() && !verifying,
+            enabled = !verifying,
             modifier = Modifier.fillMaxWidth()
         ) {
             if (verifying) CircularProgressIndicator(modifier = Modifier.size(18.dp).padding(end = 2.dp), strokeWidth = 2.dp)
-            Text("Verify and continue")
+            Text("Save token")
         }
     }
 }

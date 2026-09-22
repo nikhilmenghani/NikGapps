@@ -1,6 +1,8 @@
 package com.nikgapps.app.presentation.navigation
 
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -21,7 +23,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
@@ -93,9 +99,23 @@ val excludedScreens = listOf(
 fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
 ) {
-    if (GithubPrefs.token.isBlank() || GithubPrefs.username.isBlank()) {
-        AccountGate()
+    var showSignInSettings by rememberSaveable { mutableStateOf(false) }
+    val signedIn = GithubPrefs.token.isNotBlank() && GithubPrefs.username.isNotBlank()
+    LaunchedEffect(signedIn) {
+        if (signedIn) showSignInSettings = false
+    }
+    if (!signedIn) {
+        BackHandler(enabled = showSignInSettings) { showSignInSettings = false }
+        if (showSignInSettings) {
+            SettingsScreen(onBack = { showSignInSettings = false }, startOnAccount = true)
+        } else {
+            AccountGate(onOpenSettings = { showSignInSettings = true })
+        }
         return
+    }
+    val context = LocalContext.current
+    LaunchedEffect(GithubPrefs.username) {
+        Toast.makeText(context, "Welcome, ${GithubPrefs.username}!", Toast.LENGTH_SHORT).show()
     }
     val navController: NavHostController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -199,7 +219,7 @@ fun NavigationHost(
             AppsScreen()
         }
         composable(route = Screens.Settings.name) {
-            SettingsScreen(navController = navController)
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(route = Screens.Logs.name) {
             LogsScreen()

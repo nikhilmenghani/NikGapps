@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -179,12 +181,24 @@ fun AdvancedPreferences() {
 }
 
 @Composable
-fun AccountPreferences() {
+fun AccountPreferences(showSignInHint: Boolean = false) {
     SettingsPage {
         Container(title = "Account", initiallyExpanded = true) {
             PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
-            GitHubAccountPreference()
-            GitHubTokenPreference()
+            if (showSignInHint) {
+                Text(
+                    "Enter your GitHub personal access token below and tap Save token to continue.",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                GitHubTokenPreference()
+                PreferenceSubtitle(text = "Or sign in with GitHub")
+                GitHubAccountPreference()
+            } else {
+                GitHubAccountPreference()
+                GitHubTokenPreference()
+            }
         }
     }
 }
