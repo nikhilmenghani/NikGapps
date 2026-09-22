@@ -10,6 +10,10 @@ val postHogHost = providers.gradleProperty("POSTHOG_HOST")
     .orElse(providers.environmentVariable("POSTHOG_HOST"))
     .map { it.trim().ifBlank { "https://us.i.posthog.com" } }
     .orElse("https://us.i.posthog.com")
+val githubClientId = providers.gradleProperty("NIKGAPPS_CLIENT_ID")
+    .orElse(providers.environmentVariable("NIKGAPPS_CLIENT_ID"))
+    .map(String::trim)
+    .orElse("")
 
 plugins {
     id("com.android.application")
@@ -47,6 +51,7 @@ android {
         versionName = "1.0"
         buildConfigField("String", "POSTHOG_API_KEY", postHogApiKey.get().asBuildConfigString())
         buildConfigField("String", "POSTHOG_HOST", postHogHost.get().asBuildConfigString())
+        buildConfigField("String", "GITHUB_CLIENT_ID", githubClientId.get().asBuildConfigString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true

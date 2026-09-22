@@ -174,8 +174,11 @@ fun AdvancedPreferences() {
                     }
                 )
 
-                PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
-                PreferenceItem(
+            }
+
+            PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
+            GitHubAccountPreference()
+            PreferenceItem(
                     label = stringResource(R.string.settings_github_token),
                     supportingText = if (githubPreference.token.isBlank()) {
                         stringResource(R.string.settings_not_configured)
@@ -188,11 +191,13 @@ fun AdvancedPreferences() {
                             title = globalClass.getString(R.string.settings_github_token),
                             description = globalClass.getString(R.string.settings_github_token_description),
                             text = githubPreference.token,
-                            onConfirm = { githubPreference.token = it.trim() }
+                            onConfirm = {
+                                githubPreference.token = it.trim()
+                                githubPreference.username = ""
+                            }
                         )
                     }
-                )
-            }
+            )
         }
     }
 }
