@@ -11,7 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.InstalledAppInfo
 import com.nikgapps.app.presentation.ui.component.cards.AppCard

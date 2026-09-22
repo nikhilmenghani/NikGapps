@@ -120,6 +120,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling.preview.android)
     implementation(libs.androidx.appcompat)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.libsu)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
