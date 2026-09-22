@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -226,6 +228,12 @@ private fun SettingsBottomNavigation(
     currentCategory: SettingsCategory,
     onCategorySelected: (SettingsCategory) -> Unit
 ) {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(currentCategory, categories.size) {
+        scrollState.animateScrollTo(
+            if (currentCategory == categories.last()) scrollState.maxValue else 0
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -235,18 +243,17 @@ private fun SettingsBottomNavigation(
         Row(
             modifier = Modifier
                 .widthIn(max = 448.dp)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
                 .animateContentSize(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             categories.forEach { category ->
                 SettingsNavigationItem(
                     category = category,
                     selected = currentCategory == category,
                     onClick = { onCategorySelected(category) },
-                    modifier = if (currentCategory == category) Modifier.weight(1f)
-                    else Modifier.width(64.dp)
+                    modifier = Modifier.width(if (currentCategory == category) 144.dp else 56.dp)
                 )
             }
         }
@@ -310,7 +317,7 @@ private fun SettingsNavigationItem(
         tonalElevation = if (selected) 2.dp else 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -318,7 +325,7 @@ private fun SettingsNavigationItem(
                 imageVector = category.icon,
                 contentDescription = if (selected || alwaysShowLabel) null
                 else stringResource(category.titleRes),
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp)
             )
             AnimatedVisibility(
                 visible = selected || alwaysShowLabel,
@@ -327,7 +334,7 @@ private fun SettingsNavigationItem(
             ) {
                 Text(
                     text = stringResource(category.titleRes),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1
