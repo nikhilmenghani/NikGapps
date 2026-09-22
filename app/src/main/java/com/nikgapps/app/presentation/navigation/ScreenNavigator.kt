@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +49,7 @@ import com.nikgapps.app.presentation.ui.screen.BuildZipScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
+import com.nikgapps.app.presentation.ui.screen.PullRequestsScreen
 import com.nikgapps.app.presentation.ui.screen.ProjectScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
@@ -70,11 +72,12 @@ data class NavItem(
 
 val listOfNavItems = listOf(
     NavItem("Home", Icons.Default.Home, Screens.Home.name),
+    NavItem("Requests", Icons.Default.AccountTree, Screens.Requests.name),
     NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name)
 )
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps, Logs, Install, Project
+    Home, Profile, Download, Settings, Apps, Requests, Logs, Install, Project
 }
 
 const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
@@ -247,6 +250,9 @@ fun NavigationHost(
         }
         composable(route = Screens.Logs.name) {
             LogsScreen()
+        }
+        composable(route = Screens.Requests.name) {
+            PullRequestsScreen()
         }
         composable(route = PROJECT_ROUTE, arguments = listOf(
             navArgument("build") { type = NavType.BoolType; defaultValue = false }
