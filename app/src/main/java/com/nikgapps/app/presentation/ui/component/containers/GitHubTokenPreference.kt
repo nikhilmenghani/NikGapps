@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.AlertDialog
@@ -23,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.nikgapps.app.data.GithubPrefs
@@ -31,7 +28,6 @@ import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 @Composable
 fun GitHubTokenPreference(asSignInButton: Boolean = false) {
@@ -68,7 +64,6 @@ fun GitHubTokenEntry(onSignedIn: () -> Unit = {}, showExplanation: Boolean = tru
     var verifying by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val fieldBringIntoView = remember { BringIntoViewRequester() }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (showExplanation) {
@@ -81,15 +76,6 @@ fun GitHubTokenEntry(onSignedIn: () -> Unit = {}, showExplanation: Boolean = tru
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
-                .bringIntoViewRequester(fieldBringIntoView)
-                .onFocusChanged { state ->
-                    if (state.isFocused) {
-                        scope.launch {
-                            delay(300)
-                            fieldBringIntoView.bringIntoView()
-                        }
-                    }
-                }
         )
         error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
         Button(
