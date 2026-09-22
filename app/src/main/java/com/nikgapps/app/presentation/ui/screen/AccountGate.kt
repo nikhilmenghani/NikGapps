@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -22,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,28 +37,31 @@ import com.nikgapps.app.presentation.ui.component.containers.GitHubTokenEntry
 @Composable
 fun AccountGate() {
     val colors = MaterialTheme.colorScheme
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Box(
-        modifier = Modifier.fillMaxSize().background(colors.background).padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(colors.background).imePadding().padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier.widthIn(max = 440.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Image(
-                painter = painterResource(R.drawable.nikgapps_logo),
-                contentDescription = "NikGapps",
-                modifier = Modifier.size(88.dp)
-            )
-            Spacer(Modifier.height(24.dp))
-            Text("Welcome to NikGapps", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                color = colors.onBackground)
-            Spacer(Modifier.height(8.dp))
-            Text("Sign in with GitHub to get started.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(32.dp))
+            if (!imeVisible) {
+                Image(
+                    painter = painterResource(R.drawable.nikgapps_logo),
+                    contentDescription = "NikGapps",
+                    modifier = Modifier.size(88.dp)
+                )
+                Spacer(Modifier.height(24.dp))
+                Text("Welcome to NikGapps", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                    color = colors.onBackground)
+                Spacer(Modifier.height(8.dp))
+                Text("Sign in with GitHub to get started.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(32.dp))
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -88,11 +95,13 @@ fun AccountGate() {
                     GitHubTokenEntry(showExplanation = false)
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Your GitHub password is never entered in NikGapps.",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-                textAlign = TextAlign.Center)
+            if (!imeVisible) {
+                Spacer(Modifier.height(24.dp))
+                Text("Your GitHub password is never entered in NikGapps.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center)
+            }
         }
     }
 }
