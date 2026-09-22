@@ -1,7 +1,6 @@
 package com.nikgapps.app.presentation.navigation
 
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -27,7 +26,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
@@ -112,10 +110,6 @@ fun ScreenNavigator(
             AccountGate(onOpenSettings = { showSignInSettings = true })
         }
         return
-    }
-    val context = LocalContext.current
-    LaunchedEffect(GithubPrefs.username) {
-        Toast.makeText(context, "Welcome, ${GithubPrefs.username}!", Toast.LENGTH_SHORT).show()
     }
     val navController: NavHostController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()

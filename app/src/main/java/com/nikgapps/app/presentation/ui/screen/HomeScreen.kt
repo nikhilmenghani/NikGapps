@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -103,6 +104,7 @@ import com.nikgapps.app.data.AndroidVersion
 import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
+import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import com.nikgapps.app.presentation.navigation.Screens
@@ -245,12 +247,10 @@ fun HomeScreen(navController: NavHostController) {
         }
     ) { paddingValues ->
         if (projects.isEmpty()) {
-            EmptyProjects(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(32.dp)
-            )
+            Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
+                WelcomeCard(GithubPrefs.username)
+                EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
+            }
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -259,6 +259,7 @@ fun HomeScreen(navController: NavHostController) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item { WelcomeCard(GithubPrefs.username) }
                 item {
                     Box(Modifier.fillMaxWidth().height(reachabilitySpace), contentAlignment = Alignment.Center) {
                         Text("Projects", style = MaterialTheme.typography.headlineLarge)
@@ -372,6 +373,28 @@ fun HomeScreen(navController: NavHostController) {
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun WelcomeCard(username: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Welcome, $username", style = MaterialTheme.typography.titleLarge)
+                Text("Signed in with GitHub", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 
