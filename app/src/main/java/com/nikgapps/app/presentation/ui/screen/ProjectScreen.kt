@@ -42,6 +42,7 @@ import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.network.LocalInternetAvailable
+import com.nikgapps.app.utils.network.GitHubBuildAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -238,6 +239,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
         scope.launch {
             try {
+                GitHubBuildAuth.requireAuthenticated()
                 progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
                 val defaultChannel = ReleaseChannel.valueOf(current.defaultChannel.uppercase())
                 val overrides = current.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
@@ -269,6 +271,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     if (!pkg.hidden) completedVisible++
                 }
                 progress = ZipBuildProgress(visibleTotal, visibleTotal, "Assembling the flashable ZIP…")
+                GitHubBuildAuth.requireAuthenticated()
                 val output = withContext(Dispatchers.IO) {
                     RegistryZipAssembler(AndroidBuilderAssetSource(context, requireNotNull(registry).builderAssets)).build(
                         File(context.cacheDir, "zip-builds"), BuildRequest(current.androidVersion.displayName,
@@ -276,6 +279,12 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets,
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                             releaseId = loaded.release?.id), artifacts)
+                }
+                try {
+                    GitHubBuildAuth.requireAuthenticated()
+                } catch (error: Exception) {
+                    output.delete()
+                    throw error
                 }
                 val published = withContext(Dispatchers.IO) {
                     ZipPublisher(context).publish(output, current.selectedAppIds.size)

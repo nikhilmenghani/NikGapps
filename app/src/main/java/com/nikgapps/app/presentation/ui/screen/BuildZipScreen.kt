@@ -35,6 +35,7 @@ import com.nikgapps.app.data.*
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.worker.BuildZipWorker
+import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.network.LocalInternetAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,6 +58,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var operationProgress by remember { mutableStateOf<Float?>(null) }
     var operationLabel by remember { mutableStateOf("Preparing build") }
     var retryKey by remember { mutableIntStateOf(0) }
+    var authFailure by remember { mutableStateOf(false) }
     var confirmClearCache by remember { mutableStateOf(false) }
     var pendingSource by remember { mutableStateOf<String?>(null) }
     var existingName by remember { mutableStateOf<String?>(null) }
@@ -82,6 +84,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
 
     LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex) }
     LaunchedEffect(workInfo?.state, workInfo?.progress, workInfo?.outputData) {
+        if (authFailure) return@LaunchedEffect
         val info = workInfo ?: return@LaunchedEffect
         BuildZipWorker.logFile(context, projectId).takeIf(File::isFile)?.readLines()?.let {
             logs.clear(); logs.addAll(it)
@@ -104,6 +107,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 }
             }
             WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> {
+                authFailure = info.outputData.getBoolean(BuildZipWorker.KEY_AUTH_ERROR, false)
                 info.outputData.getString(BuildZipWorker.KEY_ERROR)?.let { if (logs.lastOrNull() != it) logs += it }
                 stage = BuildStage.FAILED
             }
@@ -112,6 +116,20 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
     BackHandler(enabled = stage == BuildStage.RUNNING) { }
     LaunchedEffect(projectId, retryKey) {
+        stage = BuildStage.RUNNING
+        authFailure = false
+        operationLabel = "Verifying GitHub account"
+        if (retryKey > 0) logs.clear()
+        try {
+            GitHubBuildAuth.requireAuthenticated()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            authFailure = true
+            stage = BuildStage.FAILED
+            log(failure.message ?: "GitHub sign-in is required before building a ZIP")
+            return@LaunchedEffect
+        }
         if (!isOnline) {
             stage = BuildStage.FAILED
             log("Internet connection is required before building the ZIP")
@@ -244,10 +262,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     }
                     BuildStage.FAILED -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
                         OutlinedButton(onClick = navController::navigateUp) { Text("Back") }
-                        Button(onClick = { confirmClearCache = true }) {
-                            Icon(Icons.Default.DeleteSweep, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("Clear cache & rebuild")
+                        Button(onClick = {
+                            if (authFailure) retryKey++ else confirmClearCache = true
+                        }) {
+                            if (!authFailure) {
+                                Icon(Icons.Default.DeleteSweep, null)
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(if (authFailure) "Retry verification" else "Clear cache & rebuild")
                         }
                     }
                 }

@@ -14,7 +14,9 @@ import com.nikgapps.R
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.BuildQuotaRepository
+import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.registry.*
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.util.Date
 
@@ -25,6 +27,14 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         setForeground(foreground("Preparing build", 0, 0))
         logFile.parentFile?.mkdirs(); logFile.writeText("")
+        try {
+            progress("Verifying GitHub account", 0, 0)
+            GitHubBuildAuth.requireAuthenticated()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            return authFailure(error.message ?: "GitHub sign-in is required before building a ZIP.")
+        }
         val project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
@@ -73,6 +83,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 progress("Prepared ${pkg.catalogPackage.name}", completed, visibleTotal)
             }
             progress("Assembling flashable ZIP", completed, visibleTotal)
+            GitHubBuildAuth.requireAuthenticated()
             val primarySet = metadata.appSets.appSets.firstOrNull { it.id == project.selectedAppSetId }
                 ?: metadata.appSets.appSets.first()
             val output = RegistryZipAssembler(AndroidBuilderAssetSource(applicationContext, metadata.builderAssets)).build(
@@ -84,6 +95,12 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id
                 ), artifacts)
+            try {
+                GitHubBuildAuth.requireAuthenticated()
+            } catch (error: Exception) {
+                output.delete()
+                throw error
+            }
             progress("Saving ZIP to Downloads/NikGapps", completed, visibleTotal)
             val publisher = ZipPublisher(applicationContext)
             if (publisher.exists(output.name)) {
@@ -98,7 +115,12 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             output.delete()
             log("Build complete")
             Result.success(workDataOf(KEY_LOCATION to location))
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
+            if (error is GitHubBuildAuth.AuthException) {
+                return authFailure(error.message ?: "GitHub sign-in is required before building a ZIP.")
+            }
             failure("Build failed: ${error.message ?: "Unknown error"}", error)
         }
     }
@@ -118,6 +140,12 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
     private fun failure(message: String, error: Throwable? = null): Result {
         log(message)
         return Result.failure(workDataOf(KEY_ERROR to message, KEY_LOG_VERSION to logFile.length()))
+    }
+
+    private fun authFailure(message: String): Result {
+        log(message)
+        return Result.failure(workDataOf(KEY_ERROR to message, KEY_AUTH_ERROR to true,
+            KEY_LOG_VERSION to logFile.length()))
     }
 
     private fun foreground(label: String, completed: Int, total: Int): ForegroundInfo {
@@ -143,6 +171,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         const val KEY_PERCENT = "percent"
         const val KEY_LOCATION = "location"
         const val KEY_ERROR = "error"
+        const val KEY_AUTH_ERROR = "auth_error"
         const val KEY_LOG_VERSION = "log_version"
         const val KEY_PENDING_SOURCE = "pending_source"
         const val KEY_EXISTING_NAME = "existing_name"
