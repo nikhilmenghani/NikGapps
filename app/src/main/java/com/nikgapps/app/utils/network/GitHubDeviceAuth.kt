@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit
 
 /** GitHub OAuth device flow; the client ID is public, while tokens remain on the device. */
 object GitHubDeviceAuth {
+    data class AccountProfile(val login: String, val avatarUrl: String)
+
     data class Challenge(
         val deviceCode: String,
         val userCode: String,
@@ -66,7 +68,7 @@ object GitHubDeviceAuth {
         throw IOException("GitHub sign-in code expired. Try again.")
     }
 
-    suspend fun account(token: String): String = withContext(Dispatchers.IO) {
+    suspend fun accountProfile(token: String): AccountProfile = withContext(Dispatchers.IO) {
         val request = Request.Builder().url("https://api.github.com/user")
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github+json")
@@ -74,7 +76,8 @@ object GitHubDeviceAuth {
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("GitHub account verification failed (${response.code}).")
-            JSONObject(response.body?.string().orEmpty()).getString("login")
+            val account = JSONObject(response.body?.string().orEmpty())
+            AccountProfile(account.getString("login"), account.optString("avatar_url"))
         }
     }
 

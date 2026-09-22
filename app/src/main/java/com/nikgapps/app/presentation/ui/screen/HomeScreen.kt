@@ -81,9 +81,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
@@ -105,6 +107,7 @@ import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import com.nikgapps.app.presentation.navigation.Screens
@@ -127,6 +130,8 @@ import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import coil.compose.SubcomposeAsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -151,6 +156,18 @@ fun HomeScreen(navController: NavHostController) {
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
+
+    LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
+        if (GithubPrefs.avatarUrl.isBlank() && GithubPrefs.token.isNotBlank()) {
+            try {
+                GithubPrefs.avatarUrl = GitHubDeviceAuth.accountProfile(GithubPrefs.token).avatarUrl
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the fallback icon when the account lookup is unavailable.
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         latestVersion = withContext(Dispatchers.IO) { fetchLatestVersion() }
@@ -389,7 +406,18 @@ private fun WelcomeCard(username: String) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(28.dp))
+            if (GithubPrefs.avatarUrl.isBlank()) {
+                Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
+            } else {
+                SubcomposeAsyncImage(
+                    model = GithubPrefs.avatarUrl,
+                    contentDescription = "$username's GitHub profile picture",
+                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    loading = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
+                    error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
+                )
+            }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
                 Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)

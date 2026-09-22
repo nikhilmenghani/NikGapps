@@ -157,15 +157,17 @@ private fun GitHubTokenEntry(onSaved: () -> Unit, focusRequester: FocusRequester
                 if (candidate.isEmpty()) {
                     GithubPrefs.token = ""
                     GithubPrefs.username = ""
+                    GithubPrefs.avatarUrl = ""
                     onSaved()
                     return@Button
                 }
                 verifying = true
                 scope.launch {
                     try {
-                        val login = GitHubDeviceAuth.account(candidate)
+                        val profile = GitHubDeviceAuth.accountProfile(candidate)
                         GithubPrefs.token = candidate
-                        GithubPrefs.username = login
+                        GithubPrefs.username = profile.login
+                        GithubPrefs.avatarUrl = profile.avatarUrl
                         token = ""
                         onSaved()
                     } catch (cancelled: CancellationException) {

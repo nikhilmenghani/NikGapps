@@ -78,12 +78,13 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             val active = challenge ?: return@LaunchedEffect
             try {
                 val token = GitHubDeviceAuth.awaitToken(clientId, active)
-                val login = GitHubDeviceAuth.account(token)
+                val profile = GitHubDeviceAuth.accountProfile(token)
                 GithubPrefs.token = token
-                GithubPrefs.username = login
+                GithubPrefs.username = profile.login
+                GithubPrefs.avatarUrl = profile.avatarUrl
                 dialogOpen = false
                 challenge = null
-                Toast.makeText(context, "Signed in to GitHub as $login", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Signed in to GitHub as ${profile.login}", Toast.LENGTH_SHORT).show()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -141,6 +142,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                     TextButton(onClick = {
                         GithubPrefs.token = ""
                         GithubPrefs.username = ""
+                        GithubPrefs.avatarUrl = ""
                         dialogOpen = false
                         challenge = null
                     }) { Text("Sign out") }

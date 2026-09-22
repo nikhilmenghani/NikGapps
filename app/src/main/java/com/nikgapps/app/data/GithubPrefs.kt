@@ -17,4 +17,9 @@ object GithubPrefs {
         defaultValue = emptyString,
         getPreferencesKey = { stringPreferencesKey(it) }
     )
+    var avatarUrl by prefMutableState(
+        keyName = "github_avatar_url",
+        defaultValue = emptyString,
+        getPreferencesKey = { stringPreferencesKey(it) }
+    )
 }
