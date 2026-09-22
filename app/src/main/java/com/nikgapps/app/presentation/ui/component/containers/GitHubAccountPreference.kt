@@ -81,7 +81,6 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                 val login = GitHubDeviceAuth.account(token)
                 GithubPrefs.token = token
                 GithubPrefs.username = login
-                GithubPrefs.guestUsername = ""
                 dialogOpen = false
                 challenge = null
                 Toast.makeText(context, "Signed in to GitHub as $login", Toast.LENGTH_SHORT).show()

@@ -15,32 +15,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.nikgapps.R
-import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
+import com.nikgapps.app.presentation.ui.component.containers.GitHubTokenEntry
 
 @Composable
 fun AccountGate() {
-    var guestUsername by remember { mutableStateOf("") }
     val colors = MaterialTheme.colorScheme
     Box(
         modifier = Modifier.fillMaxSize().background(colors.background).padding(24.dp),
@@ -60,7 +51,7 @@ fun AccountGate() {
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                 color = colors.onBackground)
             Spacer(Modifier.height(8.dp))
-            Text("Sign in with GitHub or continue as a guest.",
+            Text("Sign in with GitHub to get started.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(32.dp))
@@ -87,28 +78,14 @@ fun AccountGate() {
                         HorizontalDivider(Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(24.dp))
-                    Text("Continue as a guest", style = MaterialTheme.typography.titleMedium,
+                    Text("Use a personal access token", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Text("Choose a username to use the app without GitHub.",
+                    Text("Already have a GitHub token? Enter it below.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.onSurfaceVariant)
                     Spacer(Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = guestUsername,
-                        onValueChange = { guestUsername = it },
-                        label = { Text("Username") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { GithubPrefs.guestUsername = guestUsername.trim() },
-                        enabled = guestUsername.trim().isNotEmpty(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Continue as guest") }
+                    GitHubTokenEntry(showExplanation = false)
                 }
             }
             Spacer(Modifier.height(24.dp))

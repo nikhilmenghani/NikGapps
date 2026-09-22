@@ -93,8 +93,7 @@ val excludedScreens = listOf(
 fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
 ) {
-    if ((GithubPrefs.token.isBlank() || GithubPrefs.username.isBlank()) &&
-        GithubPrefs.guestUsername.isBlank()) {
+    if (GithubPrefs.token.isBlank() || GithubPrefs.username.isBlank()) {
         AccountGate()
         return
     }

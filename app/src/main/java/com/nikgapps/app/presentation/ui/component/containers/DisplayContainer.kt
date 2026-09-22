@@ -180,45 +180,11 @@ fun AdvancedPreferences() {
 
 @Composable
 fun AccountPreferences() {
-    val textDialog = globalClass.singleTextDialog
-    val githubPreference = globalClass.preferencesManager.githubPrefs
     SettingsPage {
         Container(title = "Account", initiallyExpanded = true) {
             PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
             GitHubAccountPreference()
-            PreferenceItem(
-                label = "Guest username",
-                supportingText = githubPreference.guestUsername.ifBlank { "Not using guest mode" },
-                icon = Icons.Outlined.Badge,
-                onClick = {
-                    textDialog.show(
-                        title = "Guest username",
-                        description = "Enter a username to continue as a guest",
-                        text = githubPreference.guestUsername,
-                        onConfirm = { githubPreference.guestUsername = it.trim() }
-                    )
-                }
-            )
-            PreferenceItem(
-                    label = stringResource(R.string.settings_github_token),
-                    supportingText = if (githubPreference.token.isBlank()) {
-                        stringResource(R.string.settings_not_configured)
-                    } else {
-                        stringResource(R.string.settings_configured)
-                    },
-                    icon = Icons.Outlined.Key,
-                    onClick = {
-                        textDialog.show(
-                            title = globalClass.getString(R.string.settings_github_token),
-                            description = globalClass.getString(R.string.settings_github_token_description),
-                            text = githubPreference.token,
-                            onConfirm = {
-                                githubPreference.token = it.trim()
-                                githubPreference.username = ""
-                            }
-                        )
-                    }
-            )
+            GitHubTokenPreference()
         }
     }
 }
