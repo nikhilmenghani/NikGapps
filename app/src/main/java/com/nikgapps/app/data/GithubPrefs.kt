@@ -7,6 +7,11 @@ import com.nikgapps.app.utils.managers.emptyString
 import com.nikgapps.app.utils.managers.prefMutableState
 
 object GithubPrefs {
+    var guestUsername by prefMutableState(
+        keyName = "guest_username",
+        defaultValue = emptyString,
+        getPreferencesKey = { stringPreferencesKey(it) }
+    )
     var token by prefMutableState(
         keyName = "token",
         defaultValue = emptyString,

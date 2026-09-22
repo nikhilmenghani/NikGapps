@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,7 @@ import com.nikgapps.PermissionsActivity
 import com.nikgapps.R
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.presentation.ui.component.containers.AdvancedPreferences
+import com.nikgapps.app.presentation.ui.component.containers.AccountPreferences
 import com.nikgapps.app.presentation.ui.component.containers.AppearancePreferences
 import com.nikgapps.app.presentation.ui.component.containers.SystemPreferences
 import com.nikgapps.app.presentation.ui.component.dialogs.SingleChoiceDialog
@@ -81,6 +83,7 @@ private enum class SettingsCategory(
     val icon: ImageVector
 ) {
     APPEARANCE(R.string.settings_appearance, Icons.Outlined.Palette),
+    ACCOUNT(R.string.settings_account, Icons.Outlined.AccountCircle),
     SYSTEM(R.string.settings_system, Icons.Outlined.PhoneAndroid),
     ADVANCED(R.string.settings_advanced, Icons.Outlined.Tune);
 
@@ -184,6 +187,7 @@ fun SettingsScreen(navController: NavHostController) {
             ) { page ->
                 when (visibleCategories[page]) {
                     SettingsCategory.APPEARANCE -> AppearancePreferences()
+                    SettingsCategory.ACCOUNT -> AccountPreferences()
                     SettingsCategory.ADVANCED -> AdvancedPreferences()
                     SettingsCategory.SYSTEM -> SystemPreferences(
                         versionName = versionName,

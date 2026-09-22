@@ -53,6 +53,8 @@ import com.nikgapps.app.network.InternetRequiredGate
 import com.nikgapps.app.update.MandatoryUpdateGate
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.analytics.AppAnalytics
+import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.presentation.ui.screen.AccountGate
 
 
 data class NavItem(
@@ -91,6 +93,11 @@ val excludedScreens = listOf(
 fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
 ) {
+    if ((GithubPrefs.token.isBlank() || GithubPrefs.username.isBlank()) &&
+        GithubPrefs.guestUsername.isBlank()) {
+        AccountGate()
+        return
+    }
     val navController: NavHostController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(currentEntry) {

@@ -100,8 +100,6 @@ fun AppearancePreferences() {
 @Composable
 fun AdvancedPreferences() {
     val context = LocalContext.current
-    val textDialog = globalClass.singleTextDialog
-    val githubPreference = globalClass.preferencesManager.githubPrefs
     val developerPreference = globalClass.preferencesManager.displayPrefs
 
     SettingsPage {
@@ -166,7 +164,7 @@ fun AdvancedPreferences() {
                 )
                 PreferenceItem(
                     label = "Hide developer options",
-                    supportingText = "Tap the app version seven times to enable them again",
+                    supportingText = "Tap the app version fourteen times to enable them again",
                     icon = Icons.Outlined.Android,
                     onClick = {
                         developerPreference.allowUnsupportedAndroidVersions = false
@@ -176,8 +174,31 @@ fun AdvancedPreferences() {
 
             }
 
+        }
+    }
+}
+
+@Composable
+fun AccountPreferences() {
+    val textDialog = globalClass.singleTextDialog
+    val githubPreference = globalClass.preferencesManager.githubPrefs
+    SettingsPage {
+        Container(title = "Account", initiallyExpanded = true) {
             PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
             GitHubAccountPreference()
+            PreferenceItem(
+                label = "Guest username",
+                supportingText = githubPreference.guestUsername.ifBlank { "Not using guest mode" },
+                icon = Icons.Outlined.Badge,
+                onClick = {
+                    textDialog.show(
+                        title = "Guest username",
+                        description = "Enter a username to continue as a guest",
+                        text = githubPreference.guestUsername,
+                        onConfirm = { githubPreference.guestUsername = it.trim() }
+                    )
+                }
+            )
             PreferenceItem(
                     label = stringResource(R.string.settings_github_token),
                     supportingText = if (githubPreference.token.isBlank()) {
@@ -303,7 +324,7 @@ fun SystemPreferences(
                         Toast.makeText(context, "Developer options are already enabled", Toast.LENGTH_SHORT).show()
                     } else {
                         developerTapCount++
-                        if (developerTapCount >= 7) {
+                        if (developerTapCount >= 14) {
                             developerPreference.developerOptionsEnabled = true
                             developerTapCount = 0
                             Toast.makeText(context, "Developer options enabled", Toast.LENGTH_SHORT).show()
