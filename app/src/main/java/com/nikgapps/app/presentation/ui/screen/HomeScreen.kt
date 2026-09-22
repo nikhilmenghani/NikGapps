@@ -380,19 +380,19 @@ fun HomeScreen(navController: NavHostController) {
 private fun WelcomeCard(username: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Welcome, $username", style = MaterialTheme.typography.titleLarge)
-                Text("Signed in with GitHub", style = MaterialTheme.typography.bodyMedium)
+            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(28.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
+                Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
