@@ -44,6 +44,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
     val scope = rememberCoroutineScope()
     var dialogOpen by remember { mutableStateOf(false) }
     var challenge by remember { mutableStateOf<GitHubDeviceAuth.Challenge?>(null) }
+    var finishingSignIn by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val clientId = BuildConfig.GITHUB_CLIENT_ID
@@ -78,7 +79,9 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             val active = challenge ?: return@LaunchedEffect
             try {
                 val token = GitHubDeviceAuth.awaitToken(clientId, active)
-                val profile = GitHubDeviceAuth.accountProfile(token)
+                if (GithubPrefs.username.isBlank()) GithubPrefs.token = token
+                finishingSignIn = true
+                val profile = GitHubDeviceAuth.accountProfileWithRetry(token)
                 GithubPrefs.token = token
                 GithubPrefs.username = profile.login
                 GithubPrefs.avatarUrl = profile.avatarUrl
@@ -90,6 +93,8 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             } catch (failure: Exception) {
                 error = failure.message ?: "GitHub sign-in failed"
                 challenge = null
+            } finally {
+                finishingSignIn = false
             }
         }
 
@@ -102,7 +107,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                         challenge != null -> {
                             Text("Open GitHub and enter this code to authorize NikGapps:")
                             SelectionContainer { Text(challenge!!.userCode) }
-                            Text("Waiting for authorization…")
+                            Text(if (finishingSignIn) "Finishing GitHub sign-in…" else "Waiting for authorization…")
                             CircularProgressIndicator()
                         }
                         loading -> CircularProgressIndicator()

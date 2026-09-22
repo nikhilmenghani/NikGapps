@@ -46,15 +46,20 @@ object GitHubDeviceAuth {
         var interval = challenge.interval
         while (System.currentTimeMillis() < deadline) {
             delay(interval * 1000L)
-            val result = withContext(Dispatchers.IO) {
-                post(
-                    "https://github.com/login/oauth/access_token",
-                    FormBody.Builder()
-                        .add("client_id", clientId)
-                        .add("device_code", challenge.deviceCode)
-                        .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
-                        .build(),
-                )
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    post(
+                        "https://github.com/login/oauth/access_token",
+                        FormBody.Builder()
+                            .add("client_id", clientId)
+                            .add("device_code", challenge.deviceCode)
+                            .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+                            .build(),
+                    )
+                }
+            } catch (_: IOException) {
+                // A brief DNS or connection failure must not discard an approved device code.
+                continue
             }
             result.optString("access_token").takeIf { it.isNotBlank() }?.let { return it }
             when (result.optString("error")) {
@@ -75,11 +80,28 @@ object GitHubDeviceAuth {
             .header("User-Agent", "NikGapps")
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("GitHub account verification failed (${response.code}).")
+            if (!response.isSuccessful) throw GitHubHttpException("GitHub account verification failed (${response.code}).")
             val account = JSONObject(response.body?.string().orEmpty())
             AccountProfile(account.getString("login"), account.optString("avatar_url"))
         }
     }
+
+    suspend fun accountProfileWithRetry(token: String): AccountProfile {
+        var lastFailure: IOException? = null
+        repeat(12) { attempt ->
+            try {
+                return accountProfile(token)
+            } catch (failure: GitHubHttpException) {
+                throw failure
+            } catch (failure: IOException) {
+                lastFailure = failure
+                if (attempt < 11) delay(5_000)
+            }
+        }
+        throw lastFailure ?: IOException("Could not reach GitHub to finish sign-in.")
+    }
+
+    private class GitHubHttpException(message: String) : IOException(message)
 
     private fun post(url: String, body: FormBody): JSONObject {
         val request = Request.Builder().url(url).post(body)

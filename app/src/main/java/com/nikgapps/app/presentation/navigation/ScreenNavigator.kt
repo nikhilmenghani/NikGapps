@@ -58,6 +58,7 @@ import com.nikgapps.app.update.MandatoryUpdateGate
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.analytics.AppAnalytics
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.presentation.ui.screen.AccountGate
 
 
@@ -98,7 +99,24 @@ fun ScreenNavigator(
     progressLogViewModel: ProgressLogViewModel
 ) {
     var showSignInSettings by rememberSaveable { mutableStateOf(false) }
-    val signedIn = GithubPrefs.token.isNotBlank() && GithubPrefs.username.isNotBlank()
+    val token = GithubPrefs.token
+    val username = GithubPrefs.username
+    val signedIn = token.isNotBlank() && username.isNotBlank()
+    LaunchedEffect(token, username) {
+        if (token.isNotBlank() && username.isBlank()) {
+            try {
+                val profile = GitHubDeviceAuth.accountProfileWithRetry(token)
+                if (GithubPrefs.token == token) {
+                    GithubPrefs.username = profile.login
+                    GithubPrefs.avatarUrl = profile.avatarUrl
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // A saved token can be completed on the next app launch or sign-in attempt.
+            }
+        }
+    }
     LaunchedEffect(signedIn) {
         if (signedIn) showSignInSettings = false
     }
