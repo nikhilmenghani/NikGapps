@@ -1,5 +1,6 @@
 package com.nikgapps.app.utils.network
 
+import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -12,6 +13,8 @@ import java.util.concurrent.TimeUnit
 
 /** GitHub OAuth device flow; the client ID is public, while tokens remain on the device. */
 object GitHubDeviceAuth {
+    class InvalidTokenException : IOException("GitHub token is invalid or has expired.")
+
     data class AccountProfile(val login: String, val avatarUrl: String)
 
     data class Challenge(
@@ -42,10 +45,11 @@ object GitHubDeviceAuth {
     }
 
     suspend fun awaitToken(clientId: String, challenge: Challenge): String {
-        val deadline = System.currentTimeMillis() + challenge.expiresIn * 1000L
+        val deadline = SystemClock.elapsedRealtime() + challenge.expiresIn * 1000L
         var interval = challenge.interval
-        while (System.currentTimeMillis() < deadline) {
+        while (SystemClock.elapsedRealtime() < deadline) {
             delay(interval * 1000L)
+            if (SystemClock.elapsedRealtime() >= deadline) break
             val result = try {
                 withContext(Dispatchers.IO) {
                     post(
@@ -57,6 +61,13 @@ object GitHubDeviceAuth {
                             .build(),
                     )
                 }
+            } catch (failure: GitHubHttpException) {
+                if (failure.status == 429) {
+                    delay(failure.retryAfterSeconds.coerceAtLeast(60) * 1000L)
+                    continue
+                }
+                if (failure.status !in 500..599) throw failure
+                continue
             } catch (_: IOException) {
                 // A brief DNS or connection failure must not discard an approved device code.
                 continue
@@ -64,7 +75,7 @@ object GitHubDeviceAuth {
             result.optString("access_token").takeIf { it.isNotBlank() }?.let { return it }
             when (result.optString("error")) {
                 "authorization_pending" -> Unit
-                "slow_down" -> interval += 5
+                "slow_down" -> interval = maxOf(interval + 5, result.optInt("interval"))
                 "expired_token" -> throw IOException("GitHub sign-in code expired. Try again.")
                 "access_denied" -> throw IOException("GitHub sign-in was denied.")
                 else -> throw IOException(result.optString("error_description", "GitHub sign-in failed."))
@@ -80,7 +91,12 @@ object GitHubDeviceAuth {
             .header("User-Agent", "NikGapps")
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw GitHubHttpException("GitHub account verification failed (${response.code}).")
+            if (response.code == 401) throw InvalidTokenException()
+            if (!response.isSuccessful) throw GitHubHttpException(
+                response.code,
+                "GitHub account verification failed (${response.code}).",
+                response.header("Retry-After")?.toLongOrNull() ?: 0
+            )
             val account = JSONObject(response.body?.string().orEmpty())
             AccountProfile(account.getString("login"), account.optString("avatar_url"))
         }
@@ -91,8 +107,12 @@ object GitHubDeviceAuth {
         repeat(12) { attempt ->
             try {
                 return accountProfile(token)
-            } catch (failure: GitHubHttpException) {
+            } catch (failure: InvalidTokenException) {
                 throw failure
+            } catch (failure: GitHubHttpException) {
+                if (failure.status !in 500..599) throw failure
+                lastFailure = failure
+                if (attempt < 11) delay(5_000)
             } catch (failure: IOException) {
                 lastFailure = failure
                 if (attempt < 11) delay(5_000)
@@ -101,7 +121,11 @@ object GitHubDeviceAuth {
         throw lastFailure ?: IOException("Could not reach GitHub to finish sign-in.")
     }
 
-    private class GitHubHttpException(message: String) : IOException(message)
+    private class GitHubHttpException(
+        val status: Int,
+        message: String,
+        val retryAfterSeconds: Long = 0
+    ) : IOException(message)
 
     private fun post(url: String, body: FormBody): JSONObject {
         val request = Request.Builder().url(url).post(body)
@@ -109,7 +133,11 @@ object GitHubDeviceAuth {
             .header("User-Agent", "NikGapps")
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("GitHub sign-in failed (${response.code}).")
+            if (!response.isSuccessful) throw GitHubHttpException(
+                response.code,
+                "GitHub sign-in failed (${response.code}).",
+                response.header("Retry-After")?.toLongOrNull() ?: 0
+            )
             return JSONObject(response.body?.string().orEmpty())
         }
     }

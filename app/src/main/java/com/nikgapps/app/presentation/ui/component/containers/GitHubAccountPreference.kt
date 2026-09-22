@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 
@@ -47,11 +49,22 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
     var finishingSignIn by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var startJob by remember { mutableStateOf<Job?>(null) }
+    var requestGeneration by remember { mutableIntStateOf(0) }
     val clientId = BuildConfig.GITHUB_CLIENT_ID
+
+    fun dismissDialog() {
+        requestGeneration++
+        startJob?.cancel()
+        startJob = null
+        loading = false
+        challenge = null
+        dialogOpen = false
+    }
 
     if (asSignInButton) {
         Button(
-            onClick = { dialogOpen = true },
+            onClick = { error = null; dialogOpen = true },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF24292F),
@@ -71,7 +84,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             else -> "Sign in with a code to connect your account"
         },
         icon = Icons.Outlined.AccountCircle,
-        onClick = { dialogOpen = true }
+        onClick = { error = null; dialogOpen = true }
     )
 
     if (dialogOpen) {
@@ -99,7 +112,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
         }
 
         AlertDialog(
-            onDismissRequest = { dialogOpen = false; challenge = null },
+            onDismissRequest = ::dismissDialog,
             title = { Text("GitHub account") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -129,27 +142,35 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                     !loading && clientId.isNotBlank() -> TextButton(onClick = {
                         error = null
                         loading = true
-                        scope.launch {
+                        val generation = ++requestGeneration
+                        startJob = scope.launch {
                             try {
-                                challenge = GitHubDeviceAuth.start(clientId)
+                                val nextChallenge = GitHubDeviceAuth.start(clientId)
+                                if (dialogOpen && generation == requestGeneration) challenge = nextChallenge
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
                             } catch (failure: Exception) {
-                                error = failure.message ?: "Could not start GitHub sign-in"
+                                if (dialogOpen && generation == requestGeneration) {
+                                    error = failure.message ?: "Could not start GitHub sign-in"
+                                }
                             } finally {
-                                loading = false
+                                if (generation == requestGeneration) {
+                                    loading = false
+                                    startJob = null
+                                }
                             }
                         }
                     }) { Text(if (GithubPrefs.token.isBlank()) "Sign in" else "Switch account") }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { dialogOpen = false; challenge = null }) { Text("Close") }
+                TextButton(onClick = ::dismissDialog) { Text("Close") }
                 if (GithubPrefs.token.isNotBlank()) {
                     TextButton(onClick = {
+                        dismissDialog()
                         GithubPrefs.token = ""
                         GithubPrefs.username = ""
                         GithubPrefs.avatarUrl = ""
-                        dialogOpen = false
-                        challenge = null
                     }) { Text("Sign out") }
                 }
             },

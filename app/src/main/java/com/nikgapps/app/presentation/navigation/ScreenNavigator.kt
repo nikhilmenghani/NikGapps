@@ -103,17 +103,27 @@ fun ScreenNavigator(
     val username = GithubPrefs.username
     val signedIn = token.isNotBlank() && username.isNotBlank()
     LaunchedEffect(token, username) {
-        if (token.isNotBlank() && username.isBlank()) {
+        if (token.isNotBlank()) {
             try {
-                val profile = GitHubDeviceAuth.accountProfileWithRetry(token)
-                if (GithubPrefs.token == token) {
+                val profile = if (username.isBlank()) {
+                    GitHubDeviceAuth.accountProfileWithRetry(token)
+                } else {
+                    GitHubDeviceAuth.accountProfile(token)
+                }
+                if (GithubPrefs.token == token && GithubPrefs.username.isBlank()) {
                     GithubPrefs.username = profile.login
                     GithubPrefs.avatarUrl = profile.avatarUrl
+                }
+            } catch (_: GitHubDeviceAuth.InvalidTokenException) {
+                if (GithubPrefs.token == token) {
+                    GithubPrefs.token = ""
+                    GithubPrefs.username = ""
+                    GithubPrefs.avatarUrl = ""
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                // A saved token can be completed on the next app launch or sign-in attempt.
+                // Keep the saved session during network or GitHub service failures.
             }
         }
     }
