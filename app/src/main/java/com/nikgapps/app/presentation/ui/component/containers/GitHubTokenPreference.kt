@@ -155,6 +155,7 @@ private fun GitHubTokenEntry(onSaved: () -> Unit, focusRequester: FocusRequester
                 val candidate = token.trim()
                 error = null
                 if (candidate.isEmpty()) {
+                    if (GithubPrefs.username.isNotBlank()) GithubPrefs.lastUsername = GithubPrefs.username
                     GithubPrefs.token = ""
                     GithubPrefs.username = ""
                     GithubPrefs.avatarUrl = ""
@@ -167,6 +168,7 @@ private fun GitHubTokenEntry(onSaved: () -> Unit, focusRequester: FocusRequester
                         val profile = GitHubDeviceAuth.accountProfile(candidate)
                         GithubPrefs.token = candidate
                         GithubPrefs.username = profile.login
+                        GithubPrefs.lastUsername = profile.login
                         GithubPrefs.avatarUrl = profile.avatarUrl
                         token = ""
                         onSaved()

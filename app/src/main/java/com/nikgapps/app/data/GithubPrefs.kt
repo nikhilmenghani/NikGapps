@@ -17,6 +17,11 @@ object GithubPrefs {
         defaultValue = emptyString,
         getPreferencesKey = { stringPreferencesKey(it) }
     )
+    var lastUsername by prefMutableState(
+        keyName = "github_last_username",
+        defaultValue = emptyString,
+        getPreferencesKey = { stringPreferencesKey(it) }
+    )
     var avatarUrl by prefMutableState(
         keyName = "github_avatar_url",
         defaultValue = emptyString,

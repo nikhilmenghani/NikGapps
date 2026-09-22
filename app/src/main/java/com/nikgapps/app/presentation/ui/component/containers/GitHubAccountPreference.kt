@@ -1,6 +1,9 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -62,9 +65,47 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
         dialogOpen = false
     }
 
+    fun openVerificationPage(active: GitHubDeviceAuth.Challenge) {
+        try {
+            (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                .setPrimaryClip(ClipData.newPlainText("GitHub sign-in code", active.userCode))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(active.verificationUri)))
+        } catch (failure: Exception) {
+            error = "Could not open GitHub. Copy the code above and open ${active.verificationUri}."
+        }
+    }
+
+    fun beginSignIn() {
+        error = null
+        dialogOpen = true
+        if (clientId.isBlank() || loading || challenge != null) return
+        loading = true
+        val generation = ++requestGeneration
+        startJob = scope.launch {
+            try {
+                val nextChallenge = GitHubDeviceAuth.start(clientId)
+                if (dialogOpen && generation == requestGeneration) {
+                    challenge = nextChallenge
+                    openVerificationPage(nextChallenge)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (dialogOpen && generation == requestGeneration) {
+                    error = failure.message ?: "Could not start GitHub sign-in"
+                }
+            } finally {
+                if (generation == requestGeneration) {
+                    loading = false
+                    startJob = null
+                }
+            }
+        }
+    }
+
     if (asSignInButton) {
         Button(
-            onClick = { error = null; dialogOpen = true },
+            onClick = ::beginSignIn,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF24292F),
@@ -73,7 +114,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
         ) {
             Icon(painterResource(R.drawable.ic_github_mark), contentDescription = null)
             Spacer(Modifier.width(10.dp))
-            Text("Continue with GitHub")
+            Text(if (GithubPrefs.lastUsername.isBlank()) "Continue with GitHub" else "Reconnect with GitHub")
         }
     } else PreferenceItem(
         label = "GitHub account",
@@ -97,6 +138,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                 val profile = GitHubDeviceAuth.accountProfileWithRetry(token)
                 GithubPrefs.token = token
                 GithubPrefs.username = profile.login
+                GithubPrefs.lastUsername = profile.login
                 GithubPrefs.avatarUrl = profile.avatarUrl
                 dialogOpen = false
                 challenge = null
@@ -137,36 +179,18 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             confirmButton = {
                 when {
                     challenge != null -> TextButton(onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(challenge!!.verificationUri)))
-                    }) { Text("Open GitHub") }
-                    !loading && clientId.isNotBlank() -> TextButton(onClick = {
-                        error = null
-                        loading = true
-                        val generation = ++requestGeneration
-                        startJob = scope.launch {
-                            try {
-                                val nextChallenge = GitHubDeviceAuth.start(clientId)
-                                if (dialogOpen && generation == requestGeneration) challenge = nextChallenge
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (failure: Exception) {
-                                if (dialogOpen && generation == requestGeneration) {
-                                    error = failure.message ?: "Could not start GitHub sign-in"
-                                }
-                            } finally {
-                                if (generation == requestGeneration) {
-                                    loading = false
-                                    startJob = null
-                                }
-                            }
-                        }
-                    }) { Text(if (GithubPrefs.token.isBlank()) "Sign in" else "Switch account") }
+                        openVerificationPage(challenge!!)
+                    }) { Text("Copy code & open GitHub") }
+                    !loading && clientId.isNotBlank() -> TextButton(onClick = ::beginSignIn) {
+                        Text(if (GithubPrefs.token.isBlank()) "Sign in" else "Switch account")
+                    }
                 }
             },
             dismissButton = {
                 TextButton(onClick = ::dismissDialog) { Text("Close") }
                 if (GithubPrefs.token.isNotBlank()) {
                     TextButton(onClick = {
+                        if (GithubPrefs.username.isNotBlank()) GithubPrefs.lastUsername = GithubPrefs.username
                         dismissDialog()
                         GithubPrefs.token = ""
                         GithubPrefs.username = ""

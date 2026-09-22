@@ -112,10 +112,12 @@ fun ScreenNavigator(
                 }
                 if (GithubPrefs.token == token && GithubPrefs.username.isBlank()) {
                     GithubPrefs.username = profile.login
+                    GithubPrefs.lastUsername = profile.login
                     GithubPrefs.avatarUrl = profile.avatarUrl
                 }
             } catch (_: GitHubDeviceAuth.InvalidTokenException) {
                 if (GithubPrefs.token == token) {
+                    if (GithubPrefs.username.isNotBlank()) GithubPrefs.lastUsername = GithubPrefs.username
                     GithubPrefs.token = ""
                     GithubPrefs.username = ""
                     GithubPrefs.avatarUrl = ""

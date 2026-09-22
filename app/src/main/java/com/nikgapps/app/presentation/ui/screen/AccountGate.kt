@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.nikgapps.R
+import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
 
 @Composable
@@ -45,7 +46,8 @@ fun AccountGate(onOpenSettings: () -> Unit) {
                 modifier = Modifier.size(88.dp)
             )
             Spacer(Modifier.height(24.dp))
-            Text("Welcome to NikGapps", style = MaterialTheme.typography.headlineMedium,
+            Text(if (GithubPrefs.lastUsername.isBlank()) "Welcome to NikGapps"
+                 else "Welcome back, ${GithubPrefs.lastUsername}", style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                 color = colors.onBackground)
             Spacer(Modifier.height(8.dp))
@@ -63,7 +65,9 @@ fun AccountGate(onOpenSettings: () -> Unit) {
                     Text("Sign in with GitHub", style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Text("Authorize in your browser with a one-time code.",
+                    Text(if (GithubPrefs.lastUsername.isBlank())
+                        "A one-time code will be copied and GitHub will open in your browser."
+                    else "A one-time code will be copied. Check that GitHub is using ${GithubPrefs.lastUsername}.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.onSurfaceVariant)
                     Spacer(Modifier.height(20.dp))
