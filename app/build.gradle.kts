@@ -10,6 +10,18 @@ val postHogHost = providers.gradleProperty("POSTHOG_HOST")
     .orElse(providers.environmentVariable("POSTHOG_HOST"))
     .map { it.trim().ifBlank { "https://us.i.posthog.com" } }
     .orElse("https://us.i.posthog.com")
+val postHogPersonalApiKey = providers.gradleProperty("POSTHOG_PERSONAL_API_KEY")
+    .orElse(providers.environmentVariable("POSTHOG_PERSONAL_API_KEY"))
+    .map(String::trim)
+    .orElse("")
+val postHogProjectId = providers.gradleProperty("POSTHOG_PROJECT_ID")
+    .orElse(providers.environmentVariable("POSTHOG_PROJECT_ID"))
+    .map(String::trim)
+    .orElse("")
+val postHogApiHost = providers.gradleProperty("POSTHOG_API_HOST")
+    .orElse(providers.environmentVariable("POSTHOG_API_HOST"))
+    .map { it.trim().trimEnd('/').ifBlank { "https://us.posthog.com" } }
+    .orElse("https://us.posthog.com")
 val githubClientId = providers.gradleProperty("NIKGAPPS_CLIENT_ID")
     .orElse(providers.environmentVariable("NIKGAPPS_CLIENT_ID"))
     .map(String::trim)
@@ -51,6 +63,9 @@ android {
         versionName = "1.0"
         buildConfigField("String", "POSTHOG_API_KEY", postHogApiKey.get().asBuildConfigString())
         buildConfigField("String", "POSTHOG_HOST", postHogHost.get().asBuildConfigString())
+        buildConfigField("String", "POSTHOG_PERSONAL_API_KEY", "".asBuildConfigString())
+        buildConfigField("String", "POSTHOG_PROJECT_ID", "".asBuildConfigString())
+        buildConfigField("String", "POSTHOG_API_HOST", postHogApiHost.get().asBuildConfigString())
         buildConfigField("String", "GITHUB_CLIENT_ID", githubClientId.get().asBuildConfigString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -60,6 +75,8 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField("String", "POSTHOG_PERSONAL_API_KEY", postHogPersonalApiKey.get().asBuildConfigString())
+            buildConfigField("String", "POSTHOG_PROJECT_ID", postHogProjectId.get().asBuildConfigString())
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
@@ -68,6 +85,9 @@ android {
                 ?: signingConfigs.getByName("debug")
         }
         release {
+            // Never ship a PostHog read credential or project identifier in release APKs.
+            buildConfigField("String", "POSTHOG_PERSONAL_API_KEY", "".asBuildConfigString())
+            buildConfigField("String", "POSTHOG_PROJECT_ID", "".asBuildConfigString())
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(

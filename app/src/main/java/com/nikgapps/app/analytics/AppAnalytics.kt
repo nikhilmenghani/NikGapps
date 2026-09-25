@@ -47,7 +47,8 @@ object AppAnalytics {
             "package_count" to packageCount,
             "size_bytes" to sizeBytes,
             "size_mb" to sizeBytes.toDouble() / 1_048_576,
-            "conflict_resolution" to conflictResolution
+            "conflict_resolution" to conflictResolution,
+            "location" to "Downloads/NikGapps"
         )
     )
 
