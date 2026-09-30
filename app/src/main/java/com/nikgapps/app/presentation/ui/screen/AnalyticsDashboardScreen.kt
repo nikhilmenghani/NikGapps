@@ -19,10 +19,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nikgapps.BuildConfig
+import com.nikgapps.app.analytics.AnalyticsHistory
+import com.nikgapps.app.analytics.AnalyticsHistoryCache
+import com.nikgapps.app.analytics.AnalyticsHistorySync
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -35,6 +42,11 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import java.io.File
+import java.io.InterruptedIOException
+import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 private data class AnalyticsEvent(
     val id: String, val timestamp: Date, val packageCount: Int, val zipName: String,
@@ -48,7 +60,7 @@ private data class AnalyticsUser(
 private data class AnalyticsDashboard(val events: List<AnalyticsEvent>, val users: List<AnalyticsUser>)
 private enum class BuildFilterCategory(val label: String) { DEVICE("Device"), CODE("Device code"), LOCATION("Location"), CONFLICT("Conflict") }
 
-private class AnalyticsApiException(message: String) : Exception(message)
+private class AnalyticsApiException(message: String, val retryAt: Long? = null) : Exception(message)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,11 +69,17 @@ fun AnalyticsDashboardScreen() {
     val projectId = BuildConfig.POSTHOG_PROJECT_ID.trim()
     val configured = BuildConfig.DEBUG && personalKey.isNotBlank() && projectId.isNotBlank()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
+    val cache = remember { AnalyticsHistoryCache(File(context.noBackupFilesDir, "analytics"),
+        BuildConfig.POSTHOG_API_HOST, projectId) }
+    var history by remember { mutableStateOf(AnalyticsHistory()) }
+    var cacheLoaded by remember { mutableStateOf(false) }
     val client = remember { OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build() }
     val events = remember { mutableStateListOf<AnalyticsEvent>() }
     val users = remember { mutableStateListOf<AnalyticsUser>() }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var retryAt by remember { mutableLongStateOf(0L) }
     var selectedSection by remember { mutableIntStateOf(0) }
     var filterCategory by remember { mutableStateOf(BuildFilterCategory.DEVICE) }
     var filterValue by remember { mutableStateOf<String?>(null) }
@@ -74,12 +92,41 @@ fun AnalyticsDashboardScreen() {
 
     fun load() {
         if (!configured || loading) return
+        if (System.currentTimeMillis() < retryAt) {
+            error = "PostHog query limit reached. Retry in ${(retryAt - System.currentTimeMillis()) / 1000 + 1} seconds."
+            return
+        }
         scope.launch {
             loading = true; error = null
             try {
-                val dashboard = withContext(Dispatchers.IO) { fetchAnalyticsDashboard(client) }
+                if (!cacheLoaded) {
+                    history = withContext(Dispatchers.IO) { cache.read() }
+                    val cachedDashboard = analyticsDashboard(history.rows)
+                    events.clear(); events += cachedDashboard.events
+                    users.clear(); users += cachedDashboard.users
+                    cacheLoaded = true
+                }
+                val updated = withContext(Dispatchers.IO) {
+                    val coroutine = currentCoroutineContext()
+                    val result = AnalyticsHistorySync().refresh(history, System.currentTimeMillis()) { query ->
+                        coroutine.ensureActive()
+                        executeHogQl(client, query)
+                    }
+                    coroutine.ensureActive()
+                    cache.write(result)
+                    result
+                }
+                history = updated
+                val dashboard = analyticsDashboard(updated.rows)
                 events.clear(); events += dashboard.events
                 users.clear(); users += dashboard.users
+            } catch (e: CancellationException) { throw e }
+            catch (e: AnalyticsApiException) {
+                retryAt = e.retryAt ?: 0L
+                error = e.message
+            }
+            catch (e: InterruptedIOException) {
+                error = "PostHog request timed out. Cached history is preserved; retry to fetch missing builds."
             } catch (e: Exception) { error = e.message ?: "Unable to load PostHog activity" }
             finally { loading = false }
         }
@@ -107,7 +154,7 @@ fun AnalyticsDashboardScreen() {
     }) }) { padding ->
         if (!configured) AnalyticsSetupState(Modifier.fillMaxSize().padding(padding))
         else Column(Modifier.fillMaxSize().padding(padding)) {
-            if (loading && events.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             AnalyticsSummary(visibleEvents)
             PrimaryTabRow(selectedTabIndex = selectedSection) {
                 Tab(selected = selectedSection == 0, onClick = { selectedSection = 0 },
@@ -313,10 +360,7 @@ fun AnalyticsDashboardScreen() {
     }
 }
 
-private fun fetchAnalyticsDashboard(client: OkHttpClient): AnalyticsDashboard {
-    // PostHog's raw /events endpoint returns complete event payloads and can take
-    // longer than the screen's timeout. HogQL asks only for the fields rendered here.
-    val eventRows = executeAllEventRows(client)
+private fun analyticsDashboard(eventRows: List<JsonArray>): AnalyticsDashboard {
     val events = eventRows.mapNotNull { row ->
         val timestampText = row.getOrNull(1)?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
         val timestamp = parseTimestamp(timestampText) ?: return@mapNotNull null
@@ -341,39 +385,6 @@ private fun fetchAnalyticsDashboard(client: OkHttpClient): AnalyticsDashboard {
     return AnalyticsDashboard(events, users)
 }
 
-private fun executeAllEventRows(client: OkHttpClient): List<JsonArray> {
-    val pageSize = 10_000
-    val rows = mutableListOf<JsonArray>()
-    var cursorTimestamp: String? = null
-    var cursorUuid: String? = null
-    do {
-        val cursorClause = if (cursorTimestamp != null && cursorUuid != null) """
-            AND (timestamp < parseDateTimeBestEffort('${cursorTimestamp.sqlLiteral()}')
-                 OR (timestamp = parseDateTimeBestEffort('${cursorTimestamp.sqlLiteral()}')
-                     AND uuid < toUUID('${cursorUuid.sqlLiteral()}')))
-        """.trimIndent() else ""
-        val query = """
-            SELECT uuid, timestamp, properties.zip_name, properties.package_count,
-                   coalesce(properties.device_model, properties.${'$'}device_model, '') AS device_model,
-                   coalesce(properties.device_code, properties.${'$'}device_name, '') AS device_code,
-                   properties.size_bytes, coalesce(properties.location, 'Downloads/NikGapps'),
-                   properties.conflict_resolution, distinct_id
-            FROM events
-            WHERE event = 'zip_creation_succeeded'
-            $cursorClause
-            ORDER BY timestamp DESC, uuid DESC
-            LIMIT $pageSize
-        """.trimIndent()
-        val page = executeHogQl(client, query)
-        rows += page
-        cursorTimestamp = page.lastOrNull()?.text(1)
-        cursorUuid = page.lastOrNull()?.text(0)
-    } while (page.size == pageSize)
-    return rows
-}
-
-private fun String?.sqlLiteral() = this.orEmpty().replace("'", "''")
-
 private fun executeHogQl(client: OkHttpClient, query: String): List<JsonArray> {
     val url = "${BuildConfig.POSTHOG_API_HOST}/api/projects/${BuildConfig.POSTHOG_PROJECT_ID}/query/"
     val payload = buildJsonObject {
@@ -385,9 +396,22 @@ private fun executeHogQl(client: OkHttpClient, query: String): List<JsonArray> {
     client.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${BuildConfig.POSTHOG_PERSONAL_API_KEY}")
         .header("Accept", "application/json").post(payload).build()).execute().use { response ->
         val body = response.body.string()
-        if (!response.isSuccessful) throw AnalyticsApiException(postHogErrorMessage(response.code, body))
+        if (!response.isSuccessful) {
+            val retryAt = if (response.code == 429) {
+                val retryAfter = response.header("Retry-After")
+                retryAfter?.toLongOrNull()?.coerceIn(0, 86400)?.let { System.currentTimeMillis() + it * 1000 }
+                    ?: runCatching { ZonedDateTime.parse(retryAfter, DateTimeFormatter.RFC_1123_DATE_TIME)
+                        .toInstant().toEpochMilli() }.getOrNull()
+                    ?: (System.currentTimeMillis() + 60_000)
+            } else null
+            throw AnalyticsApiException(postHogErrorMessage(response.code, body), retryAt)
+        }
         val root = Json.parseToJsonElement(body).jsonObject
-        return root["results"]?.jsonArray.orEmpty().map { it.jsonArray }
+        root["error"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let {
+            throw AnalyticsApiException("PostHog query failed: ${it.take(180)}")
+        }
+        return root["results"]?.jsonArray?.map { it.jsonArray }
+            ?: throw AnalyticsApiException("PostHog returned no completed query results. Retry to resume syncing.")
     }
 }
 
@@ -421,14 +445,12 @@ private fun postHogErrorMessage(status: Int, body: String): String {
         }
         403 -> "The personal API key is authenticated but lacks permission. Add query:read/project:read access for project ${BuildConfig.POSTHOG_PROJECT_ID}."
         404 -> "PostHog project ${BuildConfig.POSTHOG_PROJECT_ID} was not found on ${BuildConfig.POSTHOG_API_HOST}. Check the project ID and region."
+        429 -> "PostHog query limit reached. Cached history is preserved. Wait before retrying${detail?.let { ": $it" }.orEmpty()}"
         else -> "PostHog returned HTTP $status${detail?.let { ": $it" }.orEmpty()}"
     }
 }
 
-private val isoFormats = listOf("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-private fun parseTimestamp(value: String): Date? = isoFormats.firstNotNullOfOrNull { pattern -> runCatching {
-    SimpleDateFormat(pattern, Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(value)
-}.getOrNull() }
+private fun parseTimestamp(value: String): Date? = runCatching { Date.from(Instant.parse(value)) }.getOrNull()
 private fun dayLabel(date: Date) = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(date)
 private fun timeLabel(date: Date) = SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
 private fun formatBytes(bytes: Long): String = when {
