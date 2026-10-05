@@ -1,4 +1,4 @@
-package com.nikgapps.app.analytics
+package com.nikgapps.admin.analytics
 
 import java.io.File
 import java.nio.file.Files

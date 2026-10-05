@@ -1,4 +1,4 @@
-package com.nikgapps.app.presentation.ui.screen
+package com.nikgapps.admin.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
@@ -22,10 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.nikgapps.BuildConfig
-import com.nikgapps.app.analytics.AnalyticsHistory
-import com.nikgapps.app.analytics.AnalyticsHistoryCache
-import com.nikgapps.app.analytics.AnalyticsHistorySync
+import com.nikgapps.admin.BuildConfig
+import com.nikgapps.admin.analytics.AnalyticsHistory
+import com.nikgapps.admin.analytics.AnalyticsHistoryCache
+import com.nikgapps.admin.analytics.AnalyticsHistorySync
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -354,7 +354,7 @@ fun AnalyticsDashboardScreen() {
                 Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Analytics, null, Modifier.size(34.dp)) }
             }
             Text("Connect native analytics", style = MaterialTheme.typography.titleLarge)
-            Text("Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID for a local debug build. Analytics is hidden and credentials are empty in release builds.",
+            Text("Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID for a local debug build. Credentials are empty in release builds.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

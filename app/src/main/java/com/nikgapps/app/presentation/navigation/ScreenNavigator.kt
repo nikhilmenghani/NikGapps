@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +46,6 @@ import androidx.navigation.navArgument
 import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.AppConfigScreen
 import com.nikgapps.app.presentation.ui.screen.BuildZipScreen
-import com.nikgapps.app.presentation.ui.screen.AnalyticsDashboardScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
@@ -57,7 +55,6 @@ import com.nikgapps.app.presentation.ui.screen.SettingsScreen
 import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.App.Companion.globalClass
-import com.nikgapps.BuildConfig
 import com.nikgapps.app.network.InternetRequiredGate
 import com.nikgapps.app.update.MandatoryUpdateGate
 import com.nikgapps.app.utils.AppDiagnostics
@@ -76,14 +73,11 @@ data class NavItem(
 val listOfNavItems = buildList {
     add(NavItem("Home", Icons.Default.Home, Screens.Home.name))
     add(NavItem("Requests", Icons.Default.AccountTree, Screens.Requests.name))
-    if (BuildConfig.DEBUG && BuildConfig.POSTHOG_PERSONAL_API_KEY.isNotBlank() && BuildConfig.POSTHOG_PROJECT_ID.isNotBlank()) {
-        add(NavItem("Analytics", Icons.Default.Analytics, Screens.Analytics.name))
-    }
     add(NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name))
 }
 
 enum class Screens {
-    Home, Profile, Download, Settings, Apps, Requests, Analytics, Logs, Install, Project
+    Home, Profile, Download, Settings, Apps, Requests, Logs, Install, Project
 }
 
 const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
@@ -259,9 +253,6 @@ fun NavigationHost(
         }
         composable(route = Screens.Requests.name) {
             PullRequestsScreen()
-        }
-        composable(route = Screens.Analytics.name) {
-            AnalyticsDashboardScreen()
         }
         composable(route = PROJECT_ROUTE, arguments = listOf(
             navArgument("build") { type = NavType.BoolType; defaultValue = false }

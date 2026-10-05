@@ -1,4 +1,4 @@
-package com.nikgapps.app.analytics
+package com.nikgapps.admin.analytics
 
 import java.nio.file.Files
 import java.time.Instant
