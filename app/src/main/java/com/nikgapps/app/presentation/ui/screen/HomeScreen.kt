@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -109,6 +110,7 @@ import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
+import com.nikgapps.app.utils.network.EliteMembershipRepository
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import com.nikgapps.app.presentation.navigation.Screens
@@ -161,6 +163,7 @@ fun HomeScreen(navController: NavHostController) {
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
     var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+    var isElite by remember { mutableStateOf(false) }
     val projectScope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
 
@@ -184,6 +187,19 @@ fun HomeScreen(navController: NavHostController) {
                 throw cancelled
             } catch (_: Exception) {
                 // Keep the fallback icon when the account lookup is unavailable.
+            }
+        }
+    }
+
+    LaunchedEffect(GithubPrefs.username, isOnline) {
+        isElite = false
+        if (isOnline && GithubPrefs.username.isNotBlank()) {
+            try {
+                isElite = EliteMembershipRepository.isElite(GithubPrefs.username)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Do not show an unverified badge when the tracker cannot be reached.
             }
         }
     }
@@ -284,7 +300,7 @@ fun HomeScreen(navController: NavHostController) {
     ) { paddingValues ->
         if (projects.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
-                WelcomeCard(GithubPrefs.username)
+                WelcomeCard(GithubPrefs.username, isElite)
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
@@ -295,7 +311,7 @@ fun HomeScreen(navController: NavHostController) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { WelcomeCard(GithubPrefs.username) }
+                item { WelcomeCard(GithubPrefs.username, isElite) }
                 item {
                     Box(Modifier.fillMaxWidth().height(reachabilitySpace), contentAlignment = Alignment.Center) {
                         Text("Projects", style = MaterialTheme.typography.headlineLarge)
@@ -414,33 +430,49 @@ fun HomeScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun WelcomeCard(username: String) {
+private fun WelcomeCard(username: String, isElite: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (GithubPrefs.avatarUrl.isBlank()) {
-                Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-            } else {
-                SubcomposeAsyncImage(
-                    model = GithubPrefs.avatarUrl,
-                    contentDescription = "$username's GitHub profile picture",
-                    modifier = Modifier.size(40.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                    loading = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
-                    error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
-                )
+        Box {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp,
+                    end = if (isElite) 96.dp else 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (GithubPrefs.avatarUrl.isBlank()) {
+                    Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
+                } else {
+                    SubcomposeAsyncImage(
+                        model = GithubPrefs.avatarUrl,
+                        contentDescription = "$username's GitHub profile picture",
+                        modifier = Modifier.size(40.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        loading = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
+                        error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
+                    Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
+                }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
-                Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
+            if (isElite) Surface(
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+            ) {
+                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Text("ELITE", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }

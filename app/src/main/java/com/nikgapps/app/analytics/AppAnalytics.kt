@@ -2,12 +2,13 @@ package com.nikgapps.app.analytics
 
 import android.app.Application
 import com.nikgapps.BuildConfig
+import com.nikgapps.app.data.GithubPrefs
 import com.posthog.PersonProfiles
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 
-/** Privacy-minimal, anonymous product analytics. */
+/** Product analytics with the signed-in GitHub username attached to events. */
 object AppAnalytics {
     private var initialized = false
 
@@ -75,7 +76,11 @@ object AppAnalytics {
 
     private fun capture(event: String, properties: Map<String, Any>) {
         if (initialized) {
-            PostHog.capture(event = event, properties = properties)
+            val username = GithubPrefs.username.trim()
+            val eventProperties = if (username.isNotEmpty())
+                properties + ("github_username" to username)
+            else properties
+            PostHog.capture(event = event, properties = eventProperties)
             PostHog.flush()
         }
     }
