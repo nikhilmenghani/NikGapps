@@ -79,6 +79,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -116,6 +117,8 @@ import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.presentation.ui.component.HomeUpdateIndicator
 import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.registry.catalogAndroidVersion
+import com.nikgapps.app.registry.duplicateCurrentProject
+import com.nikgapps.app.registry.unavailableProjectPackages
 import com.nikgapps.app.utils.constants.ApplicationConstants.getNikGappsAppDownloadUrl
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.update.AppUpdateManager
@@ -129,6 +132,7 @@ import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import coil3.compose.SubcomposeAsyncImage
@@ -156,6 +160,21 @@ fun HomeScreen(navController: NavHostController) {
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
+    var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+    val projectScope = rememberCoroutineScope()
+    val catalogRepository = remember { CatalogRepository(context.cacheDir) }
+
+    LaunchedEffect(projects, isOnline) {
+        if (!isOnline) return@LaunchedEffect
+        val results = mutableMapOf<String, Set<String>>()
+        projects.forEach { saved ->
+            runCatching {
+                catalogRepository.load(catalogAndroidVersion(saved.androidVersion.displayName),
+                    saved.defaultChannel, saved.architecture.value)
+            }.onSuccess { metadata -> results[saved.id] = unavailableProjectPackages(saved, metadata) }
+        }
+        unavailableByProject = results
+    }
 
     LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
         if (GithubPrefs.avatarUrl.isBlank() && GithubPrefs.token.isNotBlank()) {
@@ -286,12 +305,14 @@ fun HomeScreen(navController: NavHostController) {
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
+                        unavailable = unavailableByProject[project.id],
                         onOpen = {
                             AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
                             navController.navigate(projectRoute(project.id))
                         },
                         onBuild = {
-                            if (isOnline) navController.navigate(buildZipRoute(project.id))
+                            if (isOnline && unavailableByProject[project.id]?.isEmpty() == true)
+                                navController.navigate(buildZipRoute(project.id))
                             else Toast.makeText(
                                 context,
                                 "Internet connection is required before building the ZIP",
@@ -300,22 +321,21 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onOpenZip = latestBuild?.let { saved -> { context.openPublishedZip(saved) } },
                         onDuplicate = {
-                            projects = projectRepository.addProject(
-                                BuildProject(
-                                    name = "${project.name} copy".take(MAX_PROJECT_NAME_LENGTH),
-                                    androidVersion = project.androidVersion,
-                                    architecture = project.architecture,
-                                    selectedAppSetId = project.selectedAppSetId,
-                                    selectedPackageAppSets = project.selectedPackageAppSets,
-                                    defaultChannel = project.defaultChannel,
-                                    channelOverrides = project.channelOverrides,
-                                    selectedAppIds = project.selectedAppIds,
-                                    appSources = project.appSources
-                                )
-                            )
-                            AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
+                            projectScope.launch {
+                                runCatching {
+                                    catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
+                                        project.defaultChannel, project.architecture.value)
+                                }.onSuccess { metadata ->
+                                    projects = projectRepository.addProject(duplicateCurrentProject(project, metadata))
+                                    AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
+                                }.onFailure {
+                                    Toast.makeText(context, "Cannot check the latest package list; try again online",
+                                        Toast.LENGTH_LONG).show()
+                                }
+                            }
                         },
                         onEdit = {
+                            if (unavailableByProject[project.id]?.isNotEmpty() == true) return@ProjectCard
                             AppDiagnostics.info("project", "edit_opened", mapOf("project" to project.id.take(8)))
                             projectToEdit = project
                         },
@@ -444,6 +464,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 @Composable
 private fun ProjectCard(
     project: BuildProject,
+    unavailable: Set<String>?,
     onOpen: () -> Unit,
     onBuild: () -> Unit,
     onOpenZip: (() -> Unit)?,
@@ -491,6 +512,10 @@ private fun ProjectCard(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(project.name, style = MaterialTheme.typography.titleMedium)
+                    if (unavailable?.isNotEmpty() == true) {
+                        Text("Outdated · read only", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error)
+                    }
                     Text(
                         "${project.selectedAppIds.size} apps · ${
                             remember(project.createdAt) {
@@ -533,7 +558,7 @@ private fun ProjectCard(
                         onClick = openZip
                     )
                 }
-                if (project.selectedAppIds.isNotEmpty()) {
+                if (project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true) {
                     ProjectActionButton(
                         icon = Icons.Default.Inventory2,
                         label = "Create ZIP",
@@ -557,6 +582,7 @@ private fun ProjectCard(
             )
             DropdownMenuItem(
                 text = { Text("Edit project") },
+                enabled = unavailable?.isEmpty() == true,
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                 onClick = {
                     showProjectMenu = false

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -72,7 +71,6 @@ data class NavItem(
 
 val listOfNavItems = buildList {
     add(NavItem("Home", Icons.Default.Home, Screens.Home.name))
-    add(NavItem("Requests", Icons.Default.AccountTree, Screens.Requests.name))
     add(NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name))
 }
 

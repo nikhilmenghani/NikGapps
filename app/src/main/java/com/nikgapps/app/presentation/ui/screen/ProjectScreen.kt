@@ -38,6 +38,7 @@ import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
 import com.nikgapps.app.presentation.navigation.appConfigRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
+import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
@@ -146,9 +147,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }.groupBy({ it.first }, { it.second })
     }.orEmpty()
     val displayedPackages = registry?.catalog?.packages?.filter { it.id in packageAppSets }.orEmpty()
+    val unavailable = registry?.let { unavailableProjectPackages(current, it) }.orEmpty()
 
     LaunchedEffect(registry, selectedAppSet?.id) {
-        if (registry != null && selectedAppSet != null) {
+        if (registry != null && selectedAppSet != null && unavailable.isEmpty()) {
             val packageOwners = current.selectedPackageAppSets.toMutableMap()
             current.selectedAppIds.forEach { id ->
                 val validOwners = packageAppSets[id].orEmpty()
@@ -297,10 +299,113 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     LaunchedEffect(autoBuild, metadata) {
-        if (autoBuild && !autoBuildConsumed && metadata != null) {
+        if (autoBuild && !autoBuildConsumed && metadata != null && unavailable.isEmpty()) {
             autoBuildConsumed = true
             startBuild()
         }
+    }
+
+    if (registry != null && unavailable.isNotEmpty()) {
+        var confirmDelete by remember { mutableStateOf(false) }
+        Scaffold(topBar = { TopAppBar(
+            title = { Text(current.name) },
+            navigationIcon = { IconButton(onClick = navController::navigateUp) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+            } }
+        ) }) { padding ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                                Text("Outdated project", style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                            Text("Read only · ${current.androidVersion.displayName}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text("Some selected packages are no longer in this release. Your original project " +
+                                "is safe, but it can't be edited or built. Duplicate it to continue without them.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    }
+                }
+                item {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Unavailable packages (${unavailable.size})",
+                                style = MaterialTheme.typography.titleMedium)
+                            unavailable.sorted().forEachIndexed { index, packageId ->
+                                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(packageId.split('_').joinToString(" ") { word ->
+                                        word.replaceFirstChar { it.uppercase() }
+                                    }, style = MaterialTheme.typography.bodyLarge)
+                                    Text(packageId, style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("What would you like to do?", style = MaterialTheme.typography.titleMedium)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    val copy = duplicateCurrentProject(current, registry)
+                                    repository.addProject(copy)
+                                    navController.navigate(projectRoute(copy.id))
+                                }, modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                    Text("Duplicate", maxLines = 1)
+                                }
+                                OutlinedButton(onClick = navController::navigateUp,
+                                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                    Text("Keep", maxLines = 1)
+                                }
+                                OutlinedButton(onClick = { confirmDelete = true },
+                                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                    Text("Delete", maxLines = 1,
+                                        color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            Text("Duplicate removes these packages from a new project. Keep returns to your " +
+                                "projects without changing this one.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+        if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete outdated project?") },
+            text = { Text("This cannot be undone. You can duplicate it first to keep a supported selection.") },
+            confirmButton = { TextButton(onClick = {
+                repository.deleteProject(current.id)
+                confirmDelete = false
+                navController.navigateUp()
+            }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } })
+        return
     }
 
     Scaffold(topBar = { TopAppBar(title = {

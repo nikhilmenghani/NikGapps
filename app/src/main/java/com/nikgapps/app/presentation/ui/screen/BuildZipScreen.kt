@@ -54,7 +54,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var stage by remember { mutableStateOf(BuildStage.RUNNING) }
     var location by remember { mutableStateOf<String?>(null) }
     var completed by remember { mutableIntStateOf(0) }
-    var total by remember { mutableIntStateOf(project?.selectedAppIds?.size ?: 0) }
+    var total by remember { mutableIntStateOf(0) }
     var operationProgress by remember { mutableStateOf<Float?>(null) }
     var operationLabel by remember { mutableStateOf("Preparing build") }
     var retryKey by remember { mutableIntStateOf(0) }
@@ -147,7 +147,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
         activeRunId = java.util.UUID.randomUUID().toString().take(8)
         logs.clear()
         completed = 0
-        total = project?.selectedAppIds?.size ?: 0
+        total = 0
         operationProgress = null
         operationLabel = "Preparing build"
         stage = BuildStage.RUNNING
@@ -161,6 +161,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             val metadata = withContext(Dispatchers.IO) { CatalogRepository(context.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value) }
+            val unavailable = unavailableProjectPackages(project, metadata)
+            check(unavailable.isEmpty()) {
+                "Project is outdated. Duplicate it to remove unavailable packages: ${unavailable.sorted().joinToString()}"
+            }
             log("Resolving ${project.selectedAppIds.size} selected apps and their dependencies…")
             operationLabel = "Resolving packages and dependencies"
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
@@ -240,24 +244,45 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when (stage) {
                     BuildStage.RUNNING -> {
+                        val overall = when {
+                            total <= 0 -> null
+                            operationLabel.startsWith("Saving ZIP") -> 0.98f
+                            operationLabel.startsWith("Assembling") -> 0.95f
+                            else -> (0.9f * (completed + (operationProgress ?: 0f)) / total)
+                                .coerceIn(0f, 0.9f)
+                        }
+                        Text("Overall build progress" + (overall?.let { " · ~${(it * 100).toInt()}%" } ?: ""),
+                            style = MaterialTheme.typography.labelMedium)
+                        overall?.let { value ->
+                            LinearProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
+                        } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text(if (total > 0) "$completed of $total packages prepared · includes dependencies"
+                            else "Preparing package list…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Current step · $operationLabel" +
+                            (operationProgress?.let { " · ${(it * 100).toInt()}%" } ?: ""),
+                            style = MaterialTheme.typography.labelMedium)
                         operationProgress?.let { value ->
                             LinearProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
                         } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text(operationProgress?.let { "${(it * 100).toInt()}% · $operationLabel" }
-                            ?: "$operationLabel · $completed of $total apps prepared",
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     BuildStage.AWAITING_FILE_CHOICE -> Text(
                         "Choose whether to replace the existing ZIP or keep both files",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    BuildStage.COMPLETE -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
-                        OutlinedButton(onClick = { context.openNikGappsFolder() }) {
-                            Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(6.dp)); Text("Open folder")
-                        }
-                        Button(onClick = { location?.let(context::openPublishedZip) }) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text("Open ZIP")
+                    BuildStage.COMPLETE -> {
+                        Text("Overall build progress · 100%", style = MaterialTheme.typography.labelMedium)
+                        LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth())
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+                            OutlinedButton(onClick = { context.openNikGappsFolder() }) {
+                                Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(6.dp)); Text("Open folder")
+                            }
+                            Button(onClick = { location?.let(context::openPublishedZip) }) {
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text("Open ZIP")
+                            }
                         }
                     }
                     BuildStage.FAILED -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {

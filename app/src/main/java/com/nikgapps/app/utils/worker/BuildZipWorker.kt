@@ -47,10 +47,14 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 ?: "Build limit reached.")
         }
         return try {
-            progress("Loading package catalog", 0, project.selectedAppIds.size)
+            progress("Loading package catalog", 0, 0)
             val metadata = CatalogRepository(applicationContext.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value)
+            val unavailable = unavailableProjectPackages(project, metadata)
+            check(unavailable.isEmpty()) {
+                "Project is outdated. Duplicate it to remove unavailable packages: ${unavailable.sorted().joinToString()}"
+            }
             metadata.release?.let { log("Using release ${it.createdAt.take(10)}") }
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
             val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
@@ -58,31 +62,31 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 project.selectedPackageAppSets[id] ?: metadata.appSets.appSets.firstOrNull { id in it.packages }?.id
                 ?: error("No AppSet owns selected package '$id'")
             }
-            progress("Resolving packages and dependencies", 0, project.selectedAppIds.size)
+            progress("Resolving packages and dependencies", 0, 0)
             val resolution = CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolveAcrossAppSets(
                 selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value)
-            val visibleTotal = resolution.packages.count { !it.hidden }
+            val packageTotal = resolution.packages.size
             var completed = 0
             val artifacts = mutableListOf<ValidatedArtifact>()
             val downloader = ArtifactDownloader(applicationContext.cacheDir)
             val validator = PackageZipValidator()
             resolution.packages.forEach { pkg ->
                 val label = "Downloading ${pkg.catalogPackage.name}"
-                progress(label, completed, visibleTotal, 0)
+                progress(label, completed, packageTotal, 0)
                 var reported = -1
                 val file = downloader.obtain(pkg) { download ->
                     val percent = download.total?.takeIf { it > 0 }?.let { (download.downloaded * 100 / it).toInt() }
                     if (percent != null && percent / 5 != reported / 5) {
                         reported = percent
-                        progress(label, completed, visibleTotal, percent)
+                        progress(label, completed, packageTotal, percent)
                     }
                 }
-                progress("Validating ${pkg.catalogPackage.name}", completed, visibleTotal)
+                progress("Validating ${pkg.catalogPackage.name}", completed, packageTotal)
                 artifacts += ValidatedArtifact(pkg, file, validator.validate(file, pkg))
-                if (!pkg.hidden) completed++
-                progress("Prepared ${pkg.catalogPackage.name}", completed, visibleTotal)
+                completed++
+                progress("Prepared ${pkg.catalogPackage.name}", completed, packageTotal)
             }
-            progress("Assembling flashable ZIP", completed, visibleTotal)
+            progress("Assembling flashable ZIP", completed, packageTotal)
             GitHubBuildAuth.requireAuthenticated()
             val primarySet = metadata.appSets.appSets.firstOrNull { it.id == project.selectedAppSetId }
                 ?: metadata.appSets.appSets.first()
@@ -101,7 +105,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 output.delete()
                 throw error
             }
-            progress("Saving ZIP to Downloads/NikGapps", completed, visibleTotal)
+            progress("Saving ZIP to Downloads/NikGapps", completed, packageTotal)
             val publisher = ZipPublisher(applicationContext)
             if (publisher.exists(output.name)) {
                 quota.recordSuccess()

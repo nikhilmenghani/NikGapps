@@ -38,6 +38,7 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
         catch (e: Exception) { error = e.message ?: "Unable to load package information" }
     }
     val current = project
+    val outdated = current != null && metadata?.let { unavailableProjectPackages(current, it).isNotEmpty() } == true
     val pkg = metadata?.catalog?.packages?.firstOrNull { it.id == packageId }
     val memberAppSets = metadata?.let { loaded -> loaded.appSets.appSets.filter { set ->
         loaded.catalog.publicPackages(set).any { it.id == packageId }
@@ -48,7 +49,11 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
         ?: pkg?.versions?.values?.firstOrNull()
     val owner = memberAppSets.firstOrNull { it.id == current?.selectedPackageAppSets?.get(packageId) } ?: memberAppSets.firstOrNull()
 
-    fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun save(value: BuildProject) {
+        if (outdated) return
+        repository.updateProject(value)
+        project = value
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text(pkg?.name ?: "Package") }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
@@ -72,6 +77,8 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
                 }
             }
             error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
+            if (outdated) item { Text("This project is outdated and read only. Duplicate it to edit a supported copy.",
+                color = MaterialTheme.colorScheme.error) }
             if (metadata == null && error == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (pkg != null && current != null) {
                 item {
@@ -99,6 +106,7 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
                     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                         FlowRow(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             memberAppSets.forEach { set -> FilterChip(selected = owner?.id == set.id,
+                                enabled = !outdated,
                                 onClick = { save(current.copy(selectedAppSetId = set.id,
                                     selectedPackageAppSets = current.selectedPackageAppSets + (packageId to set.id))) },
                                 label = { Text(set.name) }, leadingIcon = if (owner?.id == set.id) {{ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }} else null) }
