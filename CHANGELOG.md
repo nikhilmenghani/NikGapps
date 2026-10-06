@@ -1,5 +1,11 @@
 # NikGapps changelog
 
+## 0.80.16
+- Update the a17 apps from Sept release
+- Mark outdated projects as read-only and let users duplicate them without unavailable packages.
+- Show overall build progress alongside the current package download progress.
+- Show an Elite badge for eligible GitHub users.
+
 ## 0.80.15
 - Fixed the search UI breaking on some devices
 
