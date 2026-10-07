@@ -437,13 +437,13 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ) {
-        Box {
-            Row(
-                modifier = Modifier.padding(start = 16.dp, top = 12.dp,
-                    end = if (isElite) 96.dp else 16.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (GithubPrefs.avatarUrl.isBlank()) {
                     Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
                 } else {
@@ -456,23 +456,22 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                         error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
                     )
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
-                    Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
+                if (isElite) Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                ) {
+                    Row(Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Text("ELITE", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
-            if (isElite) Surface(
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-            ) {
-                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Text("ELITE", style = MaterialTheme.typography.labelSmall)
-                }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
+                Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
