@@ -703,16 +703,16 @@ private fun ProjectSheet(
     fun saveProject() {
         if (name.isBlank() || selectableVersions.isNullOrEmpty()) return
         keyboard?.hide()
+        val savedName = name.trim().take(MAX_PROJECT_NAME_LENGTH)
         onSave(
-            BuildProject(
-                id = project?.id ?: java.util.UUID.randomUUID().toString(),
-                name = name.trim().take(MAX_PROJECT_NAME_LENGTH),
+            project?.copy(
+                name = savedName,
                 androidVersion = androidVersion,
-                architecture = architecture,
-                selectedAppSetId = project?.selectedAppSetId ?: "core",
-                selectedPackageAppSets = project?.selectedPackageAppSets.orEmpty(),
-                defaultChannel = project?.defaultChannel ?: "stable",
-                channelOverrides = project?.channelOverrides.orEmpty()
+                architecture = architecture
+            ) ?: BuildProject(
+                name = savedName,
+                androidVersion = androidVersion,
+                architecture = architecture
             )
         )
     }

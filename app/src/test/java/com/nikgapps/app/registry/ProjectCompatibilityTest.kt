@@ -3,6 +3,7 @@ package com.nikgapps.app.registry
 import com.nikgapps.app.data.AndroidVersion
 import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
+import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,5 +27,13 @@ class ProjectCompatibilityTest {
         assertEquals(mapOf("gms_core" to "core"), copy.selectedPackageAppSets)
         assertTrue(copy.channelOverrides.isEmpty())
         assertEquals(setOf("gms_core", "removed_package"), original.selectedAppIds)
+    }
+
+    @Test fun duplicatedProjectNameCanUseTwentyFiveCharacters() {
+        val original = BuildProject(name = "12345678901234567890",
+            androidVersion = AndroidVersion.ANDROID_17, architecture = Architecture.ARM64)
+        val copy = duplicateCurrentProject(original, metadata)
+        assertEquals(25, MAX_PROJECT_NAME_LENGTH)
+        assertEquals("12345678901234567890 copy", copy.name)
     }
 }
