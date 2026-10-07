@@ -1,5 +1,12 @@
 # NikGapps changelog
 
+## 0.80.17
+- Choose compressed builds for smaller ZIPs or standard builds for faster creation, in Settings or before starting a build.
+- Elite users can choose compression levels 1–9, balancing ZIP size against build time.
+- Elite users can reset their build window with remaining builds plus six.
+- Fixed renaming a project clearing its selected apps and source settings.
+- Increased the project-name limit from 20 to 25 characters.
+
 ## 0.80.16
 - Update the a17 apps from Sept release
 - Mark outdated projects as read-only and let users duplicate them without unavailable packages.
