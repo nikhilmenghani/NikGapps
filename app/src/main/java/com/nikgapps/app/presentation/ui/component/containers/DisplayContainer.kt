@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Science
@@ -46,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
+import com.nikgapps.app.data.BuildCompressionPrefs
 import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
@@ -240,6 +242,13 @@ fun SystemPreferences(
         ) {
             PreferenceSubtitle(text = "ZIP builds")
             BuildCompressionOptions()
+            PreferenceItem(
+                label = "Ask before building",
+                supportingText = "Confirm the compression choice for each new build",
+                icon = Icons.Outlined.HelpOutline,
+                switchState = BuildCompressionPrefs.askBeforeBuild,
+                onSwitchChange = { BuildCompressionPrefs.askBeforeBuild = it }
+            )
             PreferenceSubtitle(text = stringResource(R.string.settings_device_access))
             PreferenceItem(
                 label = stringResource(R.string.settings_permissions),

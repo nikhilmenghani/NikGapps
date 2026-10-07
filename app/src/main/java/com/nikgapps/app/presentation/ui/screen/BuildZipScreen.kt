@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -65,7 +67,10 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var pendingSource by remember { mutableStateOf<String?>(null) }
     var existingName by remember { mutableStateOf<String?>(null) }
     var activeRunId by remember { mutableStateOf("none") }
-    var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(false) }
+    var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(!BuildCompressionPrefs.askBeforeBuild) }
+    var chosenCompression by rememberSaveable(projectId) { mutableStateOf(BuildCompressionPrefs.compressed) }
+    var chosenLevel by rememberSaveable(projectId) { mutableIntStateOf(BuildCompressionPrefs.level) }
+    var dontAskAgain by rememberSaveable(projectId) { mutableStateOf(false) }
     var existingWorkChecked by remember(projectId) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -367,12 +372,26 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     if (existingWorkChecked && !compressionConfirmed) AlertDialog(
         onDismissRequest = { navController.navigateUp() },
         shape = RoundedCornerShape(12.dp),
-        title = { Text("Build options") },
+        title = { Text("Build compression") },
         text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Choose a faster build or a smaller ZIP.", style = MaterialTheme.typography.bodyMedium)
-            BuildCompressionOptions()
+            BuildCompressionOptions(compressed = chosenCompression, level = chosenLevel,
+                onCompressedChange = { chosenCompression = it }, onLevelChange = { chosenLevel = it })
+            Row(Modifier.fillMaxWidth().toggleable(value = dontAskAgain, role = Role.Checkbox,
+                onValueChange = { dontAskAgain = it }), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = dontAskAgain, onCheckedChange = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Don't ask again", style = MaterialTheme.typography.bodyMedium)
+            }
+            Text("Your confirmed choice is saved. You can change it in Settings → System.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } },
-        confirmButton = { FilledTonalButton(onClick = { compressionConfirmed = true },
+        confirmButton = { FilledTonalButton(onClick = {
+            BuildCompressionPrefs.compressed = chosenCompression
+            BuildCompressionPrefs.level = chosenLevel
+            BuildCompressionPrefs.askBeforeBuild = !dontAskAgain
+            compressionConfirmed = true
+        },
             shape = RoundedCornerShape(8.dp)) { Text("Start build") } },
         dismissButton = { OutlinedButton(onClick = { navController.navigateUp() },
             shape = RoundedCornerShape(8.dp)) { Text("Cancel") } }

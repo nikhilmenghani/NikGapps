@@ -11,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 object BuildCompressionPrefs {
     var compressed by prefMutableState("compressed_build", false) { booleanPreferencesKey(it) }
     var level by prefMutableState("build_compression_level", 6) { intPreferencesKey(it) }
+    var askBeforeBuild by prefMutableState("ask_build_compression", true) { booleanPreferencesKey(it) }
 }
 
 fun compressionLevelFor(compressed: Boolean, requestedLevel: Int, elite: Boolean): Int =
