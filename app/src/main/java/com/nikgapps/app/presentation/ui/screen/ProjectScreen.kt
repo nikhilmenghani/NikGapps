@@ -42,6 +42,7 @@ import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
+import com.nikgapps.app.utils.network.EliteMembershipRepository
 import com.nikgapps.app.network.LocalInternetAvailable
 import com.nikgapps.app.utils.network.GitHubBuildAuth
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +98,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val searchQuery = searchInput.text
     var searchVisible by rememberSaveable(projectId) { mutableStateOf(false) }
     var quotaClock by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var eliteMember by remember { mutableStateOf(false) }
+    var resettingEliteQuota by remember { mutableStateOf(false) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -115,6 +118,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         while (notificationsExpanded) {
             quotaClock = System.currentTimeMillis()
             delay(30_000L)
+        }
+    }
+    LaunchedEffect(notificationsExpanded, GithubPrefs.username, isOnline) {
+        eliteMember = false
+        if (notificationsExpanded && isOnline && GithubPrefs.username.isNotBlank()) {
+            try {
+                eliteMember = EliteMembershipRepository.isElite(GithubPrefs.username)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Only offer a reset after a successful membership lookup.
+            }
         }
     }
 
@@ -656,17 +671,60 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                     }
                                 }
                             }
+                            if (eliteMember) {
+                                val nextReset = quotaStatus.nextEliteResetAtMillis
+                                Text(
+                                    when {
+                                        nextReset != null -> "Elite reset available again at " +
+                                            DateFormat.getTimeFormat(context).format(Date(nextReset)) + "."
+                                        quotaStatus.eliteResetAvailable ->
+                                            "Elite benefit: start a new six-hour window with your " +
+                                                "${quotaStatus.remaining} remaining builds plus 6."
+                                        else -> "Elite reset is unavailable for this six-hour period."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (eliteMember) FilledTonalButton(
+                                    onClick = {
+                                        val username = GithubPrefs.username
+                                        resettingEliteQuota = true
+                                        scope.launch {
+                                            try {
+                                                check(GithubPrefs.token.isNotBlank() &&
+                                                    GithubPrefs.username.equals(username, ignoreCase = true)) {
+                                                    "GitHub sign-in changed; please try again"
+                                                }
+                                                BuildQuotaRepository(context).resetForElite(username)
+                                                quotaClock = System.currentTimeMillis()
+                                                Toast.makeText(context, "Six builds added to a new window",
+                                                    Toast.LENGTH_SHORT).show()
+                                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                                throw cancelled
+                                            } catch (error: Exception) {
+                                                Toast.makeText(context,
+                                                    error.message ?: "Could not reset the build window",
+                                                    Toast.LENGTH_LONG).show()
+                                            } finally {
+                                                resettingEliteQuota = false
+                                            }
+                                        }
+                                    },
+                                    enabled = isOnline && quotaStatus.eliteResetAvailable && !resettingEliteQuota,
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                                ) { Text(if (resettingEliteQuota) "Checking Elite status…" else "Reset build window") }
                                 FilledTonalButton(
                                     onClick = { metadataRefreshes++ },
                                     enabled = isOnline && !metadataLoading,
-                                    modifier = Modifier.height(40.dp),
-                                    shape = CircleShape,
-                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                                 ) {
-                                    Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
-                                    Spacer(Modifier.width(6.dp))
                                     Text(if (metadataLoading) "Refreshing…" else "Refresh app list")
                                 }
                             }
