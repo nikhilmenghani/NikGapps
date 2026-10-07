@@ -21,3 +21,14 @@ therefore shows setup instructions instead of live analytics.
 NikAdmin has its own private analytics cache. Existing cached history from the
 NikGapps app is not copied between Android app sandboxes; NikAdmin fetches the
 history again on first launch.
+
+Build cards show the event's GitHub username when recorded, otherwise the
+anonymous analytics ID. User cards show the latest recorded GitHub username
+for that analytics ID, including when a later build is anonymous. Counts remain
+grouped by analytics ID. Older cache rows trigger a full history refresh to
+retrieve usernames already recorded in PostHog.
+
+The summary shows ZIP builds and unique analytics users with recorded builds.
+Build details place User, Size, and Packages on one row. Filter builds by User,
+Device, or Device code; User options show the recorded GitHub username with an
+anonymous analytics ID fallback.

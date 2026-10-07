@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
@@ -48,17 +47,17 @@ import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-private data class AnalyticsEvent(
+internal data class AnalyticsEvent(
     val id: String, val timestamp: Date, val packageCount: Int, val zipName: String,
     val deviceModel: String, val deviceCode: String, val sizeBytes: Long, val location: String,
-    val conflictResolution: String, val distinctId: String
+    val conflictResolution: String, val distinctId: String, val githubUsername: String
 )
-private data class AnalyticsUser(
+internal data class AnalyticsUser(
     val distinctId: String, val zipCount: Int, val lastCreated: Date?, val deviceModel: String,
-    val deviceCode: String
+    val deviceCode: String, val githubUsername: String
 )
-private data class AnalyticsDashboard(val events: List<AnalyticsEvent>, val users: List<AnalyticsUser>)
-private enum class BuildFilterCategory(val label: String) { DEVICE("Device"), CODE("Device code"), LOCATION("Location"), CONFLICT("Conflict") }
+internal data class AnalyticsDashboard(val events: List<AnalyticsEvent>, val users: List<AnalyticsUser>)
+internal enum class BuildFilterCategory(val label: String) { USER("User"), DEVICE("Device"), CODE("Device code") }
 
 private class AnalyticsApiException(message: String, val retryAt: Long? = null) : Exception(message)
 
@@ -155,7 +154,7 @@ fun AnalyticsDashboardScreen() {
         if (!configured) AnalyticsSetupState(Modifier.fillMaxSize().padding(padding))
         else Column(Modifier.fillMaxSize().padding(padding)) {
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            AnalyticsSummary(visibleEvents)
+            AnalyticsSummary(visibleEvents, users.size)
             PrimaryTabRow(selectedTabIndex = selectedSection) {
                 Tab(selected = selectedSection == 0, onClick = { selectedSection = 0 },
                     text = { Text("Builds") }, icon = { Icon(Icons.Default.Archive, null, Modifier.size(18.dp)) })
@@ -267,11 +266,11 @@ fun AnalyticsDashboardScreen() {
     HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
 }
 
-@Composable private fun AnalyticsSummary(events: List<AnalyticsEvent>) {
+@Composable private fun AnalyticsSummary(events: List<AnalyticsEvent>, userCount: Int) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         SummaryCard("ZIP builds", events.size.toString(), Icons.Default.Archive, Modifier.weight(1f))
-        SummaryCard("Packages", events.sumOf { it.packageCount }.toString(), Icons.Default.Inventory2, Modifier.weight(1f))
+        SummaryCard("Unique users", userCount.toString(), Icons.Default.People, Modifier.weight(1f))
     }
 }
 
@@ -302,16 +301,15 @@ fun AnalyticsDashboardScreen() {
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth()) {
-                EventValue("Packages", event.packageCount.toString(), Modifier.weight(1f))
                 EventValue("Device", deviceLabel(event.deviceModel, event.deviceCode), Modifier.weight(1.5f))
                 EventValue("Time", timeLabel(event.timestamp), Modifier.weight(1f))
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EventValue("User", event.filterValue(BuildFilterCategory.USER), Modifier.weight(1.5f))
                 EventValue("Size", formatBytes(event.sizeBytes), Modifier.weight(1f))
-                EventValue("Conflict", event.conflictResolution.ifBlank { "—" }.replaceFirstChar { it.uppercase() }, Modifier.weight(1f))
+                EventValue("Packages", event.packageCount.toString(), Modifier.weight(1f))
             }
-            EventValue("Location", event.location.ifBlank { "Downloads/NikGapps" }, Modifier.fillMaxWidth())
         }
     }
 }
@@ -326,7 +324,10 @@ fun AnalyticsDashboardScreen() {
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(deviceLabel(user.deviceModel, user.deviceCode), style = MaterialTheme.typography.titleSmall)
+                Text(user.githubUsername.takeIf { it.isNotBlank() }?.let { "@$it" }
+                    ?: deviceLabel(user.deviceModel, user.deviceCode), style = MaterialTheme.typography.titleSmall)
+                if (user.githubUsername.isNotBlank()) Text(deviceLabel(user.deviceModel, user.deviceCode),
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(user.distinctId, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 user.lastCreated?.let { Text("Last build ${relativeTime(it)}", style = MaterialTheme.typography.labelSmall,
@@ -360,7 +361,7 @@ fun AnalyticsDashboardScreen() {
     }
 }
 
-private fun analyticsDashboard(eventRows: List<JsonArray>): AnalyticsDashboard {
+internal fun analyticsDashboard(eventRows: List<JsonArray>): AnalyticsDashboard {
     val events = eventRows.mapNotNull { row ->
         val timestampText = row.getOrNull(1)?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
         val timestamp = parseTimestamp(timestampText) ?: return@mapNotNull null
@@ -375,12 +376,14 @@ private fun analyticsDashboard(eventRows: List<JsonArray>): AnalyticsDashboard {
             sizeBytes = row.numberAsLong(6),
             location = row.text(7),
             conflictResolution = row.text(8),
-            distinctId = row.text(9)
+            distinctId = row.text(9),
+            githubUsername = row.text(10).trim()
         )
     }
     val users = events.filter { it.distinctId.isNotBlank() }.groupBy { it.distinctId }.map { (distinctId, builds) ->
         val latest = builds.maxBy { it.timestamp }
-        AnalyticsUser(distinctId, builds.size, latest.timestamp, latest.deviceModel, latest.deviceCode)
+        val username = builds.filter { it.githubUsername.isNotBlank() }.maxByOrNull { it.timestamp }?.githubUsername.orEmpty()
+        AnalyticsUser(distinctId, builds.size, latest.timestamp, latest.deviceModel, latest.deviceCode, username)
     }.sortedWith(compareByDescending<AnalyticsUser> { it.zipCount }.thenByDescending { it.lastCreated })
     return AnalyticsDashboard(events, users)
 }
@@ -422,11 +425,11 @@ private fun JsonArray.numberAsInt(index: Int) = getOrNull(index)?.jsonPrimitive?
 private fun JsonArray.numberAsLong(index: Int) = getOrNull(index)?.jsonPrimitive?.let {
     it.longOrNull ?: it.doubleOrNull?.toLong()
 } ?: 0L
-private fun AnalyticsEvent.filterValue(category: BuildFilterCategory) = when (category) {
+internal fun AnalyticsEvent.filterValue(category: BuildFilterCategory) = when (category) {
+    BuildFilterCategory.USER -> githubUsername.takeIf { it.isNotBlank() }?.let { "@$it" }
+        ?: distinctId.ifBlank { "Unknown" }
     BuildFilterCategory.DEVICE -> deviceModel.ifBlank { "Unknown" }
     BuildFilterCategory.CODE -> deviceCode.ifBlank { "Unknown" }
-    BuildFilterCategory.LOCATION -> location.ifBlank { "Downloads/NikGapps" }
-    BuildFilterCategory.CONFLICT -> conflictResolution.ifBlank { "Unknown" }.replaceFirstChar { it.uppercase() }
 }
 
 private fun postHogErrorMessage(status: Int, body: String): String {

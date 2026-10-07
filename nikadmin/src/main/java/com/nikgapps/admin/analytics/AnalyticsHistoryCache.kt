@@ -54,7 +54,8 @@ internal class AnalyticsHistoryCache(directory: File, host: String, projectId: S
 internal class AnalyticsHistorySync(private val pageSize: Int = 500) {
     fun refresh(previous: AnalyticsHistory, now: Long, query: (String) -> List<JsonArray>): AnalyticsHistory {
         // Periodically check all history for offline uploads older than the overlap.
-        val reconcile = previous.reconciledAt == null || now < (previous.syncedThrough ?: 0) ||
+        val reconcile = previous.reconciledAt == null || previous.rows.any { it.size < 11 } ||
+            now < (previous.syncedThrough ?: 0) ||
             now - previous.reconciledAt >= RECONCILE_INTERVAL
         val since = if (reconcile) null else previous.syncedThrough?.minus(OVERLAP)
         val incoming = mutableListOf<JsonArray>()
@@ -89,7 +90,8 @@ internal class AnalyticsHistorySync(private val pageSize: Int = 500) {
                    coalesce(properties.device_model, properties.${'$'}device_model, '') AS device_model,
                    coalesce(properties.device_code, properties.${'$'}device_name, '') AS device_code,
                    properties.size_bytes, coalesce(properties.location, 'Downloads/NikGapps'),
-                   properties.conflict_resolution, distinct_id
+                   properties.conflict_resolution, distinct_id,
+                   coalesce(properties.github_username, '') AS github_username
             FROM events
             WHERE event = 'zip_creation_succeeded'
             AND timestamp < toDateTime64('${Instant.ofEpochMilli(until)}', 6)

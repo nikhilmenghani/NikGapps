@@ -11,7 +11,7 @@ class AnalyticsHistoryCacheTest {
     private fun row(id: String, timestamp: String = "2026-09-30T17:00:00.123456Z", count: Int = 2) =
         buildJsonArray {
             add(id); add(timestamp); add("build.zip"); add(count); add("model"); add("code")
-            add(100L); add("Downloads/NikGapps"); add("rename"); add("user")
+            add(100L); add("Downloads/NikGapps"); add("rename"); add("user"); add("")
         }
 
     @Test fun persistsSnapshotsAndSeparatesProjectsAndRecoversCorruption() {
@@ -93,5 +93,19 @@ class AnalyticsHistoryCacheTest {
         assertFalse(sql.contains("timestamp >="))
         assertEquals(2, result.rows.size)
         assertEquals(now, result.reconciledAt)
+    }
+
+    @Test fun legacyRowsTriggerFullRefreshForUsernames() {
+        val legacy = JsonArray(row("old", "2026-01-01T00:00:00Z").take(10))
+        val previous = AnalyticsHistory(listOf(legacy), now - 1000, now - 1000)
+        var sql = ""
+        val updated = JsonArray(legacy + JsonPrimitive("nikhil"))
+        val result = AnalyticsHistorySync().refresh(previous, now) {
+            sql = it
+            listOf(updated)
+        }
+        assertFalse(sql.contains("timestamp >="))
+        assertTrue(sql.contains("properties.github_username"))
+        assertEquals(listOf(updated), result.rows)
     }
 }
