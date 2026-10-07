@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -34,7 +37,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -85,15 +87,6 @@ const val BUILD_ZIP_ROUTE = "Project/{projectId}/build"
 fun projectRoute(projectId: String, build: Boolean = false) = "Project/$projectId?build=$build"
 fun appConfigRoute(projectId: String, packageId: String) = "Project/$projectId/app/$packageId"
 fun buildZipRoute(projectId: String) = "Project/$projectId/build"
-
-val excludedScreens = listOf(
-    Screens.Settings.name,
-    Screens.Profile.name,
-    Screens.Apps.name,
-    PROJECT_ROUTE,
-    APP_CONFIG_ROUTE,
-    BUILD_ZIP_ROUTE
-)
 
 @Composable
 fun ScreenNavigator(
@@ -166,14 +159,11 @@ fun ScreenNavigator(
             allowSettings = currentEntry?.destination?.route == Screens.Settings.name,
             onOpenSettings = { navController.navigateWithState(Screens.Settings.name) }
         ) {
-            Scaffold(
-                bottomBar = { BottomNavigationBar(navController) },
-                contentWindowInsets = WindowInsets(left = 0, top = 0, right = 0, bottom = 0)
-            ) { innerPadding ->
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 NavigationHost(
                     navController = navController,
                     progressLogViewModel,
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.fillMaxSize().clipToBounds()
                 )
             }
         }
@@ -181,21 +171,26 @@ fun ScreenNavigator(
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-    if (currentDestination?.route !in excludedScreens) {
+fun BottomNavigationBar(navController: NavHostController, selectedRoute: String) {
         Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
             Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp)
                 .animateContentSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNavItems.forEach { navItem ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == navItem.route } == true
+                    val selected = selectedRoute == navItem.route
                     ExpressiveNavigationItem(navItem, selected, {
                         if (!selected) navController.navigateWithState(route = navItem.route)
                     }, if (selected) Modifier.weight(1f) else Modifier.width(56.dp))
                 }
             }
         }
+}
+
+/** Keep each destination's insets stable while its entire screen transitions. */
+@Composable
+private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
+    Scaffold(bottomBar = { BottomNavigationBar(navController, route) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) { content() }
     }
 }
 
@@ -230,12 +225,28 @@ fun NavigationHost(
     NavHost(
         navController = navController,
         startDestination = Screens.Home.name,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = {
+            fadeIn(tween(160, delayMillis = 70))
+        },
+        exitTransition = {
+            fadeOut(tween(70))
+        },
+        popEnterTransition = {
+            fadeIn(tween(160, delayMillis = 70))
+        },
+        popExitTransition = {
+            fadeOut(tween(70))
+        },
+        predictivePopEnterTransition = {
+            fadeIn(tween(120, delayMillis = 120, easing = LinearEasing))
+        },
+        predictivePopExitTransition = {
+            fadeOut(tween(120, easing = LinearEasing))
+        }
     ) {
         composable(route = Screens.Home.name) {
-            HomeScreen(
-                navController = navController
-            )
+            NavigationTab(navController, Screens.Home.name) { HomeScreen(navController = navController) }
         }
         composable(route = Screens.Profile.name) {
             ProfileScreen()
@@ -247,10 +258,10 @@ fun NavigationHost(
             SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(route = Screens.Logs.name) {
-            LogsScreen()
+            NavigationTab(navController, Screens.Logs.name) { LogsScreen() }
         }
         composable(route = Screens.Requests.name) {
-            PullRequestsScreen()
+            NavigationTab(navController, Screens.Requests.name) { PullRequestsScreen() }
         }
         composable(route = PROJECT_ROUTE, arguments = listOf(
             navArgument("build") { type = NavType.BoolType; defaultValue = false }

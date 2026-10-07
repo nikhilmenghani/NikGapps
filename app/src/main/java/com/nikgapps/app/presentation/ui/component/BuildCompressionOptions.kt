@@ -3,12 +3,14 @@ package com.nikgapps.app.presentation.ui.component
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.nikgapps.app.data.BuildCompressionPrefs
 import com.nikgapps.app.data.GithubPrefs
@@ -24,7 +26,8 @@ fun BuildCompressionOptions(
     compressed: Boolean = BuildCompressionPrefs.compressed,
     level: Int = BuildCompressionPrefs.level,
     onCompressedChange: (Boolean) -> Unit = { BuildCompressionPrefs.compressed = it },
-    onLevelChange: (Int) -> Unit = { BuildCompressionPrefs.level = it }
+    onLevelChange: (Int) -> Unit = { BuildCompressionPrefs.level = it },
+    roundedCards: Boolean = false
 ) {
     var elite by remember(GithubPrefs.username) { mutableStateOf(false) }
     var showLevels by remember { mutableStateOf(false) }
@@ -35,8 +38,10 @@ fun BuildCompressionOptions(
             throw cancelled
         } catch (_: Exception) { elite = false }
     }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val rowModifier = if (roundedCards) Modifier.clip(RoundedCornerShape(18.dp)) else Modifier
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (roundedCards) 10.dp else 4.dp)) {
         PreferenceItem(
+            modifier = rowModifier,
             label = "Compressed build",
             supportingText = if (compressed) "Smaller ZIP; takes longer to build"
                 else "Faster build with standard ZIP size",
@@ -46,6 +51,7 @@ fun BuildCompressionOptions(
         )
         if (compressed && elite) {
             PreferenceItem(
+                modifier = rowModifier,
                 label = "Compression level",
                 supportingText = "Elite · ${compressionLevelLabel(level.coerceIn(1, 9))}",
                 icon = Icons.Outlined.Tune,

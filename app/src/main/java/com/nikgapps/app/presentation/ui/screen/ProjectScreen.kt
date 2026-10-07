@@ -179,8 +179,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
     val catalogPackages = registry?.catalog?.packages.orEmpty()
-    val deviceStatuses = remember(catalogPackages) {
-        catalogPackages.associate { pkg ->
+    val deviceStatuses by produceState<Map<String, RegistryDeviceStatus>>(emptyMap(), catalogPackages) {
+        value = withContext(Dispatchers.IO) { catalogPackages.associate { pkg ->
             val info = pkg.versions.values.asSequence().mapNotNull { version ->
                 version.packageName?.let { packageName -> runCatching {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) context.packageManager.getPackageInfo(
@@ -194,7 +194,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode
                     else @Suppress("DEPRECATION") info.versionCode.toLong()
             )
-        }
+        } }
     }
     val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly,
         selectionFilter, current.selectedAppIds, searchQuery) {

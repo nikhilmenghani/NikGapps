@@ -371,12 +371,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
     if (existingWorkChecked && !compressionConfirmed) AlertDialog(
         onDismissRequest = { navController.navigateUp() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         title = { Text("Build compression") },
         text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Choose a faster build or a smaller ZIP.", style = MaterialTheme.typography.bodyMedium)
             BuildCompressionOptions(compressed = chosenCompression, level = chosenLevel,
-                onCompressedChange = { chosenCompression = it }, onLevelChange = { chosenLevel = it })
+                onCompressedChange = { chosenCompression = it }, onLevelChange = { chosenLevel = it },
+                roundedCards = true)
             Row(Modifier.fillMaxWidth().toggleable(value = dontAskAgain, role = Role.Checkbox,
                 onValueChange = { dontAskAgain = it }), verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = dontAskAgain, onCheckedChange = null)
