@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 @Composable
 fun BottomSheetDialog(
     onDismissRequest: () -> Unit,
-    sheetState: SheetState = rememberModalBottomSheetState(),
+    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     content: @Composable () -> Unit
 ) {
     ModalBottomSheet(

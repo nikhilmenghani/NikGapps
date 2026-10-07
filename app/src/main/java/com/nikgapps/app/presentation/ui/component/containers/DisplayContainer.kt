@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
+import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
@@ -237,6 +238,8 @@ fun SystemPreferences(
             title = stringResource(R.string.settings_system),
             initiallyExpanded = true
         ) {
+            PreferenceSubtitle(text = "ZIP builds")
+            BuildCompressionOptions()
             PreferenceSubtitle(text = stringResource(R.string.settings_device_access))
             PreferenceItem(
                 label = stringResource(R.string.settings_permissions),

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -35,6 +36,7 @@ import com.nikgapps.app.data.*
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.worker.BuildZipWorker
+import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.network.LocalInternetAvailable
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +65,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var pendingSource by remember { mutableStateOf<String?>(null) }
     var existingName by remember { mutableStateOf<String?>(null) }
     var activeRunId by remember { mutableStateOf("none") }
+    var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(false) }
+    var existingWorkChecked by remember(projectId) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val workManager = remember(context) { WorkManager.getInstance(context) }
@@ -70,6 +74,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
         workManager.getWorkInfosForUniqueWorkFlow(BuildZipWorker.uniqueName(projectId))
     }.collectAsState(initial = emptyList())
     val workInfo = workInfos.lastOrNull()
+
+    LaunchedEffect(projectId) {
+        val existing = withContext(Dispatchers.IO) {
+            workManager.getWorkInfosForUniqueWork(BuildZipWorker.uniqueName(projectId)).get()
+        }
+        if (existing.any { !it.state.isFinished }) compressionConfirmed = true
+        existingWorkChecked = true
+    }
 
     fun log(message: String) {
         if (logs.lastOrNull() != message) logs += message
@@ -83,7 +95,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
 
     LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex) }
-    LaunchedEffect(workInfo?.state, workInfo?.progress, workInfo?.outputData) {
+    LaunchedEffect(workInfo?.state, workInfo?.progress, workInfo?.outputData, compressionConfirmed) {
+        if (!compressionConfirmed) return@LaunchedEffect
         if (authFailure) return@LaunchedEffect
         val info = workInfo ?: return@LaunchedEffect
         BuildZipWorker.logFile(context, projectId).takeIf(File::isFile)?.readLines()?.let {
@@ -114,8 +127,9 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             else -> stage = BuildStage.RUNNING
         }
     }
-    BackHandler(enabled = stage == BuildStage.RUNNING) { }
-    LaunchedEffect(projectId, retryKey) {
+    BackHandler(enabled = stage == BuildStage.RUNNING && compressionConfirmed) { }
+    LaunchedEffect(projectId, retryKey, compressionConfirmed) {
+        if (!compressionConfirmed) return@LaunchedEffect
         stage = BuildStage.RUNNING
         authFailure = false
         operationLabel = "Verifying GitHub account"
@@ -136,7 +150,9 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             return@LaunchedEffect
         }
         val request = OneTimeWorkRequestBuilder<BuildZipWorker>()
-            .setInputData(workDataOf(BuildZipWorker.KEY_PROJECT_ID to projectId))
+            .setInputData(workDataOf(BuildZipWorker.KEY_PROJECT_ID to projectId,
+                BuildZipWorker.KEY_COMPRESSED to BuildCompressionPrefs.compressed,
+                BuildZipWorker.KEY_COMPRESSION_LEVEL to BuildCompressionPrefs.level))
             .build()
         workManager.enqueueUniqueWork(
             BuildZipWorker.uniqueName(projectId),
@@ -213,7 +229,9 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     project.androidVersion.apiLevel, project.architecture.value, primarySet, defaultChannel,
                     overrides, project.selectedAppIds, packageAppSets = resolution.packageAppSets,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                    releaseId = metadata.release?.id), artifacts) }
+                    releaseId = metadata.release?.id,
+                    compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
+                        BuildCompressionPrefs.level)), artifacts) }
             log("Saving ${output.name} to Downloads/NikGapps…")
             operationLabel = "Saving ZIP to Downloads/NikGapps"
             location = withContext(Dispatchers.IO) {
@@ -235,7 +253,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Build flashable ZIP") }, navigationIcon = {
-        IconButton(onClick = navController::navigateUp, enabled = stage != BuildStage.RUNNING) {
+        IconButton(onClick = navController::navigateUp,
+            enabled = stage != BuildStage.RUNNING || !compressionConfirmed) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
         }
     }) }, bottomBar = {
@@ -345,6 +364,19 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
             }
         }
     }
+    if (existingWorkChecked && !compressionConfirmed) AlertDialog(
+        onDismissRequest = { navController.navigateUp() },
+        shape = RoundedCornerShape(12.dp),
+        title = { Text("Build options") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Choose a faster build or a smaller ZIP.", style = MaterialTheme.typography.bodyMedium)
+            BuildCompressionOptions()
+        } },
+        confirmButton = { FilledTonalButton(onClick = { compressionConfirmed = true },
+            shape = RoundedCornerShape(8.dp)) { Text("Start build") } },
+        dismissButton = { OutlinedButton(onClick = { navController.navigateUp() },
+            shape = RoundedCornerShape(8.dp)) { Text("Cancel") } }
+    )
     if (confirmClearCache) AlertDialog(
         onDismissRequest = { confirmClearCache = false },
         title = { Text("Clear build cache?") },

@@ -53,6 +53,47 @@ class ArtifactAndZipTest {
             assertEquals("GmsCore=3\n", built.getInputStream(built.getEntry("common/file_size.txt")).bufferedReader().readText())
         }
     }
+    @Test fun compressedBuildShrinksStoredPayloadAndPreservesPackageBytes() {
+        val dir = Files.createTempDirectory("compressed-build").toFile()
+        try {
+            val (fixture, sha) = RegistryTestFixtures.artifact(dir)
+            val pkg = resolved(Artifact(fixture.toURI().toString(), sha, fixture.length()))
+            val descriptor = PackageZipValidator().validate(fixture, pkg)
+            val payload = ByteArray(1024 * 1024) { 42 }
+            val nested = File(dir, "stored.zip")
+            ZipOutputStream(nested.outputStream()).use { zip ->
+                zip.putNextEntry(ZipEntry("payload").apply {
+                    method = ZipEntry.STORED; size = payload.size.toLong(); compressedSize = size
+                    crc = java.util.zip.CRC32().apply { update(payload) }.value
+                })
+                zip.write(payload); zip.closeEntry()
+            }
+            val assets = RegistryZipAssembler.REQUIRED_ASSETS.associateWith { "asset".toByteArray() }
+            val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
+            val request = BuildRequest("16", 36, "arm64-v8a", set, ReleaseChannel.STABLE,
+                emptyMap(), setOf("gms_core"))
+            val artifacts = listOf(ValidatedArtifact(pkg, nested, descriptor))
+            val normal = RegistryZipAssembler { assets }.build(File(dir, "normal"), request, artifacts)
+            val compressed = RegistryZipAssembler { assets }.build(File(dir, "compressed"),
+                request.copy(compressionLevel = 9), artifacts)
+            assertTrue(compressed.length() < normal.length() / 2)
+            listOf(normal to ZipEntry.STORED, compressed to ZipEntry.DEFLATED).forEach { (file, method) ->
+                ZipFile(file).use { zip ->
+                    val entry = zip.getEntry("AppSet/Core/GmsCore.zip")
+                    assertEquals(method, entry.method)
+                    assertArrayEquals(nested.readBytes(), zip.getInputStream(entry).use { it.readBytes() })
+                }
+            }
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun customCompressionLevelsRequireEliteMembership() {
+        assertEquals(0, com.nikgapps.app.data.compressionLevelFor(false, 9, true))
+        assertEquals(6, com.nikgapps.app.data.compressionLevelFor(true, 9, false))
+        assertEquals(9, com.nikgapps.app.data.compressionLevelFor(true, 9, true))
+        assertEquals(1, com.nikgapps.app.data.compressionLevelFor(true, 1, true))
+    }
+
     private fun resolved(artifact: Artifact = Artifact("https://example.test/a", "a".repeat(64), 1)) = ResolvedPackage(
         CatalogPackage("gms_core", "gms_core", true, false, emptyList(), mapOf("stable" to "s"), emptyMap()), "s",
         PackageVersion("stable", 1, "test.app", AndroidCompatibility(null, 36, null), listOf("arm64-v8a"), "product",

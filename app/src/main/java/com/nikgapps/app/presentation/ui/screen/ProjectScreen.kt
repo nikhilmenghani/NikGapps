@@ -290,13 +290,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 }
                 progress = ZipBuildProgress(visibleTotal, visibleTotal, "Assembling the flashable ZIP…")
                 GitHubBuildAuth.requireAuthenticated()
+                val compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
+                    BuildCompressionPrefs.level)
                 val output = withContext(Dispatchers.IO) {
                     RegistryZipAssembler(AndroidBuilderAssetSource(context, requireNotNull(registry).builderAssets)).build(
                         File(context.cacheDir, "zip-builds"), BuildRequest(current.androidVersion.displayName,
                             current.androidVersion.apiLevel, current.architecture.value, appSet, defaultChannel,
                             overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets,
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                            releaseId = loaded.release?.id), artifacts)
+                            releaseId = loaded.release?.id, compressionLevel = compressionLevel), artifacts)
                 }
                 try {
                     GitHubBuildAuth.requireAuthenticated()

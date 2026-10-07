@@ -14,6 +14,7 @@ import com.nikgapps.R
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.BuildQuotaRepository
+import com.nikgapps.app.data.verifiedCompressionLevel
 import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.registry.*
 import kotlinx.coroutines.CancellationException
@@ -47,6 +48,10 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 ?: "Build limit reached.")
         }
         return try {
+            val compressionLevel = verifiedCompressionLevel(
+                inputData.getBoolean(KEY_COMPRESSED, false), inputData.getInt(KEY_COMPRESSION_LEVEL, 6))
+            log(if (compressionLevel == 0) "Standard build: package compression off"
+                else "Compressed build: level $compressionLevel (smaller ZIP, slower assembly)")
             progress("Loading package catalog", 0, 0)
             val metadata = CatalogRepository(applicationContext.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
@@ -97,7 +102,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     project.selectedAppIds, packageAppSets = resolution.packageAppSets,
                     projectName = project.name,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                    releaseId = metadata.release?.id
+                    releaseId = metadata.release?.id, compressionLevel = compressionLevel
                 ), artifacts)
             try {
                 GitHubBuildAuth.requireAuthenticated()
@@ -169,6 +174,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     companion object {
         const val KEY_PROJECT_ID = "project_id"
+        const val KEY_COMPRESSED = "compressed"
+        const val KEY_COMPRESSION_LEVEL = "compression_level"
         const val KEY_LABEL = "label"
         const val KEY_COMPLETED = "completed"
         const val KEY_TOTAL = "total"

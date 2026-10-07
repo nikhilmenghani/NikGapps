@@ -14,7 +14,7 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
     val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
-    val releaseId: String? = null)
+    val releaseId: String? = null, val compressionLevel: Int = 0)
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -23,6 +23,7 @@ fun interface BuilderAssetSource { fun assets(): Map<String, ByteArray> }
 class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     fun build(outputDirectory: File, request: BuildRequest, artifacts: List<ValidatedArtifact>): File {
         require(artifacts.isNotEmpty()) { "No resolved packages" }
+        require(request.compressionLevel in 0..9) { "Invalid compression level" }
         val expected = artifacts.map { it.resolved.catalogPackage.id }
         require(expected.distinct().size == expected.size) { "Duplicate resolved package" }
         val date = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC).format(request.timestamp)
@@ -44,6 +45,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
             "architecture" to request.architecture))
         try {
             ZipOutputStream(part.outputStream().buffered()).use { finalZip ->
+                if (request.compressionLevel > 0) finalZip.setLevel(request.compressionLevel)
                 val assets = assetSource.assets()
                 REQUIRED_ASSETS.forEach { require(assets.containsKey(it)) { "Missing builder asset '$it'" } }
                 assets.filterKeys { !it.startsWith("@template/") }.toSortedMap()
@@ -58,7 +60,8 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                         "Package '${artifact.resolved.catalogPackage.id}' is not a prebuilt NikGapps package"
                     }
                     val payloadSize = artifact.descriptor.install.payloadSize
-                    finalZip.file("AppSet/${packageAppSet.name}/$title.zip", artifact.file)
+                    finalZip.file("AppSet/${packageAppSet.name}/$title.zip", artifact.file,
+                        compressed = request.compressionLevel > 0)
                     packageSizes.append(title).append('=').append(payloadSize).append('\n')
                     packageRows.getOrPut(packageAppSet.name) { mutableListOf() } +=
                         Triple(title, payloadSize, artifact.descriptor.defaultPartition)
@@ -110,6 +113,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         template.replace(Regex("(?m)^AndroidVersion=.*$"), "AndroidVersion=${r.androidVersion.filter { it.isDigit() }}")
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
+        put("compressionLevel", r.compressionLevel)
         r.releaseId?.let { put("releaseId", it) }
         put("androidVersion", r.androidVersion); put("androidApi", r.api); put("architecture", r.architecture)
         put("selectedAppSet", r.appSet.id)
@@ -137,7 +141,11 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
 private fun ZipOutputStream.text(path: String, value: String) = bytes(path, value.toByteArray())
 private fun ZipOutputStream.bytes(path: String, value: ByteArray) { putNextEntry(ZipEntry(path).apply { time = 0 }); write(value); closeEntry() }
 private fun ZipOutputStream.stream(path: String, input: java.io.InputStream) { putNextEntry(ZipEntry(path).apply { time = 0 }); input.copyTo(this); closeEntry() }
-private fun ZipOutputStream.file(path: String, file: File) {
+private fun ZipOutputStream.file(path: String, file: File, compressed: Boolean) {
+    if (compressed) {
+        file.inputStream().buffered().use { stream(path, it) }
+        return
+    }
     val crc = java.util.zip.CRC32()
     file.inputStream().buffered().use { input ->
         val buffer = ByteArray(128 * 1024)
