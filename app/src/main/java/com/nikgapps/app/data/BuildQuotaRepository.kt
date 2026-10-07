@@ -44,13 +44,14 @@ class BuildQuotaRepository(context: Context) {
         status(now)
     }
 
-    suspend fun resetForElite(username: String): BuildQuotaStatus {
+    suspend fun resetForElite(username: String, expectedRemaining: Int): BuildQuotaStatus {
         require(username.isNotBlank()) { "Sign in with GitHub to reset the build window" }
         check(EliteMembershipRepository.isElite(username)) { "Elite membership could not be verified" }
         return synchronized(LOCK) {
             val now = System.currentTimeMillis()
             val current = status(now)
             check(current.eliteResetAvailable) { "Elite reset is unavailable for this six-hour period" }
+            check(current.remaining == expectedRemaining) { "Build count changed; review the reset again" }
             check(preferences.edit()
                 .putLong(KEY_WINDOW_STARTED_AT, now)
                 .putInt(KEY_SUCCESS_COUNT, 0)

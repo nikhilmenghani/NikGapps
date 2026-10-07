@@ -100,6 +100,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var quotaClock by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var eliteMember by remember { mutableStateOf(false) }
     var resettingEliteQuota by remember { mutableStateOf(false) }
+    var confirmEliteResetRemaining by remember { mutableStateOf<Int?>(null) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -689,30 +690,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (eliteMember) FilledTonalButton(
-                                    onClick = {
-                                        val username = GithubPrefs.username
-                                        resettingEliteQuota = true
-                                        scope.launch {
-                                            try {
-                                                check(GithubPrefs.token.isNotBlank() &&
-                                                    GithubPrefs.username.equals(username, ignoreCase = true)) {
-                                                    "GitHub sign-in changed; please try again"
-                                                }
-                                                BuildQuotaRepository(context).resetForElite(username)
-                                                quotaClock = System.currentTimeMillis()
-                                                Toast.makeText(context, "Six builds added to a new window",
-                                                    Toast.LENGTH_SHORT).show()
-                                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                                                throw cancelled
-                                            } catch (error: Exception) {
-                                                Toast.makeText(context,
-                                                    error.message ?: "Could not reset the build window",
-                                                    Toast.LENGTH_LONG).show()
-                                            } finally {
-                                                resettingEliteQuota = false
-                                            }
-                                        }
-                                    },
+                                    onClick = { confirmEliteResetRemaining = quotaStatus.remaining },
                                     enabled = isOnline && quotaStatus.eliteResetAvailable && !resettingEliteQuota,
                                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                     shape = RoundedCornerShape(8.dp),
@@ -897,6 +875,42 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             }
         }
         }
+    }
+    confirmEliteResetRemaining?.let { remaining ->
+        val newLimit = eliteWindowLimit(remaining)
+        AlertDialog(
+            onDismissRequest = { confirmEliteResetRemaining = null },
+            title = { Text("Reset build window?") },
+            text = { Text("You have $remaining builds remaining. Your new six-hour window will " +
+                "start with $newLimit builds ($remaining remaining + 6 Elite builds). " +
+                "You cannot reset it again for six hours.") },
+            confirmButton = { TextButton(onClick = {
+                confirmEliteResetRemaining = null
+                val username = GithubPrefs.username
+                resettingEliteQuota = true
+                scope.launch {
+                    try {
+                        check(GithubPrefs.token.isNotBlank() &&
+                            GithubPrefs.username.equals(username, ignoreCase = true)) {
+                            "GitHub sign-in changed; please try again"
+                        }
+                        BuildQuotaRepository(context).resetForElite(username, remaining)
+                        quotaClock = System.currentTimeMillis()
+                        Toast.makeText(context, "$newLimit builds available in the new window",
+                            Toast.LENGTH_SHORT).show()
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        quotaClock = System.currentTimeMillis()
+                        Toast.makeText(context, error.message ?: "Could not reset the build window",
+                            Toast.LENGTH_LONG).show()
+                    } finally {
+                        resettingEliteQuota = false
+                    }
+                }
+            }) { Text("Reset window") } },
+            dismissButton = { TextButton(onClick = { confirmEliteResetRemaining = null }) { Text("Cancel") } }
+        )
     }
     progress?.let { p -> AlertDialog({}, title = { Text("Building flashable ZIP") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth()); Text(p.message); Text("${p.completed} of ${p.total} packages")
