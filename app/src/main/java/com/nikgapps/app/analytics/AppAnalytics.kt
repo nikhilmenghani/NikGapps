@@ -3,6 +3,7 @@ package com.nikgapps.app.analytics
 import android.app.Application
 import com.nikgapps.BuildConfig
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.DisplayPrefs
 import com.posthog.PersonProfiles
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
@@ -77,9 +78,11 @@ object AppAnalytics {
     private fun capture(event: String, properties: Map<String, Any>) {
         if (initialized) {
             val username = GithubPrefs.username.trim()
-            val eventProperties = if (username.isNotEmpty())
-                properties + ("github_username" to username)
-            else properties
+            val signedIn = GithubPrefs.token.isNotBlank() && username.isNotEmpty()
+            val accountMode = if (signedIn) "signed_in"
+                else if (DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode) "guest" else "signed_out"
+            val eventProperties = properties + ("account_mode" to accountMode) +
+                if (signedIn) mapOf("github_username" to username) else emptyMap()
             PostHog.capture(event = event, properties = eventProperties)
             PostHog.flush()
         }

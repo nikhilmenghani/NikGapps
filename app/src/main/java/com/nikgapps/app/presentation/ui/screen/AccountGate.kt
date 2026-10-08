@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,11 +28,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.nikgapps.R
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
 
 @Composable
-fun AccountGate(onOpenSettings: () -> Unit) {
+fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val allowGuest = DisplayPrefs.guestAccessEnabled
     Box(
         modifier = Modifier.fillMaxSize().background(colors.background).padding(24.dp),
         contentAlignment = Alignment.Center
@@ -51,7 +54,7 @@ fun AccountGate(onOpenSettings: () -> Unit) {
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                 color = colors.onBackground)
             Spacer(Modifier.height(8.dp))
-            Text("Sign in with GitHub to get started.",
+            Text(if (allowGuest) "Sign in with GitHub or continue as a guest." else "Sign in with GitHub to get started.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(32.dp))
@@ -75,6 +78,15 @@ fun AccountGate(onOpenSettings: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(24.dp))
+            if (allowGuest) {
+                FilledTonalButton(onClick = onContinueAsGuest, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp)) { Text("Continue as guest") }
+                Spacer(Modifier.height(8.dp))
+                Text("Create projects and build ZIPs with the normal build limit. Sign in later for Elite benefits.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+            }
             OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
                 Text("Settings · add a personal access token")
             }

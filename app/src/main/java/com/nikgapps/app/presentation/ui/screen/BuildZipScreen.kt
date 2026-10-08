@@ -137,10 +137,11 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
         if (!compressionConfirmed) return@LaunchedEffect
         stage = BuildStage.RUNNING
         authFailure = false
-        operationLabel = "Verifying GitHub account"
+        operationLabel = if (GithubPrefs.guestMode && GithubPrefs.token.isBlank()) "Preparing guest build"
+            else "Verifying GitHub account"
         if (retryKey > 0) logs.clear()
         try {
-            GitHubBuildAuth.requireAuthenticated()
+            GitHubBuildAuth.requireBuildAccess()
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (failure: Exception) {

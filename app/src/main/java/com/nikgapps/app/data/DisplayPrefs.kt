@@ -25,6 +25,14 @@ object DisplayPrefs {
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
+    var allowGuestAccess by prefMutableState(
+        keyName = "allowGuestAccess",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
+    val guestAccessEnabled: Boolean get() = developerOptionsEnabled && allowGuestAccess
+
     var allowUnsupportedAndroidVersions by prefMutableState(
         keyName = "allowUnsupportedAndroidVersions",
         defaultValue = false,

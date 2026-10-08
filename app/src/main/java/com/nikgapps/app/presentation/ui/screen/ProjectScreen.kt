@@ -257,7 +257,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
         scope.launch {
             try {
-                GitHubBuildAuth.requireAuthenticated()
+                GitHubBuildAuth.requireBuildAccess()
                 progress = ZipBuildProgress(0, current.selectedAppIds.size, "Resolving package versions…")
                 val defaultChannel = ReleaseChannel.valueOf(current.defaultChannel.uppercase())
                 val overrides = current.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
@@ -289,7 +289,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     if (!pkg.hidden) completedVisible++
                 }
                 progress = ZipBuildProgress(visibleTotal, visibleTotal, "Assembling the flashable ZIP…")
-                GitHubBuildAuth.requireAuthenticated()
+                GitHubBuildAuth.requireBuildAccess()
                 val compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
                     BuildCompressionPrefs.level)
                 val output = withContext(Dispatchers.IO) {
@@ -301,7 +301,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             releaseId = loaded.release?.id, compressionLevel = compressionLevel), artifacts)
                 }
                 try {
-                    GitHubBuildAuth.requireAuthenticated()
+                    GitHubBuildAuth.requireBuildAccess()
                 } catch (error: Exception) {
                     output.delete()
                     throw error

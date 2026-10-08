@@ -14,6 +14,7 @@ import com.nikgapps.R
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.BuildQuotaRepository
+import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.verifiedCompressionLevel
 import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.registry.*
@@ -29,8 +30,9 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         setForeground(foreground("Preparing build", 0, 0))
         logFile.parentFile?.mkdirs(); logFile.writeText("")
         try {
-            progress("Verifying GitHub account", 0, 0)
-            GitHubBuildAuth.requireAuthenticated()
+            progress(if (GithubPrefs.guestMode && GithubPrefs.token.isBlank()) "Preparing guest build"
+                else "Verifying GitHub account", 0, 0)
+            GitHubBuildAuth.requireBuildAccess()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -92,7 +94,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 progress("Prepared ${pkg.catalogPackage.name}", completed, packageTotal)
             }
             progress("Assembling flashable ZIP", completed, packageTotal)
-            GitHubBuildAuth.requireAuthenticated()
+            GitHubBuildAuth.requireBuildAccess()
             val primarySet = metadata.appSets.appSets.firstOrNull { it.id == project.selectedAppSetId }
                 ?: metadata.appSets.appSets.first()
             val output = RegistryZipAssembler(AndroidBuilderAssetSource(applicationContext, metadata.builderAssets)).build(
@@ -105,7 +107,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     releaseId = metadata.release?.id, compressionLevel = compressionLevel
                 ), artifacts)
             try {
-                GitHubBuildAuth.requireAuthenticated()
+                GitHubBuildAuth.requireBuildAccess()
             } catch (error: Exception) {
                 output.delete()
                 throw error

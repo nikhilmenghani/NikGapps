@@ -1,15 +1,17 @@
 package com.nikgapps.app.utils.network
 
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.DisplayPrefs
 import kotlinx.coroutines.CancellationException
 import java.io.IOException
 
-/** Require a currently valid GitHub session before preparing or assembling a ZIP. */
+/** Permit explicit guest builds or verify the signed-in GitHub session. */
 object GitHubBuildAuth {
     class AuthException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
-    suspend fun requireAuthenticated() {
+    suspend fun requireBuildAccess() {
         val token = GithubPrefs.token
+        if (DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode && token.isBlank()) return
         if (token.isBlank()) throw AuthException("Sign in to GitHub before building a ZIP.")
         try {
             GitHubDeviceAuth.accountProfile(token)

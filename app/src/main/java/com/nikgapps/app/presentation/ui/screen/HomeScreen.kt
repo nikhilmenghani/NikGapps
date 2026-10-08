@@ -431,6 +431,8 @@ fun HomeScreen(navController: NavHostController) {
 
 @Composable
 private fun WelcomeCard(username: String, isElite: Boolean) {
+    val guest = com.nikgapps.app.data.DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode &&
+        (GithubPrefs.token.isBlank() || username.isBlank())
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -444,7 +446,7 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (GithubPrefs.avatarUrl.isBlank()) {
+                if (guest || GithubPrefs.avatarUrl.isBlank()) {
                     Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
                 } else {
                     SubcomposeAsyncImage(
@@ -456,7 +458,7 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                         error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
                     )
                 }
-                if (isElite) Surface(
+                if (isElite && !guest) Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -470,8 +472,10 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Welcome, $username", style = MaterialTheme.typography.titleMedium)
-                Text("Signed in with GitHub", style = MaterialTheme.typography.labelSmall)
+                Text(if (guest) "Welcome, Guest" else "Welcome, $username",
+                    style = MaterialTheme.typography.titleMedium)
+                Text(if (guest) "Guest mode · Sign in from Settings" else "Signed in with GitHub",
+                    style = MaterialTheme.typography.labelSmall)
             }
         }
     }

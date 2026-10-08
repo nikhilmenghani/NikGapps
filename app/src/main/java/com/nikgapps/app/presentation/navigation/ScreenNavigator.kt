@@ -61,6 +61,7 @@ import com.nikgapps.app.update.MandatoryUpdateGate
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.analytics.AppAnalytics
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.presentation.ui.screen.AccountGate
 
@@ -124,14 +125,18 @@ fun ScreenNavigator(
         }
     }
     LaunchedEffect(signedIn) {
-        if (signedIn) showSignInSettings = false
+        if (signedIn) {
+            showSignInSettings = false
+            GithubPrefs.guestMode = false
+        }
     }
-    if (!signedIn) {
+    if (!signedIn && !(GithubPrefs.guestMode && DisplayPrefs.guestAccessEnabled)) {
         BackHandler(enabled = showSignInSettings) { showSignInSettings = false }
         if (showSignInSettings) {
             SettingsScreen(onBack = { showSignInSettings = false }, startOnAccount = true)
         } else {
-            AccountGate(onOpenSettings = { showSignInSettings = true })
+            AccountGate(onOpenSettings = { showSignInSettings = true },
+                onContinueAsGuest = { GithubPrefs.continueAsGuest() })
         }
         return
     }

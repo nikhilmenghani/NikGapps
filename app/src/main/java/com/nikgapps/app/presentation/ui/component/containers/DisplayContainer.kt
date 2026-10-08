@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AppSettingsAlt
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.BatterySaver
@@ -48,6 +49,7 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.data.BuildCompressionPrefs
+import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
@@ -114,6 +116,16 @@ fun AdvancedPreferences() {
         ) {
             if (developerPreference.developerOptionsEnabled) {
                 PreferenceSubtitle(text = "Developer options")
+                PreferenceItem(
+                    label = "Allow guest mode",
+                    supportingText = "Show Continue as guest on the sign-in screen. Normal build limits apply.",
+                    icon = Icons.Outlined.AccountCircle,
+                    switchState = developerPreference.allowGuestAccess,
+                    onSwitchChange = {
+                        developerPreference.allowGuestAccess = it
+                        if (!it) GithubPrefs.guestMode = false
+                    }
+                )
                 PreferenceItem(
                     label = "Enforce app updates",
                     supportingText = "Block normal app use on startup when a newer NikGapps version is available",

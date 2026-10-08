@@ -170,6 +170,7 @@ private fun GitHubTokenEntry(onSaved: () -> Unit, focusRequester: FocusRequester
                         GithubPrefs.username = profile.login
                         GithubPrefs.lastUsername = profile.login
                         GithubPrefs.avatarUrl = profile.avatarUrl
+                        GithubPrefs.guestMode = false
                         token = ""
                         onSaved()
                     } catch (cancelled: CancellationException) {

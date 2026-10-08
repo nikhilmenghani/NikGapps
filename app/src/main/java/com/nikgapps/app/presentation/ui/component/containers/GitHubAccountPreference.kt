@@ -140,6 +140,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                 GithubPrefs.username = profile.login
                 GithubPrefs.lastUsername = profile.login
                 GithubPrefs.avatarUrl = profile.avatarUrl
+                GithubPrefs.guestMode = false
                 dialogOpen = false
                 challenge = null
                 Toast.makeText(context, "Signed in to GitHub as ${profile.login}", Toast.LENGTH_SHORT).show()
