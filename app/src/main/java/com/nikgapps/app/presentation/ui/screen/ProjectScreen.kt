@@ -11,6 +11,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
@@ -92,6 +94,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var filterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
+    var appSetView by rememberSaveable(projectId) { mutableStateOf(true) }
+    var expandedAppSets by rememberSaveable(projectId) { mutableStateOf(emptyList<String>()) }
     var searchInput by rememberSaveable(projectId, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
@@ -196,17 +200,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             )
         } }
     }
-    val sortedPackages = remember(displayedPackages, deviceStatuses, packageSort, sortDescending, installedOnly,
+    val sortedPackages = remember(displayedPackages, packageAppSets, deviceStatuses, packageSort, sortDescending, installedOnly, appSetView,
         selectionFilter, current.selectedAppIds, searchQuery) {
         val query = searchQuery.trim().lowercase()
         val filtered = displayedPackages.filter { pkg ->
             (query.isEmpty() || pkg.name.lowercase().contains(query) || pkg.id.lowercase().contains(query) ||
+                packageAppSets[pkg.id].orEmpty().any { it.name.lowercase().contains(query) } ||
                 pkg.versions.values.any { it.packageName?.lowercase()?.contains(query) == true }) &&
-            (!installedOnly || deviceStatuses[pkg.id]?.installed == true) && when (selectionFilter) {
+            (!installedOnly || deviceStatuses[pkg.id]?.installed == true) && (appSetView || when (selectionFilter) {
                 SelectionFilter.BOTH -> true
                 SelectionFilter.SELECTED -> pkg.id in current.selectedAppIds
                 SelectionFilter.UNSELECTED -> pkg.id !in current.selectedAppIds
-            }
+            })
         }
         when (packageSort) {
             PackageSort.NAME -> filtered.sortedBy { it.name.lowercase() }.let { if (sortDescending) it.reversed() else it }
@@ -222,25 +227,41 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun openPackage(id: String) {
+        AppDiagnostics.info("navigation", "package_details_opened", mapOf("package" to id))
+        navController.navigate(appConfigRoute(projectId, id))
+    }
+    fun selectPackages(ids: Set<String>, enabled: Boolean, owner: CatalogAppSet? = null) {
+        if (!isOnline) {
+            Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
+            return
+        }
+        AppDiagnostics.info("selection", if (enabled) "packages_selected" else "packages_cleared",
+            mapOf("project" to projectId.take(8), "count" to ids.size, "appSet" to owner?.id))
+        save(selectProjectPackages(current, ids, enabled, owner?.id,
+            packageAppSets.mapNotNull { (id, sets) -> sets.firstOrNull()?.id?.let { id to it } }.toMap()))
+    }
     fun updateAllSelections(action: String) {
         if (!isOnline) {
             Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
             return
         }
         val eligibleIds = displayedPackages.mapTo(linkedSetOf()) { it.id }
-        val newSelection = when (action) {
-            "select" -> current.selectedAppIds + eligibleIds
-            "clear" -> current.selectedAppIds - displayedPackages.map { it.id }.toSet()
-            else -> (current.selectedAppIds - eligibleIds) + (eligibleIds - current.selectedAppIds)
+        val defaults = packageAppSets.mapNotNull { (id, sets) -> sets.firstOrNull()?.id?.let { id to it } }.toMap()
+        val updated = when (action) {
+            "select" -> {
+                val preferred = defaultOwnersForSelectAll(packageAppSets)
+                selectProjectPackages(current, preferred.keys, true, defaultOwners = preferred, useDefaultChoices = true)
+            }
+            "clear" -> selectProjectPackages(current, eligibleIds, false)
+            else -> {
+                val cleared = selectProjectPackages(current, current.selectedAppIds.intersect(eligibleIds), false)
+                selectProjectPackages(cleared, eligibleIds - current.selectedAppIds, true, defaultOwners = defaults)
+            }
         }
-        val owners = current.selectedPackageAppSets.toMutableMap()
-        displayedPackages.forEach { pkg ->
-            if (pkg.id in newSelection) owners.putIfAbsent(pkg.id, packageAppSets[pkg.id]?.firstOrNull()?.id ?: current.selectedAppSetId)
-            else owners.remove(pkg.id)
-        }
-        save(current.copy(selectedAppIds = newSelection, selectedPackageAppSets = owners))
+        save(updated)
         AppDiagnostics.info("selection", "bulk_changed", mapOf("project" to projectId.take(8),
-            "operation" to action, "before" to current.selectedAppIds.size, "after" to newSelection.size))
+            "operation" to action, "before" to current.selectedAppIds.size, "after" to updated.selectedAppIds.size))
     }
     fun startBuild() {
         val loaded = metadata ?: return
@@ -772,15 +793,24 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 Text("Pick the apps you want to include in your build.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf(true to "AppSets", false to "Packages").forEachIndexed { index, (grouped, label) ->
+                        SegmentedButton(selected = appSetView == grouped, onClick = { appSetView = grouped },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
                 AnimatedVisibility(
                     visible = !searchVisible,
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
                 ) {
                     Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.fillMaxWidth().clickable { summaryExpanded = !summaryExpanded }) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null,
+                            onClick = { summaryExpanded = !summaryExpanded }),
+                            verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
@@ -789,8 +819,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             }
                             Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
                         }
-                        AnimatedVisibility(summaryExpanded) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AnimatedVisibility(summaryExpanded,
+                            enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(160)),
+                            exit = shrinkVertically(tween(220), shrinkTowards = Alignment.Top) + fadeOut(tween(120))) {
+                            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilledTonalButton(
@@ -845,32 +877,72 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
-            sortedPackages.forEach { pkg ->
-                item(key = pkg.id) {
-                    val owners = packageAppSets[pkg.id].orEmpty()
-                    val owner = owners.firstOrNull { it.id == current.selectedPackageAppSets[pkg.id] }
-                        ?: owners.firstOrNull()
-                    val deviceStatus = deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false)
-                    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        ProjectPackageRow(pkg, deviceStatus, pkg.id in current.selectedAppIds,
-                            onOpen = {
-                                AppDiagnostics.info("navigation", "package_details_opened", mapOf("package" to pkg.id))
-                                navController.navigate(appConfigRoute(projectId, pkg.id))
-                            },
-                            onSelected = { enabled ->
-                                if (!isOnline) {
-                                    Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
-                                    return@ProjectPackageRow
+            if (!appSetView) sortedPackages.forEach { pkg ->
+                item(key = "package:${pkg.id}") {
+                    ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                        pkg.id in current.selectedAppIds,
+                        onOpen = { openPackage(pkg.id) },
+                        onSelected = { selectPackages(setOf(pkg.id), it) })
+                }
+            } else {
+                val groups = registry?.appSets?.appSets.orEmpty().map { set ->
+                    set to sortedPackages.filter { pkg -> set in packageAppSets[pkg.id].orEmpty() &&
+                        when (selectionFilter) {
+                            SelectionFilter.BOTH -> true
+                            SelectionFilter.SELECTED -> isSelectedInAppSet(current, pkg.id, set.id)
+                            SelectionFilter.UNSELECTED -> !isSelectedInAppSet(current, pkg.id, set.id)
+                        }
+                    }
+                }.filter { it.second.isNotEmpty() }
+                val comparator = when (packageSort) {
+                    PackageSort.NAME -> compareBy<Pair<CatalogAppSet, List<CatalogPackage>>> { it.first.name.lowercase() }
+                    PackageSort.INSTALLED -> compareBy { group: Pair<CatalogAppSet, List<CatalogPackage>> ->
+                        group.second.count { deviceStatuses[it.id]?.installed == true }
+                    }
+                    PackageSort.SELECTED -> compareBy { group: Pair<CatalogAppSet, List<CatalogPackage>> ->
+                        group.second.count { isSelectedInAppSet(current, it.id, group.first.id) }
+                    }
+                }
+                val sortedGroups = groups.sortedWith(comparator.thenBy { it.first.name.lowercase() })
+                    .let { if (sortDescending) it.reversed() else it }
+                sortedGroups.forEach { (set, matches) ->
+                    val ids = registry?.catalog?.publicPackages(set).orEmpty().mapTo(linkedSetOf()) { it.id }
+                    val selectedCount = ids.count { isSelectedInAppSet(current, it, set.id) }
+                    val expanded = set.id in expandedAppSets || searchQuery.isNotBlank()
+                    item(key = "appset:${set.id}") {
+                        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                            Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null, onClick = {
+                                expandedAppSets = if (set.id in expandedAppSets) expandedAppSets - set.id
+                                    else expandedAppSets + set.id
+                            }).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(set.name, style = MaterialTheme.typography.titleMedium)
+                                    Text("$selectedCount of ${ids.size} packages selected",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                AppDiagnostics.info("selection", if (enabled) "package_selected" else "package_cleared",
-                                    mapOf("project" to projectId.take(8), "package" to pkg.id, "appSet" to owner?.id))
-                                save(current.copy(
-                                    selectedAppSetId = owner?.id ?: current.selectedAppSetId,
-                                    selectedAppIds = if (enabled) current.selectedAppIds + pkg.id else current.selectedAppIds - pkg.id,
-                                    selectedPackageAppSets = if (enabled && owner != null) current.selectedPackageAppSets + (pkg.id to owner.id)
-                                        else current.selectedPackageAppSets - pkg.id))
-                            })
+                                TriStateCheckbox(state = when {
+                                    selectedCount == 0 -> ToggleableState.Off
+                                    selectedCount == ids.size -> ToggleableState.On
+                                    else -> ToggleableState.Indeterminate
+                                }, enabled = isOnline,
+                                    onClick = { selectPackages(ids, selectedCount != ids.size, set) })
+                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    if (expanded) "Collapse ${set.name}" else "Expand ${set.name}")
+                            }
+                        }
+                    }
+                    if (expanded) matches.forEach { pkg ->
+                        item(key = "appset:${set.id}:${pkg.id}") {
+                            ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                                isSelectedInAppSet(current, pkg.id, set.id),
+                                onOpen = { openPackage(pkg.id) },
+                                onSelected = { selectPackages(setOf(pkg.id), it, set) },
+                                modifier = Modifier.padding(start = 12.dp))
+                        }
                     }
                 }
             }
@@ -919,6 +991,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     } }, confirmButton = {}) }
     result?.let { (failed, message) -> AlertDialog({ result = null }, title = { Text(if (failed) "Build failed" else "Build complete") },
         text = { Text(message) }, confirmButton = { TextButton({ result = null }) { Text("OK") } }) }
+}
+
+@Composable
+private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
+    onOpen: () -> Unit, onSelected: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    ElevatedCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        ProjectPackageRow(pkg, device, selected, onOpen = onOpen, onSelected = onSelected)
+    }
 }
 
 @Composable

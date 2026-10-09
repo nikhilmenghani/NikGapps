@@ -107,7 +107,9 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
                         FlowRow(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             memberAppSets.forEach { set -> FilterChip(selected = owner?.id == set.id,
                                 enabled = !outdated,
-                                onClick = { save(current.copy(selectedAppSetId = set.id,
+                                onClick = { save(if (packageId in current.selectedAppIds)
+                                    selectProjectPackages(current, setOf(packageId), true, set.id)
+                                else current.copy(selectedAppSetId = set.id,
                                     selectedPackageAppSets = current.selectedPackageAppSets + (packageId to set.id))) },
                                 label = { Text(set.name) }, leadingIcon = if (owner?.id == set.id) {{ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }} else null) }
                         }

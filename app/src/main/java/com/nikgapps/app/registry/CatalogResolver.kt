@@ -17,6 +17,7 @@ class CatalogResolver(private val catalog: Catalog, private val appSets: AppSetC
     fun resolveAcrossAppSets(selections: Map<String, String>, defaultChannel: ReleaseChannel,
         overrides: Map<String, ReleaseChannel>, api: Int, architecture: String,
         deviceType: String = "phone"): MultiAppSetResolution {
+        requireCompatibleAppSets(selections.values)
         val resolved = linkedMapOf<String, ResolvedPackage>()
         val owners = linkedMapOf<String, CatalogAppSet>()
         selections.entries.groupBy({ it.value }, { it.key }).toSortedMap().forEach { (appSetId, ids) ->
