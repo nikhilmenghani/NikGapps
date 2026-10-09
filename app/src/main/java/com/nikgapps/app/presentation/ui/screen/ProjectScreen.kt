@@ -14,6 +14,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
@@ -910,18 +912,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     val selectedCount = ids.count { isSelectedInAppSet(current, it, set.id) }
                     val expanded = set.id in expandedAppSets || searchQuery.isNotBlank()
                     item(key = "appset:${set.id}") {
-                        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                             Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null, onClick = {
                                 expandedAppSets = if (set.id in expandedAppSets) expandedAppSets - set.id
                                     else expandedAppSets + set.id
-                            }).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Folder, null, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(12.dp))
+                            }).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Folder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(set.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(set.name, style = MaterialTheme.typography.titleSmall)
                                     Text("$selectedCount of ${ids.size} packages selected",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 TriStateCheckbox(state = when {
@@ -941,7 +943,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 isSelectedInAppSet(current, pkg.id, set.id),
                                 onOpen = { openPackage(pkg.id) },
                                 onSelected = { selectPackages(setOf(pkg.id), it, set) },
-                                modifier = Modifier.padding(start = 12.dp))
+                                modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                 }
@@ -996,8 +998,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 @Composable
 private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
     onOpen: () -> Unit, onSelected: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    ElevatedCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+    ElevatedCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = if (selected)
+            MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)) {
         ProjectPackageRow(pkg, device, selected, onOpen = onOpen, onSelected = onSelected)
     }
 }
@@ -1132,21 +1135,26 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
     selected: Boolean, onOpen: () -> Unit, onSelected: (Boolean) -> Unit) {
     val version = pkg.versions.values.firstOrNull()
-    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 10.dp),
+    Row(Modifier.fillMaxWidth().toggleable(value = selected, role = Role.Checkbox,
+        onValueChange = onSelected).padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Surface(Modifier.size(42.dp), shape = RoundedCornerShape(14.dp),
+        Surface(Modifier.size(32.dp), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
-            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null) }
+            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(20.dp)) }
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(pkg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(pkg.name, style = MaterialTheme.typography.titleSmall,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (device.installed) Text("Installed", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary)
         }
-        Checkbox(selected, onSelected)
-        Icon(Icons.Default.ChevronRight, "Configure ${pkg.name}")
+        Box(Modifier.width(64.dp).height(56.dp)) {
+            if (device.installed) Text("Installed", modifier = Modifier.align(Alignment.TopEnd),
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            IconButton(onClick = onOpen, modifier = Modifier.align(Alignment.BottomEnd).size(48.dp)) {
+                Icon(Icons.Default.ChevronRight, "Configure ${pkg.name}")
+            }
+        }
     }
 }
