@@ -71,6 +71,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -313,7 +315,7 @@ fun HomeScreen(navController: NavHostController) {
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(projects, key = { it.id }) { project ->
+                items(projects.sortedBy { unavailableByProject[it.id]?.isNotEmpty() == true }, key = { it.id }) { project ->
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
@@ -505,29 +507,39 @@ private fun ProjectCard(
     onDelete: () -> Unit
 ) {
     var showProjectMenu by remember { mutableStateOf(false) }
+    val outdated = unavailable?.isNotEmpty() == true
+    var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
     Box {
         Surface(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onOpen,
+                onClick = { if (outdated) actionsExpanded = !actionsExpanded else onOpen() },
+                onClickLabel = if (outdated) {
+                    if (actionsExpanded) "Hide project actions" else "Show project actions"
+                } else "Open project",
                 onLongClick = { showProjectMenu = true }
             ),
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+        color = if (unavailable?.isNotEmpty() == true) androidx.compose.ui.graphics.lerp(
+            MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp), MaterialTheme.colorScheme.errorContainer, 0.35f)
+            else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 2.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(1.dp, if (unavailable?.isNotEmpty() == true)
+            MaterialTheme.colorScheme.error.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.animateContentSize().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Surface(
                     modifier = Modifier.size(44.dp),
                     shape = MaterialTheme.shapes.medium,
@@ -540,6 +552,15 @@ private fun ProjectCard(
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
+                }
+                if (unavailable?.isNotEmpty() == true) {
+                    Surface(shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer) {
+                        Text("Outdated", Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -570,12 +591,9 @@ private fun ProjectCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     }
-                    if (unavailable?.isNotEmpty() == true) {
-                        Text("Outdated · read only", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error)
-                    }
                 }
             }
+            if (!outdated || actionsExpanded) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -594,6 +612,10 @@ private fun ProjectCard(
                         onClick = openZip
                     )
                 }
+                if (outdated) {
+                    ProjectActionButton(icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        label = "Open", onClick = onOpen)
+                }
                 if (project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true) {
                     ProjectActionButton(
                         icon = Icons.Default.Inventory2,
@@ -601,6 +623,7 @@ private fun ProjectCard(
                         onClick = onBuild
                     )
                 }
+            }
             }
         }
     }
