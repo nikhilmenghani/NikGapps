@@ -1,7 +1,7 @@
 # NikGapps changelog
 
 ## 0.80.18
-- Browse a cached changelog timeline with five-item previews and manual refresh.
+- Fixed Bootloop caused by Google Chrome and Google Clock on A17
 - Import and export package selections using the latest Android-specific config template.
 - Tap to select packages; long-press for info and Keep Stock app options.
 - Switch between AppSets and Packages, with exclusive Core and SetupWizard choices.
@@ -9,6 +9,7 @@
 - Show active projects first; tint outdated cards and tap to reveal their actions.
 - Keep dashboard headers fixed and restore scroll position after viewing package info.
 - Smooth navigation and build-button transitions; improve Elite badge placement.
+- Browse a changelog timeline with five-item previews and manual refresh.
 
 ## 0.80.17
 - Choose compressed builds for smaller ZIPs or standard builds for faster creation, in Settings or before starting a build.
