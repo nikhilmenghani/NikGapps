@@ -15,7 +15,7 @@ class AndroidBuilderAssetSource(private val context: Context,
     private val builderAssets: Map<String, BuilderAsset>) : BuilderAssetSource {
     override fun assets(): Map<String, ByteArray> = RegistryZipAssembler.REQUIRED_ASSETS
         .associateWith(::registryAsset)
-    private fun registryAsset(name: String): ByteArray {
+    fun registryAsset(name: String): ByteArray {
         val metadata = builderAssets[name] ?: error("Missing builder asset metadata for '$name'")
         val directory = File(context.cacheDir, "nikgapps/builder-assets").apply { mkdirs() }
         val target = File(directory, metadata.sha256)

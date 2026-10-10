@@ -5,6 +5,8 @@ import android.os.Build
 import android.widget.Toast
 import android.text.format.DateFormat
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
@@ -110,6 +112,29 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
+    var pendingConfig by rememberSaveable(projectId) { mutableStateOf<String?>(null) }
+    var exportingConfig by remember { mutableStateOf(false) }
+    // A text/plain MIME type makes some document providers append .txt to .config.
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+        val content = pendingConfig
+        pendingConfig = null
+        if (uri != null && content != null) scope.launch {
+            exportingConfig = true
+            try {
+                withContext(Dispatchers.IO) {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: error("Cannot open the selected file")
+                    val lfContent = content.replace("\r\n", "\n").replace('\r', '\n')
+                    output.use { it.write(lfContent.toByteArray(Charsets.UTF_8)) }
+                }
+                Toast.makeText(context, "Config exported", Toast.LENGTH_SHORT).show()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Toast.makeText(context, error.message ?: "Unable to export config", Toast.LENGTH_LONG).show()
+            } finally { exportingConfig = false }
+        }
+    }
     val searchFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val appsListState = rememberLazyListState()
@@ -229,6 +254,25 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun exportConfig() {
+        val loaded = metadata ?: return
+        scope.launch {
+            exportingConfig = true
+            try {
+                pendingConfig = withContext(Dispatchers.IO) {
+                    val template = AndroidBuilderAssetSource(context, loaded.builderAssets)
+                        .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
+                    NikGappsConfigExporter.forProject(template, current, loaded)
+                }
+                exportLauncher.launch("${current.name}.config")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                pendingConfig = null
+                Toast.makeText(context, error.message ?: "Unable to prepare config", Toast.LENGTH_LONG).show()
+            } finally { exportingConfig = false }
+        }
+    }
     fun openPackage(id: String) {
         AppDiagnostics.info("navigation", "package_details_opened", mapOf("package" to id))
         navController.navigate(appConfigRoute(projectId, id))
@@ -546,7 +590,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 navController.navigate(buildZipRoute(projectId))
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -564,6 +608,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1
                             )
+                        }
+                    }
+                    Surface(onClick = ::exportConfig, enabled = !exportingConfig,
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer, tonalElevation = 2.dp) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.FileDownload, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (exportingConfig) "Exporting…" else "Export config",
+                                style = MaterialTheme.typography.labelLarge, maxLines = 1)
                         }
                     }
                 }

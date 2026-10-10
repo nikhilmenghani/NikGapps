@@ -27,7 +27,7 @@ class ArtifactAndZipTest {
         val resolved = resolved(Artifact(zip.toURI().toString(), sha, zip.length()))
         val descriptor = PackageZipValidator().validate(zip, resolved)
         val assets = RegistryZipAssembler.REQUIRED_ASSETS.associateWith { "asset".toByteArray() }.toMutableMap().apply {
-            put(RegistryZipAssembler.CONFIG_TEMPLATE, "AndroidVersion=16\nGmsCore=1\n".toByteArray())
+            put(RegistryZipAssembler.CONFIG_TEMPLATE, "AndroidVersion=16\n# Following are the packages\nCore=1\n>>GmsCore=1\n".toByteArray())
             put(RegistryZipAssembler.CUSTOMIZE_TEMPLATE, "DEBUG=true\n".toByteArray())
         }
         val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
@@ -68,7 +68,9 @@ class ArtifactAndZipTest {
                 })
                 zip.write(payload); zip.closeEntry()
             }
-            val assets = RegistryZipAssembler.REQUIRED_ASSETS.associateWith { "asset".toByteArray() }
+            val assets = RegistryZipAssembler.REQUIRED_ASSETS.associateWith { "asset".toByteArray() }.toMutableMap().apply {
+                put(RegistryZipAssembler.CONFIG_TEMPLATE, "# Following are the packages\nCore=1\n>>GmsCore=1\n".toByteArray())
+            }
             val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
             val request = BuildRequest("16", 36, "arm64-v8a", set, ReleaseChannel.STABLE,
                 emptyMap(), setOf("gms_core"))

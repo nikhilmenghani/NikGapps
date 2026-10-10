@@ -109,8 +109,15 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         ordered.forEach { (appSet) -> append("install_app_set \"$appSet\" \"$$appSet\" \".zip\" \n") }
         append("\nset_progress 1.00\n\nexit_install\n\n")
     }
-    private fun config(r: BuildRequest, artifacts: List<ValidatedArtifact>, template: String) =
-        template.replace(Regex("(?m)^AndroidVersion=.*$"), "AndroidVersion=${r.androidVersion.filter { it.isDigit() }}")
+    private fun config(r: BuildRequest, artifacts: List<ValidatedArtifact>, template: String): String {
+        val selected = linkedMapOf<String, MutableSet<String>>()
+        artifacts.forEach { artifact ->
+            val set = r.packageAppSets[artifact.resolved.catalogPackage.id] ?: r.appSet
+            selected.getOrPut(set.name) { linkedSetOf() } +=
+                set.legacyPackageNames[artifact.resolved.catalogPackage.id] ?: artifact.resolved.catalogPackage.name
+        }
+        return NikGappsConfigExporter.render(template, r.androidVersion, selected)
+    }
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
         put("compressionLevel", r.compressionLevel)
