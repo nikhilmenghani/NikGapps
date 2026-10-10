@@ -156,8 +156,7 @@ fun HomeScreen(navController: NavHostController) {
     var showUpdateChangelog by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
-    val reachabilitySpace = (LocalConfiguration.current.screenHeightDp * 0.18f).dp
-    val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var projects by remember { mutableStateOf(projectRepository.getProjects()) }
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
@@ -304,19 +303,16 @@ fun HomeScreen(navController: NavHostController) {
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
+            Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
+                Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
+                Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
+                    Text("Projects", style = MaterialTheme.typography.headlineLarge)
+                }
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { WelcomeCard(GithubPrefs.username, isElite) }
-                item {
-                    Box(Modifier.fillMaxWidth().height(reachabilitySpace), contentAlignment = Alignment.Center) {
-                        Text("Projects", style = MaterialTheme.typography.headlineLarge)
-                    }
-                }
                 items(projects, key = { it.id }) { project ->
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
@@ -361,6 +357,7 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     )
                 }
+            }
             }
         }
     }
@@ -546,11 +543,14 @@ private fun ProjectCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(project.name, style = MaterialTheme.typography.titleMedium)
-                    if (unavailable?.isNotEmpty() == true) {
-                        Text("Outdated · read only", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(project.name, Modifier.weight(1f).alignByBaseline(),
+                            style = MaterialTheme.typography.titleMedium, maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        Text(project.androidVersion.displayName, Modifier.alignByBaseline(),
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "${project.selectedAppIds.size} apps · ${
                             remember(project.createdAt) {
@@ -558,21 +558,22 @@ private fun ProjectCard(
                                     .format(Date(project.createdAt))
                             }
                         }",
+                        modifier = Modifier.weight(1f).alignByBaseline(),
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        project.androidVersion.displayName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                     Text(
                         "API ${project.androidVersion.apiLevel} · ${project.architecture.displayName} build",
+                        modifier = Modifier.alignByBaseline(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    }
+                    if (unavailable?.isNotEmpty() == true) {
+                        Text("Outdated · read only", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

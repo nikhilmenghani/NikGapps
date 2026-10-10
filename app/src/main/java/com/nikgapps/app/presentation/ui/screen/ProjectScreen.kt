@@ -924,7 +924,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
-                Text("Pick the apps you want to include in your build.",
+                Text("Tap to select · Press and hold for package info and options.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
