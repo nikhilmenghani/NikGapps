@@ -10,7 +10,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import com.nikgapps.app.utils.AppDiagnostics
 
-data class BuilderAsset(val url: String, val sha256: String, val size: Long)
+data class BuilderAsset(val url: String, val sha256: String, val size: Long,
+    val configVersion: String? = null, val androidVersion: String? = null)
+
+internal fun configTemplateAsset(text: String, androidVersion: String): BuilderAsset {
+    val root = Json.parseToJsonElement(text).jsonObject
+    require(root.getValue("schemaVersion").jsonPrimitive.int == 1) { "Unsupported config-template schema" }
+    val entry = root.getValue("templates").jsonObject[androidVersion]?.jsonObject
+        ?: throw MetadataException("No config template for Android $androidVersion")
+    require(entry.getValue("androidVersion").jsonPrimitive.content == androidVersion)
+    val version = entry.getValue("version").jsonPrimitive.content
+    require(version.toInt() > 0) { "Invalid config version" }
+    val artifact = entry.getValue("template").jsonObject
+    return BuilderAsset(artifact.getValue("url").jsonPrimitive.content,
+        artifact.getValue("sha256").jsonPrimitive.content.lowercase(),
+        artifact.getValue("size").jsonPrimitive.long, version, androidVersion)
+}
 data class RegistryMetadata(val catalog: Catalog, val appSets: AppSetCatalog,
     val builderAssets: Map<String, BuilderAsset>, val releaseIndex: ReleaseIndex?,
     val release: CatalogRelease?, val fromCache: Boolean, val fetchedAtMillis: Long)
@@ -27,6 +42,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         val catalogCache = File(directory, "catalog.json")
         val appSetsCache = File(directory, "appsets.json")
         val builderAssetsCache = File(directory, "builder-assets.json")
+        val configTemplatesCache = File(directory, "config-templates.json")
         val releaseIndexCache = File(directory, "release-index.json")
         val fetchedAtCache = File(directory, "fetched-at.txt")
         val fetchedAt = fetchedAtCache.takeIf(File::isFile)?.readText()?.trim()?.toLongOrNull() ?: 0L
@@ -38,15 +54,17 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             val catalogText = download(CATALOG_URL)
             val appSetsText = download(APPSETS_URL)
             val builderAssetsText = download(BUILDER_ASSETS_URL)
+            val configTemplatesText = download(CONFIG_TEMPLATES_URL)
             val releaseIndexText = runCatching { download(RELEASE_INDEX_URL) }.getOrNull()
             val index = releaseIndexText?.let(CatalogParser::parseReleaseIndex)
             val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
             val releaseText = summary?.let { download("$METADATA_BASE_URL/${it.manifest}") }
             val parsed = parsePair(catalogText, appSetsText, builderAssetsText,
-                releaseIndexText, releaseText, false)
+                releaseIndexText, releaseText, false, templatesText = configTemplatesText)
             atomicWrite(catalogCache, catalogText)
             atomicWrite(appSetsCache, appSetsText)
             atomicWrite(builderAssetsCache, builderAssetsText)
+            atomicWrite(configTemplatesCache, configTemplatesText)
             releaseIndexText?.let { atomicWrite(releaseIndexCache, it) }
             if (summary != null && releaseText != null) atomicWrite(File(directory, "release-${summary.id}.json"), releaseText)
             val networkFetchedAt = System.currentTimeMillis()
@@ -64,7 +82,8 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
                 val releaseText = summary?.let { File(directory, "release-${it.id}.json").takeIf(File::isFile)?.readText() }
                 parsePair(catalogCache.readText(), appSetsCache.readText(), builderAssetsCache.readText(),
-                    indexText, releaseText, true, fetchedAt).also {
+                    indexText, releaseText, true, fetchedAt,
+                    templatesText = configTemplatesCache.takeIf(File::isFile)?.readText()).also {
                 AppDiagnostics.info("metadata", "loaded", mapOf("source" to "cache",
                     "android" to (it.release?.androidVersion ?: it.catalog.androidVersion),
                     "release" to it.release?.id, "packages" to it.catalog.packages.size,
@@ -78,13 +97,15 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
     private fun loadCached(catalog: File, appSets: File, assets: File, indexFile: File,
         androidVersion: String?, channel: String, architecture: String, releaseId: String?,
         fetchedAt: Long): RegistryMetadata? = runCatching {
-        if (!catalog.isFile || !appSets.isFile || !assets.isFile) return@runCatching null
+        val templates = File(catalog.parentFile, "config-templates.json")
+        if (!catalog.isFile || !appSets.isFile || !assets.isFile || !templates.isFile) return@runCatching null
         val indexText = indexFile.takeIf(File::isFile)?.readText()
         val index = indexText?.let(CatalogParser::parseReleaseIndex)
         val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
         val releaseText = summary?.let { File(catalog.parentFile, "release-${it.id}.json").takeIf(File::isFile)?.readText() }
         if (summary != null && releaseText == null) return@runCatching null
-        parsePair(catalog.readText(), appSets.readText(), assets.readText(), indexText, releaseText, true, fetchedAt)
+        parsePair(catalog.readText(), appSets.readText(), assets.readText(), indexText, releaseText, true, fetchedAt,
+            templatesText = templates.readText())
     }.getOrNull()
     private fun selectRelease(index: ReleaseIndex?, androidVersion: String?, channel: String,
         architecture: String, releaseId: String?): ReleaseSummary? {
@@ -97,7 +118,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             ?: throw MetadataException("Release '$selectedId' is absent from release history")
     }
     private fun parsePair(c: String, a: String, b: String, indexText: String?, releaseText: String?,
-        cached: Boolean, fetchedAtMillis: Long = System.currentTimeMillis()): RegistryMetadata {
+        cached: Boolean, fetchedAtMillis: Long = System.currentTimeMillis(), templatesText: String? = null): RegistryMetadata {
         val catalog = CatalogParser.parseCatalog(c)
         val releaseIndex = indexText?.let(CatalogParser::parseReleaseIndex)
         val release = releaseText?.let(CatalogParser::parseRelease)
@@ -112,7 +133,10 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             BuilderAsset(asset.getValue("url").jsonPrimitive.content,
                 asset.getValue("sha256").jsonPrimitive.content.lowercase(),
                 asset.getValue("size").jsonPrimitive.long)
-        }
+        }.toMutableMap()
+        assets[RegistryZipAssembler.CONFIG_TEMPLATE] = configTemplateAsset(
+            templatesText ?: throw MetadataException("Config templates unavailable; refresh online"),
+            release?.androidVersion ?: catalog.androidVersion)
         val missingAssets = RegistryZipAssembler.REQUIRED_ASSETS - assets.keys
         require(missingAssets.isEmpty()) {
             "builder-assets.json is missing: ${missingAssets.sorted().joinToString()}"
@@ -140,6 +164,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         const val BUILDER_ASSETS_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main/builder-assets.json"
         const val METADATA_BASE_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main"
         const val RELEASE_INDEX_URL = "$METADATA_BASE_URL/releases/index.json"
+        const val CONFIG_TEMPLATES_URL = "$METADATA_BASE_URL/config-templates.json"
         const val GITLAB_PROJECT_ID = 85036487
         const val CACHE_TTL_MILLIS = 30L * 60L * 1_000L
         private val CACHE_MUTEX = Mutex()

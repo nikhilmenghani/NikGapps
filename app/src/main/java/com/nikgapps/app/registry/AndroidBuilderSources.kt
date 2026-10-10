@@ -20,7 +20,7 @@ class AndroidBuilderAssetSource(private val context: Context,
         val directory = File(context.cacheDir, "nikgapps/builder-assets").apply { mkdirs() }
         val target = File(directory, metadata.sha256)
         if (target.isFile && target.length() == metadata.size && ArtifactDownloader.sha256(target) == metadata.sha256)
-            return target.readBytes()
+            return validateConfigTemplate(metadata, target.readBytes())
         val part = File(directory, "${metadata.sha256}.part")
         try {
             OkHttpClient().executeRegistryRequest(Request.Builder().url(metadata.url).build()) { response ->
@@ -29,8 +29,17 @@ class AndroidBuilderAssetSource(private val context: Context,
             require(part.length() == metadata.size) { "Size mismatch for builder asset '$name'" }
             require(ArtifactDownloader.sha256(part) == metadata.sha256) { "Checksum mismatch for builder asset '$name'" }
             if (!part.renameTo(target)) error("Cannot cache builder asset '$name'")
-            return target.readBytes()
+            return validateConfigTemplate(metadata, target.readBytes())
         } finally { part.delete() }
+    }
+    private fun validateConfigTemplate(metadata: BuilderAsset, bytes: ByteArray): ByteArray {
+        if (metadata.configVersion != null) {
+            val fields = bytes.decodeToString().lineSequence().filter { '=' in it && !it.startsWith('#') }
+                .associate { it.substringBefore('=') to it.substringAfter('=').trim() }
+            require(fields["Version"] == metadata.configVersion) { "Config template version mismatch" }
+            require(fields["AndroidVersion"] == metadata.androidVersion) { "Config template Android version mismatch" }
+        }
+        return bytes
     }
 }
 

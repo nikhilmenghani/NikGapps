@@ -255,11 +255,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
     fun exportConfig() {
-        val loaded = metadata ?: return
+        if (metadata == null) return
         scope.launch {
             exportingConfig = true
             try {
                 pendingConfig = withContext(Dispatchers.IO) {
+                    val loaded = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
+                        current.defaultChannel, current.architecture.value, forceRefresh = true)
                     val template = AndroidBuilderAssetSource(context, loaded.builderAssets)
                         .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
                     NikGappsConfigExporter.forProject(template, current, loaded)

@@ -57,7 +57,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             progress("Loading package catalog", 0, 0)
             val metadata = CatalogRepository(applicationContext.cacheDir).load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
-                project.architecture.value)
+                project.architecture.value, forceRefresh = true)
             val unavailable = unavailableProjectPackages(project, metadata)
             check(unavailable.isEmpty()) {
                 "Project is outdated. Duplicate it to remove unavailable packages: ${unavailable.sorted().joinToString()}"
