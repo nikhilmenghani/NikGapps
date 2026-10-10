@@ -128,6 +128,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
     var pendingConfig by rememberSaveable(projectId) { mutableStateOf<String?>(null) }
     var exportingConfig by remember { mutableStateOf(false) }
+    var importingConfig by remember { mutableStateOf(false) }
     // A text/plain MIME type makes some document providers append .txt to .config.
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
         val content = pendingConfig
@@ -268,6 +269,39 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            importingConfig = true
+            try {
+                val updated = withContext(Dispatchers.IO) {
+                    val loaded = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
+                        current.defaultChannel, current.architecture.value, forceRefresh = true)
+                    require(!loaded.fromCache) { "Unable to verify the latest config version. Please try again online." }
+                    val template = AndroidBuilderAssetSource(context, loaded.builderAssets)
+                        .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
+                    val content = (context.contentResolver.openInputStream(uri)
+                        ?: error("Cannot open the selected config")).bufferedReader(Charsets.UTF_8).use { reader ->
+                        val chars = CharArray(262145)
+                        var count = 0
+                        while (count < chars.size) {
+                            val read = reader.read(chars, count, chars.size - count)
+                            if (read == -1) break
+                            count += read
+                        }
+                        require(count <= 262144) { "Config file is too large" }
+                        String(chars, 0, count)
+                    }
+                    NikGappsConfigImporter.forProject(content, template, current, loaded)
+                }
+                save(updated)
+                Toast.makeText(context, "Imported ${updated.selectedAppIds.size} packages", Toast.LENGTH_SHORT).show()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Toast.makeText(context, error.message ?: "Unable to import config", Toast.LENGTH_LONG).show()
+            } finally { importingConfig = false }
+        }
+    }
     fun keepAospCounterpart(id: String, keep: Boolean) {
         save(current.copy(keepAospCounterparts = if (keep) current.keepAospCounterparts + id
             else current.keepAospCounterparts - id))
@@ -577,7 +611,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
         }
     }) }, bottomBar = {
-        if (metadata != null && current.selectedAppIds.isNotEmpty()) {
+        if (metadata != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -591,7 +625,21 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(
+                    if (current.selectedAppIds.isEmpty()) {
+                        Surface(onClick = { importLauncher.launch(arrayOf("*/*")) },
+                            enabled = !importingConfig && !exportingConfig && isOnline,
+                            modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer, tonalElevation = 2.dp) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.FileUpload, null, Modifier.size(20.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (importingConfig) "Importing…" else "Import config",
+                                    style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            }
+                        }
+                    } else Surface(
                         onClick = {
                             if (!isOnline) {
                                 Toast.makeText(
@@ -631,7 +679,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             )
                         }
                     }
-                    Surface(onClick = ::exportConfig, enabled = !exportingConfig,
+                    Surface(onClick = ::exportConfig, enabled = !exportingConfig && !importingConfig,
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer, tonalElevation = 2.dp) {
@@ -857,7 +905,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     )
                 )
             }
-            LazyColumn(
+            // Measuring a header-only/temporarily filtered list clamps the restored scroll index
+            // to zero when returning from package details. Wait for both data sources first.
+            if (registry == null || catalogPackages.any { it.id !in deviceStatuses }) {
+                Box(Modifier.fillMaxWidth().weight(1f).padding(24.dp), contentAlignment = Alignment.Center) {
+                    if (loadError != null) Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                    else CircularProgressIndicator()
+                }
+            } else LazyColumn(
             state = appsListState,
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(
