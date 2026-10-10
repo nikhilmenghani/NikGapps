@@ -237,7 +237,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id,
                     compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
-                        BuildCompressionPrefs.level)), artifacts) }
+                        BuildCompressionPrefs.level), keepAospCounterparts = project.keepAospCounterparts), artifacts) }
             log("Saving ${output.name} to Downloads/NikGapps…")
             operationLabel = "Saving ZIP to Downloads/NikGapps"
             location = withContext(Dispatchers.IO) {

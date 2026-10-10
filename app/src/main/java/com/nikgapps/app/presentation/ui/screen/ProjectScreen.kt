@@ -15,8 +15,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -39,7 +44,16 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlin.math.roundToInt
 import androidx.navigation.NavHostController
 import com.nikgapps.app.data.*
 import com.nikgapps.app.presentation.navigation.appConfigRoute
@@ -254,6 +268,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun keepAospCounterpart(id: String, keep: Boolean) {
+        save(current.copy(keepAospCounterparts = if (keep) current.keepAospCounterparts + id
+            else current.keepAospCounterparts - id))
+    }
     fun exportConfig() {
         if (metadata == null) return
         scope.launch {
@@ -367,7 +385,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             current.androidVersion.apiLevel, current.architecture.value, appSet, defaultChannel,
                             overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets,
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                            releaseId = loaded.release?.id, compressionLevel = compressionLevel), artifacts)
+                            releaseId = loaded.release?.id, compressionLevel = compressionLevel,
+                            keepAospCounterparts = current.keepAospCounterparts), artifacts)
                 }
                 try {
                     GitHubBuildAuth.requireBuildAccess()
@@ -942,6 +961,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
                         pkg.id in current.selectedAppIds,
                         onOpen = { openPackage(pkg.id) },
+                        keepAosp = pkg.id in current.keepAospCounterparts,
+                        onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
                         onSelected = { selectPackages(setOf(pkg.id), it) })
                 }
             } else {
@@ -1000,6 +1021,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
                                 isSelectedInAppSet(current, pkg.id, set.id),
                                 onOpen = { openPackage(pkg.id) },
+                                keepAosp = pkg.id in current.keepAospCounterparts,
+                                onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
                                 onSelected = { selectPackages(setOf(pkg.id), it, set) },
                                 modifier = Modifier.padding(start = 8.dp))
                         }
@@ -1055,11 +1078,41 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
 @Composable
 private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
-    onOpen: () -> Unit, onSelected: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    ElevatedCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+    onOpen: () -> Unit, onSelected: (Boolean) -> Unit, keepAosp: Boolean,
+    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    var menuOpen by remember(pkg.id) { mutableStateOf(false) }
+    var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
+    Box(modifier.fillMaxWidth()) {
+    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = if (selected)
             MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)) {
-        ProjectPackageRow(pkg, device, selected, onOpen = onOpen, onSelected = onSelected)
+        Box(Modifier.fillMaxWidth()) {
+            ProjectPackageRow(pkg, device, selected, onSelected = onSelected,
+                onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true })
+            if (selected && keepAosp) {
+                Box(Modifier.matchParentSize()) {
+                    Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(4.dp)
+                        .background(MaterialTheme.colorScheme.error))
+                }
+            }
+        }
+    }
+    Box(Modifier.offset { IntOffset(pressPosition.x.roundToInt(), pressPosition.y.roundToInt()) }.size(1.dp)) {
+    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
+        shape = RoundedCornerShape(12.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        if (selected) {
+            DropdownMenuItem(
+                text = { Text(if (keepAosp) "Delete AOSP Counterpart" else "Keep AOSP Counterpart") },
+                leadingIcon = { Icon(if (keepAosp) Icons.Default.DeleteOutline else Icons.Default.Shield, null) },
+                onClick = { menuOpen = false; onKeepAospChange(!keepAosp) }
+            )
+        }
+        DropdownMenuItem(text = { Text("Show info") },
+            leadingIcon = { Icon(Icons.Default.Info, null) },
+            onClick = { menuOpen = false; onOpen() })
+    }
+    }
     }
 }
 
@@ -1190,15 +1243,32 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
-    selected: Boolean, onOpen: () -> Unit, onSelected: (Boolean) -> Unit) {
+    selected: Boolean, onSelected: (Boolean) -> Unit, onPressPosition: (Offset) -> Unit, onLongPress: () -> Unit) {
     val version = pkg.versions.values.firstOrNull()
-    Row(Modifier.fillMaxWidth().toggleable(value = selected, role = Role.Checkbox,
-        onValueChange = onSelected).padding(horizontal = 12.dp, vertical = 4.dp),
+    Row(Modifier.fillMaxWidth().pointerInput(pkg.id) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            onPressPosition(down.position)
+            waitForUpOrCancellation(pass = PointerEventPass.Initial)
+        }
+    }.combinedClickable(onClick = { onSelected(!selected) },
+        onLongClick = onLongPress, onLongClickLabel = "Package options")
+        .semantics { role = Role.Checkbox; toggleableState = if (selected) ToggleableState.On else ToggleableState.Off }
+        .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Surface(Modifier.size(32.dp), shape = RoundedCornerShape(10.dp),
+        Box(Modifier.width(56.dp).height(44.dp)) {
+        Surface(Modifier.size(32.dp).align(Alignment.TopCenter), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(20.dp)) }
+        }
+        if (device.installed) Surface(Modifier.align(Alignment.BottomCenter), shape = RoundedCornerShape(4.dp),
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer) {
+            Text("Installed", Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp))
+        }
         }
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
@@ -1206,13 +1276,6 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Box(Modifier.width(64.dp).height(56.dp)) {
-            if (device.installed) Text("Installed", modifier = Modifier.align(Alignment.TopEnd),
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            IconButton(onClick = onOpen, modifier = Modifier.align(Alignment.BottomEnd).size(48.dp)) {
-                Icon(Icons.Default.ChevronRight, "Configure ${pkg.name}")
-            }
         }
     }
 }

@@ -15,20 +15,33 @@ object NikGappsConfigExporter {
             project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) },
             project.androidVersion.apiLevel, project.architecture.value)
         val selected = linkedMapOf<String, MutableSet<String>>()
+        val kept = linkedMapOf<String, MutableSet<String>>()
         resolution.packages.forEach { pkg ->
             val set = resolution.packageAppSets.getValue(pkg.catalogPackage.id)
             selected.getOrPut(set.name) { linkedSetOf() } +=
                 set.legacyPackageNames[pkg.catalogPackage.id] ?: pkg.catalogPackage.name
+            if (pkg.catalogPackage.id in project.keepAospCounterparts)
+                kept.getOrPut(set.name) { linkedSetOf() } +=
+                    set.legacyPackageNames[pkg.catalogPackage.id] ?: pkg.catalogPackage.name
         }
-        return render(template, project.androidVersion.displayName, selected)
+        return render(template, project.androidVersion.displayName, selected, kept)
     }
 
-    fun render(template: String, androidVersion: String, selected: Map<String, Set<String>>): String {
+    fun render(template: String, androidVersion: String, selected: Map<String, Set<String>>,
+        keepAosp: Map<String, Set<String>> = emptyMap()): String {
         require(template.contains("# Following are the packages")) { "Config template has no package section" }
         var packageSection = false
         var group: String? = null
         var androidLine = false
         var useZipConfigLine = false
+        val groupedHeaders = mutableSetOf<String>()
+        var header: String? = null
+        template.lineSequence().forEach { line ->
+            if (!line.startsWith('#') && '=' in line) {
+                val key = line.substringBefore('=').trim()
+                if (key.startsWith(">>")) header?.let { groupedHeaders += it } else header = key
+            }
+        }
         val lines = template.lineSequence().map { original ->
             val line = original.trimEnd('\r')
             when {
@@ -52,7 +65,9 @@ object NikGappsConfigExporter {
                         group = key
                         selected[key].orEmpty().isNotEmpty()
                     }
-                    "$key=${if (enabled) 1 else 0}"
+                    val keep = if (key.startsWith(">>")) key.removePrefix(">>") in keepAosp[group].orEmpty()
+                        else key !in groupedHeaders && key in keepAosp[key].orEmpty()
+                    "$key=${if (!enabled) 0 else if (keep) 2 else 1}"
                 }
                 else -> line
             }

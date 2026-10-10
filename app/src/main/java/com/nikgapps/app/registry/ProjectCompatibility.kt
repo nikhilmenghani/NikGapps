@@ -25,6 +25,7 @@ fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata): 
         defaultChannel = project.defaultChannel,
         channelOverrides = overrides,
         selectedAppIds = selected,
-        appSources = sources
+        appSources = sources,
+        keepAospCounterparts = project.keepAospCounterparts.intersect(selected)
     )
 }

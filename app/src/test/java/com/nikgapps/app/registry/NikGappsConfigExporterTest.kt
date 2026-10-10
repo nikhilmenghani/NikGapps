@@ -5,6 +5,17 @@ import org.junit.Test
 import com.nikgapps.app.data.*
 
 class NikGappsConfigExporterTest {
+    @Test fun keepAospUsesTwoOnlyForSelectedPackageEntries() {
+        val template = "# Following are the packages\nCore=1\n>>GmsCore=1\n>>GooglePlayStore=1\nGoogleClock=1\nGoogleContacts=1\n"
+        val output = NikGappsConfigExporter.render(template, "Android 17",
+            mapOf("Core" to setOf("GmsCore", "GooglePlayStore"), "GoogleClock" to setOf("GoogleClock")),
+            mapOf("Core" to setOf("GmsCore"), "GoogleClock" to setOf("GoogleClock"),
+                "GoogleContacts" to setOf("GoogleContacts")))
+        assertTrue(output.contains("Core=1\n>>GmsCore=2\n>>GooglePlayStore=1"))
+        assertTrue(output.contains("GoogleClock=2"))
+        assertTrue(output.contains("GoogleContacts=0"))
+    }
+
     @Test fun exportNormalizesWindowsTemplatesToLf() {
         val template = "AndroidVersion=17\r\nVersion=40\r\n# Following are the packages\r\nCore=1\r\n>>GmsCore=1\r\n"
         val output = NikGappsConfigExporter.render(template, "Android 17", mapOf("Core" to setOf("GmsCore")))

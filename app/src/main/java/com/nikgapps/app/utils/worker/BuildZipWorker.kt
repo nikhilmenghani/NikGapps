@@ -104,7 +104,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     project.selectedAppIds, packageAppSets = resolution.packageAppSets,
                     projectName = project.name,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                    releaseId = metadata.release?.id, compressionLevel = compressionLevel
+                    releaseId = metadata.release?.id, compressionLevel = compressionLevel,
+                    keepAospCounterparts = project.keepAospCounterparts
                 ), artifacts)
             try {
                 GitHubBuildAuth.requireBuildAccess()

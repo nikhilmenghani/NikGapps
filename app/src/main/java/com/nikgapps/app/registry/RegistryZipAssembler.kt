@@ -14,7 +14,8 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val appSet: CatalogAppSet, val defaultChannel: ReleaseChannel, val channelOverrides: Map<String, ReleaseChannel>,
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
     val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
-    val releaseId: String? = null, val compressionLevel: Int = 0)
+    val releaseId: String? = null, val compressionLevel: Int = 0,
+    val keepAospCounterparts: Set<String> = emptySet())
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -111,12 +112,16 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     }
     private fun config(r: BuildRequest, artifacts: List<ValidatedArtifact>, template: String): String {
         val selected = linkedMapOf<String, MutableSet<String>>()
+        val kept = linkedMapOf<String, MutableSet<String>>()
         artifacts.forEach { artifact ->
             val set = r.packageAppSets[artifact.resolved.catalogPackage.id] ?: r.appSet
             selected.getOrPut(set.name) { linkedSetOf() } +=
                 set.legacyPackageNames[artifact.resolved.catalogPackage.id] ?: artifact.resolved.catalogPackage.name
+            if (artifact.resolved.catalogPackage.id in r.keepAospCounterparts)
+                kept.getOrPut(set.name) { linkedSetOf() } +=
+                    set.legacyPackageNames[artifact.resolved.catalogPackage.id] ?: artifact.resolved.catalogPackage.name
         }
-        return NikGappsConfigExporter.render(template, r.androidVersion, selected)
+        return NikGappsConfigExporter.render(template, r.androidVersion, selected, kept)
     }
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())

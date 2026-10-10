@@ -18,7 +18,8 @@ data class BuildProject(
     val channelOverrides: Map<String, String> = emptyMap(),
     val selectedAppIds: Set<String> = emptySet(),
     val appSources: Map<String, AppSourceConfig> = emptyMap(),
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val keepAospCounterparts: Set<String> = emptySet()
 )
 
 enum class AppSource(val displayName: String) {
@@ -84,6 +85,9 @@ class BuildProjectRepository(context: Context) {
                             }
                         }
                         .orEmpty(),
+                    keepAospCounterparts = project.optJSONArray("keepAospCounterparts")?.let { entries ->
+                        buildSet { repeat(entries.length()) { add(entries.getString(it)) } }
+                    }.orEmpty(),
                     appSources = project.optJSONObject("appSources")
                         ?.let { sources ->
                             buildMap {
@@ -140,6 +144,7 @@ class BuildProjectRepository(context: Context) {
                         .put("channelOverrides", JSONObject(it.channelOverrides))
                         .put("createdAt", it.createdAt)
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
+                        .put("keepAospCounterparts", JSONArray(it.keepAospCounterparts.toList()))
                         .put(
                             "appSources",
                             JSONObject().apply {
