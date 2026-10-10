@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
@@ -72,6 +75,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -536,9 +542,9 @@ private fun ProjectCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                Column(Modifier.width(44.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Surface(
                     modifier = Modifier.size(44.dp),
@@ -554,16 +560,19 @@ private fun ProjectCard(
                     }
                 }
                 if (unavailable?.isNotEmpty() == true) {
-                    Surface(shape = RoundedCornerShape(6.dp),
+                    Surface(modifier = Modifier.width(44.dp), shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-                        Text("Outdated", Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall)
+                        Text("Outdated", Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, lineHeight = 12.sp,
+                                letterSpacing = 0.sp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1)
                     }
                 }
                 }
                 Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f).heightIn(min = 44.dp),
+                    verticalArrangement = Arrangement.Center) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(project.name, Modifier.weight(1f).alignByBaseline(),
                             style = MaterialTheme.typography.titleMedium, maxLines = 1,
@@ -613,10 +622,14 @@ private fun ProjectCard(
                     )
                 }
                 if (outdated) {
-                    ProjectActionButton(icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    ProjectActionButton(icon = Icons.Default.FolderOpen,
                         label = "Open", onClick = onOpen)
                 }
-                if (project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true) {
+                AnimatedVisibility(
+                    visible = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true,
+                    enter = expandHorizontally(tween(240), expandFrom = Alignment.End) + fadeIn(tween(180)),
+                    exit = shrinkHorizontally(tween(200), shrinkTowards = Alignment.End) + fadeOut(tween(120))
+                ) {
                     ProjectActionButton(
                         icon = Icons.Default.Inventory2,
                         label = "Create ZIP",

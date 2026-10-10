@@ -1,5 +1,14 @@
 # NikGapps changelog
 
+## 0.80.18
+- Import and export package selections using the latest Android-specific config template.
+- Tap to select packages; long-press for info and Keep AOSP options.
+- Switch between AppSets and Packages, with exclusive Core and SetupWizard choices.
+- Compact selection cards with Installed badges and Keep AOSP indicators.
+- Show active projects first; tint outdated cards and tap to reveal their actions.
+- Keep dashboard headers fixed and restore scroll position after viewing package info.
+- Smooth navigation and build-button transitions; improve Elite badge placement.
+
 ## 0.80.17
 - Choose compressed builds for smaller ZIPs or standard builds for faster creation, in Settings or before starting a build.
 - Elite users can choose compression levels 1–9, balancing ZIP size against build time.
