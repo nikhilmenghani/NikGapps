@@ -34,6 +34,17 @@ class ArtifactAndZipTest {
         val output = RegistryZipAssembler { assets }.build(dir, BuildRequest("16", 36, "arm64-v8a", set,
             ReleaseChannel.STABLE, emptyMap(), setOf("gms_core"), Instant.parse("2026-08-02T00:00:00Z")),
             listOf(ValidatedArtifact(resolved, zip, descriptor)))
+        assertTrue(output.name.contains("20260802"))
+        val dated = RegistryZipAssembler { assets }.build(File(dir, "current-date"),
+            BuildRequest("16", 36, "arm64-v8a", set, ReleaseChannel.STABLE, emptyMap(), setOf("gms_core"),
+                timestamp = Instant.parse("2026-08-02T00:00:00Z"),
+                filenameTimestamp = Instant.parse("2026-10-10T00:00:00Z")),
+            listOf(ValidatedArtifact(resolved, zip, descriptor)))
+        assertTrue(dated.name.contains("20261010"))
+        ZipFile(dated).use { built ->
+            val manifest = built.getInputStream(built.getEntry("nikgapps/build-manifest.json")).bufferedReader().readText()
+            assertTrue(manifest.contains("2026-08-02T00:00:00Z"))
+        }
         ZipFile(output).use { built ->
             assertNotNull(built.getEntry("AppSet/Core/GmsCore.zip")); assertNotNull(built.getEntry("nikgapps/build-manifest.json"))
             assertTrue(built.getInputStream(built.getEntry("afzc/nikgapps.config")).bufferedReader().readText().contains("GmsCore=1"))

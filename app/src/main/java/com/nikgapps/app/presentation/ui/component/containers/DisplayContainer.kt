@@ -254,6 +254,7 @@ fun SystemPreferences(
         ) {
             PreferenceSubtitle(text = "ZIP builds")
             BuildCompressionOptions()
+            com.nikgapps.app.presentation.ui.component.EliteBuildOptions()
             PreferenceItem(
                 label = "Ask before building",
                 supportingText = "Confirm the compression choice for each new build",

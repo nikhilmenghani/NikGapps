@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -274,13 +275,16 @@ fun PreferenceItem(
     icon: ImageVector,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
-    trailingContent: @Composable (() -> Unit)? = null
+    trailingContent: @Composable (() -> Unit)? = null,
+    enabled: Boolean = true,
+    eliteOption: Boolean = false
 ) {
     PreferenceItem(
         modifier = modifier.combinedClickable(
+            enabled = enabled,
             onClick = onClick,
             onLongClick = onLongClick
-        ),
+        ).alpha(if (enabled) 1f else 0.55f),
         leadingContent = {
             Icon(
                 imageVector = icon,
@@ -288,10 +292,15 @@ fun PreferenceItem(
             )
         },
         label = {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = label,
                 fontSize = 16.sp
             )
+            if (eliteOption) Icon(Icons.Outlined.Star, "Elite option", Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary)
+            }
         },
         supportingText = if (supportingText.isEmpty()) null else {
             {

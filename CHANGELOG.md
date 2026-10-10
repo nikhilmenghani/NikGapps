@@ -1,6 +1,7 @@
 # NikGapps changelog
 
 ## 0.80.18
+- Add Elite ZIP date options and a feature overview; starred settings stay visible when locked.
 - Fixed Bootloop caused by Google Chrome and Google Clock on A17
 - Import and export package selections using the latest Android-specific config template.
 - Tap to select packages; long-press for info and Keep Stock app options.

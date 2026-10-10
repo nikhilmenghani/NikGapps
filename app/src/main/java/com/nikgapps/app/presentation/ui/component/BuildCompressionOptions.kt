@@ -49,19 +49,18 @@ fun BuildCompressionOptions(
             switchState = compressed,
             onSwitchChange = onCompressedChange
         )
-        if (compressed && elite) {
             PreferenceItem(
                 modifier = rowModifier,
                 label = "Compression level",
-                supportingText = "Elite · ${compressionLevelLabel(level.coerceIn(1, 9))}",
+                supportingText = when {
+                    !elite -> "Elite required · Balanced compression (level 6)"
+                    !compressed -> "Enable compressed builds to choose a level"
+                    else -> compressionLevelLabel(level.coerceIn(1, 9))
+                },
                 icon = Icons.Outlined.Tune,
+                enabled = compressed && elite, eliteOption = true,
                 onClick = { showLevels = true }
             )
-        } else if (compressed) {
-            Text("Balanced compression · level 6", Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
     if (showLevels && elite) BottomSheetDialog(onDismissRequest = { showLevels = false }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)

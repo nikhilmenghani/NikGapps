@@ -16,6 +16,7 @@ import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.BuildQuotaRepository
 import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.verifiedCompressionLevel
+import com.nikgapps.app.data.verifiedZipFilenameTimestamp
 import com.nikgapps.app.utils.network.GitHubBuildAuth
 import com.nikgapps.app.registry.*
 import kotlinx.coroutines.CancellationException
@@ -105,7 +106,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     projectName = project.name,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id, compressionLevel = compressionLevel,
-                    keepAospCounterparts = project.keepAospCounterparts
+                    keepAospCounterparts = project.keepAospCounterparts,
+                    filenameTimestamp = verifiedZipFilenameTimestamp()
                 ), artifacts)
             try {
                 GitHubBuildAuth.requireBuildAccess()

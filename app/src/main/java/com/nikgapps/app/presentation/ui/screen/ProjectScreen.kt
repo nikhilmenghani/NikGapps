@@ -429,6 +429,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             overrides, current.selectedAppIds, packageAppSets = resolution.packageAppSets,
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                             releaseId = loaded.release?.id, compressionLevel = compressionLevel,
+                            filenameTimestamp = verifiedZipFilenameTimestamp(),
                             keepAospCounterparts = current.keepAospCounterparts), artifacts)
                 }
                 try {

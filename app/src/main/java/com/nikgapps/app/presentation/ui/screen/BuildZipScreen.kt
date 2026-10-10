@@ -236,6 +236,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     overrides, project.selectedAppIds, packageAppSets = resolution.packageAppSets,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id,
+                    filenameTimestamp = com.nikgapps.app.data.verifiedZipFilenameTimestamp(),
                     compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
                         BuildCompressionPrefs.level), keepAospCounterparts = project.keepAospCounterparts), artifacts) }
             log("Saving ${output.name} to Downloads/NikGapps…")

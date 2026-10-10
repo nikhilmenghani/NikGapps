@@ -15,7 +15,7 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
     val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
     val releaseId: String? = null, val compressionLevel: Int = 0,
-    val keepAospCounterparts: Set<String> = emptySet())
+    val keepAospCounterparts: Set<String> = emptySet(), val filenameTimestamp: Instant? = null)
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -27,7 +27,8 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
         require(request.compressionLevel in 0..9) { "Invalid compression level" }
         val expected = artifacts.map { it.resolved.catalogPackage.id }
         require(expected.distinct().size == expected.size) { "Duplicate resolved package" }
-        val date = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC).format(request.timestamp)
+        val date = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC)
+            .format(request.filenameTimestamp ?: request.timestamp)
         val appSetIds = request.packageAppSets.values.map { it.id }.distinct().ifEmpty { listOf(request.appSet.id) }
         val variant = if (appSetIds.size > 1) "custom" else appSetIds.single()
         val projectName = (request.projectName ?: variant).trim()
