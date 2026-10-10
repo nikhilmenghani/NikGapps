@@ -110,6 +110,7 @@ fun SettingsScreen(onBack: () -> Unit, startOnAccount: Boolean = false) {
     var showChangelog by remember { mutableStateOf(false) }
     var changelogLoading by remember { mutableStateOf(false) }
     var changelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
+    LaunchedEffect(Unit) { changelog = ChangelogRepository.fetch(context) }
     val useSideNavigation = LocalConfiguration.current.screenWidthDp >= 600
 
     LaunchedEffect(pagerState.currentPage) {
@@ -209,11 +210,6 @@ fun SettingsScreen(onBack: () -> Unit, startOnAccount: Boolean = false) {
                         },
                         onChangelogClick = {
                             showChangelog = true
-                            changelogLoading = true
-                            scope.launch {
-                                changelog = ChangelogRepository.fetch()
-                                changelogLoading = false
-                            }
                         }
                     )
                 }

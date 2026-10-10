@@ -65,7 +65,7 @@ fun MandatoryUpdateGate(
         latestVersion = latest.takeUnless { it == "Unknown" }
         if (latestVersion != null && VersionFetcher.isNewer(latest, currentVersion)) {
             updateChangelog = ChangelogRepository.between(
-                ChangelogRepository.fetch(), currentVersion, latest
+                ChangelogRepository.fetch(context, forceRefresh = true), currentVersion, latest
             )
         }
         checking = false

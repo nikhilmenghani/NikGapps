@@ -1,6 +1,7 @@
 # NikGapps changelog
 
 ## 0.80.18
+- Browse a cached changelog timeline with five-item previews and manual refresh.
 - Import and export package selections using the latest Android-specific config template.
 - Tap to select packages; long-press for info and Keep Stock app options.
 - Switch between AppSets and Packages, with exclusive Core and SetupWizard choices.

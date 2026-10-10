@@ -216,7 +216,7 @@ fun HomeScreen(navController: NavHostController) {
         isLatestVersion = latestVersion == "Unknown" || !isNewer(latestVersion, currentVersion)
         if (!isLatestVersion) {
             updateChangelog = ChangelogRepository.between(
-                ChangelogRepository.fetch(),
+                ChangelogRepository.fetch(context, forceRefresh = true),
                 installedVersion = currentVersion,
                 targetVersion = latestVersion
             )

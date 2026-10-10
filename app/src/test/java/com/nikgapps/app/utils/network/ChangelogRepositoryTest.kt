@@ -4,6 +4,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ChangelogRepositoryTest {
+    @Test fun `optional dates preserve older undated headings`() {
+        val entries = ChangelogRepository.parse("## 0.80.18 — 2026-10-10\n- New timeline\n## 0.80.17\n- Previous change\n")
+        assertEquals("2026-10-10", entries[0].date)
+        assertEquals(listOf("New timeline"), entries[0].changes)
+        assertEquals(null, entries[1].date)
+        assertEquals("0.80.17", entries[1].version)
+    }
+
+    @Test fun `invalid optional date does not discard release history`() {
+        val entries = ChangelogRepository.parse("## 0.80.18 — 2026-02-31\n- Change\n")
+        assertEquals(null, entries.single().date)
+        assertEquals(listOf("Change"), entries.single().changes)
+    }
+
     private val changelog = """
         0.3
         feature B added

@@ -2,17 +2,40 @@ package com.nikgapps.app.update
 
 import com.nikgapps.app.utils.network.NetworkClient
 import okhttp3.Request
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CancellationException
+import java.io.File
 
-data class ChangelogEntry(val version: String, val changes: List<String>)
+data class ChangelogEntry(val version: String, val changes: List<String>, val date: String? = null)
 
 object ChangelogRepository {
-    suspend fun fetch(): List<ChangelogEntry> = runCatching {
+    private val cacheMutex = Mutex()
+    suspend fun fetch(context: Context, forceRefresh: Boolean = false,
+        reportErrors: Boolean = false): List<ChangelogEntry> = withContext(Dispatchers.IO) {
+        cacheMutex.withLock {
+        val cache = File(context.filesDir, "changelog.md")
+        val cached = runCatching { parse(cache.readText()) }.getOrDefault(emptyList())
+        if (!forceRefresh && cached.isNotEmpty()) return@withLock cached
+        try {
         val request = Request.Builder().url(CHANGELOG_URL).build()
         NetworkClient.executeRequest(request).use { response ->
             if (!response.isSuccessful) error("Unable to load changelog (${response.code})")
-            parse(response.body.string())
+            val text = response.body.string()
+            val parsed = parse(text)
+            require(parsed.isNotEmpty()) { "Downloaded changelog is empty" }
+            val temporary = File(context.filesDir, "changelog.md.tmp")
+            temporary.writeText(text)
+            check(temporary.renameTo(cache)) { "Unable to save changelog cache" }
+            parsed
         }
-    }.getOrDefault(emptyList())
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) { if (reportErrors) throw error else cached }
+        }
+    }
 
     fun between(
         entries: List<ChangelogEntry>,
@@ -26,11 +49,12 @@ object ChangelogRepository {
     internal fun parse(text: String): List<ChangelogEntry> {
         val entries = mutableListOf<ChangelogEntry>()
         var version: String? = null
+        var date: String? = null
         var changes = mutableListOf<String>()
 
         fun commit() {
             val currentVersion = version ?: return
-            entries += ChangelogEntry(currentVersion, changes.toList())
+            entries += ChangelogEntry(currentVersion, changes.toList(), date)
         }
 
         var inComment = false
@@ -42,11 +66,14 @@ object ChangelogRepository {
                 return@forEach
             }
             val heading = trimmed.trimStart('#').trim()
-            val matchedVersion = VERSION_PATTERN.matchEntire(heading)?.groupValues?.get(1)
+            val match = VERSION_PATTERN.matchEntire(heading)
+            val matchedVersion = match?.groupValues?.get(1)
             when {
                 matchedVersion != null -> {
                     commit()
                     version = matchedVersion
+                    date = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
+                        ?.let { runCatching { java.time.LocalDate.parse(it).toString() }.getOrNull() }
                     changes = mutableListOf()
                 }
                 version != null && trimmed.isNotEmpty() && !trimmed.startsWith("#") ->
@@ -57,7 +84,7 @@ object ChangelogRepository {
         return entries
     }
 
-    private fun compareVersions(left: String, right: String): Int {
+    internal fun compareVersions(left: String, right: String): Int {
         val leftParts = versionParts(left)
         val rightParts = versionParts(right)
         repeat(maxOf(leftParts.size, rightParts.size)) { index ->
@@ -71,7 +98,8 @@ object ChangelogRepository {
     private fun versionParts(version: String): List<Int> =
         version.trim().removePrefix("v").split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
 
-    private val VERSION_PATTERN = Regex("^v?(\\d+(?:\\.\\d+)+)$", RegexOption.IGNORE_CASE)
+    // Optional release date: ## 0.80.18 — 2026-10-10.
+    private val VERSION_PATTERN = Regex("^v?(\\d+(?:\\.\\d+)+)(?:\\s+[—|]\\s+(\\d{4}-\\d{2}-\\d{2}))?$", RegexOption.IGNORE_CASE)
     private const val CHANGELOG_URL =
         "https://raw.githubusercontent.com/nikhilmenghani/nikgapps/main/CHANGELOG.md"
 }
