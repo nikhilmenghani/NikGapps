@@ -930,7 +930,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(true to "AppSets", false to "Packages").forEachIndexed { index, (grouped, label) ->
                         SegmentedButton(selected = appSetView == grouped, onClick = { appSetView = grouped },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
+                            shape = SegmentedButtonDefaults.itemShape(index, 2,
+                                baseShape = RoundedCornerShape(16.dp))) { Text(label) }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
