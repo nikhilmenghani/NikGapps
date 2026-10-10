@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.ui.screen
 
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.OpenableColumns
 import android.widget.Toast
 import android.text.format.DateFormat
 import androidx.activity.compose.LocalActivity
@@ -274,6 +275,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             importingConfig = true
             try {
                 val updated = withContext(Dispatchers.IO) {
+                    val filename = context.contentResolver.query(uri,
+                        arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+                    }
+                    require(filename?.endsWith(".config", ignoreCase = true) == true) {
+                        "Select a .config file to import"
+                    }
                     val loaded = catalogRepository.load(catalogAndroidVersion(current.androidVersion.displayName),
                         current.defaultChannel, current.architecture.value, forceRefresh = true)
                     require(!loaded.fromCache) { "Unable to verify the latest config version. Please try again online." }
@@ -626,7 +635,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (current.selectedAppIds.isEmpty()) {
-                        Surface(onClick = { importLauncher.launch(arrayOf("*/*")) },
+                        Surface(onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
+                            "application/x-config", "text/x-config")) },
                             enabled = !importingConfig && !exportingConfig && isOnline,
                             modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -1158,7 +1168,7 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
         if (selected) {
             DropdownMenuItem(
-                text = { Text(if (keepAosp) "Delete AOSP Counterpart" else "Keep AOSP Counterpart") },
+                text = { Text(if (keepAosp) "Delete Stock app" else "Keep Stock app") },
                 leadingIcon = { Icon(if (keepAosp) Icons.Default.DeleteOutline else Icons.Default.Shield, null) },
                 onClick = { menuOpen = false; onKeepAospChange(!keepAosp) }
             )
