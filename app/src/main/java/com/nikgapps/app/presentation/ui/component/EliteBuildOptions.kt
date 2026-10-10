@@ -65,7 +65,8 @@ private fun EliteFeaturesDialog(elite: Boolean, onDismiss: () -> Unit) {
         "Elite badge" to "Your dashboard shows an Elite badge when your GitHub account is eligible.",
         "Extra builds" to "Reset your build window to add six builds to your remaining allowance. Available once per six-hour window.",
         "Compression control" to "Choose compression levels 1–9 to balance ZIP size and build time.",
-        "ZIP filename date" to "Choose the package release date or today's device-local date for your ZIP filename."
+        "ZIP filename date" to "Choose the package release date or today's device-local date for your ZIP filename.",
+        "Longer project names" to "Name projects with up to 25 characters, instead of the standard 20."
     )
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxWidth(.94f).heightIn(max = (LocalConfiguration.current.screenHeightDp * .85f).dp),

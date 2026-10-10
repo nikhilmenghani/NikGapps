@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 const val MAX_PROJECT_NAME_LENGTH = 25
+fun projectNameLimit(elite: Boolean): Int = if (elite) MAX_PROJECT_NAME_LENGTH else 20
 
 data class BuildProject(
     val id: String = UUID.randomUUID().toString(),

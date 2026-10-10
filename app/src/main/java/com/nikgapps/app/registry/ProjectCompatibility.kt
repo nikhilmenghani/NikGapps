@@ -11,13 +11,13 @@ fun unavailableProjectPackages(project: BuildProject, metadata: RegistryMetadata
     return project.selectedAppIds - available
 }
 
-fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata): BuildProject {
+fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata, maxNameLength: Int = 20): BuildProject {
     val selected = project.selectedAppIds - unavailableProjectPackages(project, metadata)
     val owners = project.selectedPackageAppSets.filterKeys { it in selected }
     val sources = project.appSources.filterKeys { it in selected }
     val overrides = project.channelOverrides.filterKeys { it in selected }
     return BuildProject(
-        name = "${project.name} copy".take(MAX_PROJECT_NAME_LENGTH),
+        name = "${project.name} copy".take(maxNameLength.coerceIn(1, MAX_PROJECT_NAME_LENGTH)),
         androidVersion = project.androidVersion,
         architecture = project.architecture,
         selectedAppSetId = project.selectedAppSetId,

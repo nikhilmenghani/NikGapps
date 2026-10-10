@@ -515,7 +515,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             Text("What would you like to do?", style = MaterialTheme.typography.titleMedium)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
-                                    val copy = duplicateCurrentProject(current, registry)
+                                    val copy = duplicateCurrentProject(current, registry, projectNameLimit(eliteMember))
                                     repository.addProject(copy)
                                     navController.navigate(projectRoute(copy.id))
                                 }, modifier = Modifier.weight(1f).heightIn(min = 56.dp),

@@ -7,6 +7,10 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BuildDatePrefsTest {
+    @Test fun longerNamesAreEliteOnly() {
+        assertEquals(20, com.nikgapps.app.data.projectNameLimit(false))
+        assertEquals(25, com.nikgapps.app.data.projectNameLimit(true))
+    }
     @Test fun currentDateIsEliteOnlyAndReleaseDateRemainsDefault() {
         val today = LocalDate.of(2026, 10, 10)
         assertNull(zipFilenameTimestamp(false, true, today))

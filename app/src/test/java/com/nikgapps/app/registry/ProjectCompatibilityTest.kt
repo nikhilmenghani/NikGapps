@@ -29,11 +29,12 @@ class ProjectCompatibilityTest {
         assertEquals(setOf("gms_core", "removed_package"), original.selectedAppIds)
     }
 
-    @Test fun duplicatedProjectNameCanUseTwentyFiveCharacters() {
+    @Test fun duplicatedProjectNameUsesEliteOrRegularLimit() {
         val original = BuildProject(name = "12345678901234567890",
             androidVersion = AndroidVersion.ANDROID_17, architecture = Architecture.ARM64)
-        val copy = duplicateCurrentProject(original, metadata)
+        val copy = duplicateCurrentProject(original, metadata, maxNameLength = 25)
         assertEquals(25, MAX_PROJECT_NAME_LENGTH)
         assertEquals("12345678901234567890 copy", copy.name)
+        assertEquals("12345678901234567890", duplicateCurrentProject(original, metadata).name)
     }
 }

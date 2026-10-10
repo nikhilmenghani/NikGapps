@@ -120,7 +120,7 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.utils.network.EliteMembershipRepository
 import com.nikgapps.app.data.LatestBuildRepository
-import com.nikgapps.app.data.MAX_PROJECT_NAME_LENGTH
+import com.nikgapps.app.data.projectNameLimit
 import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
@@ -346,7 +346,7 @@ fun HomeScreen(navController: NavHostController) {
                                     catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
                                         project.defaultChannel, project.architecture.value)
                                 }.onSuccess { metadata ->
-                                    projects = projectRepository.addProject(duplicateCurrentProject(project, metadata))
+                                    projects = projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)))
                                     AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
                                 }.onFailure {
                                     Toast.makeText(context, "Cannot check the latest package list; try again online",
@@ -705,6 +705,13 @@ private fun ProjectSheet(
     val keyboard = LocalSoftwareKeyboardController.current
     var sheetVisible by remember { mutableStateOf(false) }
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
+    var eliteNameLimit by remember(GithubPrefs.username) { mutableStateOf(false) }
+    LaunchedEffect(GithubPrefs.username) {
+        eliteNameLimit = try { EliteMembershipRepository.isElite(GithubPrefs.username) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+    }
+    val nameLimit = projectNameLimit(eliteNameLimit)
     var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
     var metadataVersions by remember { mutableStateOf<Set<AndroidVersion>?>(null) }
@@ -743,7 +750,12 @@ private fun ProjectSheet(
     fun saveProject() {
         if (name.isBlank() || selectableVersions.isNullOrEmpty()) return
         keyboard?.hide()
-        val savedName = name.trim().take(MAX_PROJECT_NAME_LENGTH)
+        val savedName = name.trim()
+        // Preserve existing longer names when editing other fields; don't silently truncate them.
+        if (savedName.length > nameLimit && savedName != project?.name?.trim()) {
+            Toast.makeText(context, "Project names can have up to $nameLimit characters", Toast.LENGTH_SHORT).show()
+            return
+        }
         onSave(
             project?.copy(
                 name = savedName,
@@ -804,15 +816,26 @@ private fun ProjectSheet(
                             .padding(horizontal = 24.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (project == null) "Create project" else "Edit project",
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall
             )
+            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("ARM64 only", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            }
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it.take(MAX_PROJECT_NAME_LENGTH) },
+                onValueChange = { name = it.take(nameLimit) },
                 label = { Text("Project name") },
-                supportingText = { Text("${name.length}/$MAX_PROJECT_NAME_LENGTH") },
+                supportingText = { Text("${name.length}/$nameLimit${if (eliteNameLimit) " · Elite" else ""}") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { saveProject() }),
@@ -855,7 +878,8 @@ private fun ProjectSheet(
                                     onClick = { androidVersion = option },
                                     shape = SegmentedButtonDefaults.itemShape(
                                         index = index,
-                                        count = selectableVersions.size
+                                        count = selectableVersions.size,
+                                        baseShape = RoundedCornerShape(16.dp)
                                     ),
                                     icon = {
                                         SegmentedButtonDefaults.Icon(
@@ -886,14 +910,11 @@ private fun ProjectSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            OutlinedTextField(value = "${architecture.displayName} (${architecture.value})",
-                onValueChange = {}, readOnly = true, label = { Text("Architecture") },
-                supportingText = { Text("ARM64 is currently the supported architecture") },
-                leadingIcon = { Icon(Icons.Default.Memory, null) }, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = ::saveProject,
                 enabled = name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Text(if (project == null) "Create project" else "Save changes")
             }
