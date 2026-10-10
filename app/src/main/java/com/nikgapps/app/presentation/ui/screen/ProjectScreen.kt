@@ -679,7 +679,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             )
                         }
                     }
-                    Surface(onClick = ::exportConfig, enabled = !exportingConfig && !importingConfig,
+                    if (current.selectedAppIds.isNotEmpty()) Surface(onClick = ::exportConfig, enabled = !exportingConfig && !importingConfig,
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer, tonalElevation = 2.dp) {
@@ -939,24 +939,23 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
                 ) {
-                    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                        Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null,
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(interactionSource = null, indication = null,
                             onClick = { summaryExpanded = !summaryExpanded }),
                             verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null)
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text("${current.selectedAppIds.size} apps selected", style = MaterialTheme.typography.titleMedium)
-                                Text("Tap to ${if (summaryExpanded) "hide" else "review"} your selection", style = MaterialTheme.typography.labelMedium)
-                            }
-                            Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+                            Icon(Icons.Default.CheckCircle, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("${current.selectedAppIds.size} apps selected", Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall)
+                            Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                if (summaryExpanded) "Hide selection" else "Review selection", Modifier.size(20.dp))
                         }
                         AnimatedVisibility(summaryExpanded,
                             enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(160)),
                             exit = shrinkVertically(tween(220), shrinkTowards = Alignment.Top) + fadeOut(tween(120))) {
-                            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilledTonalButton(
