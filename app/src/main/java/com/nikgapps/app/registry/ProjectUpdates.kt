@@ -5,6 +5,24 @@ import com.nikgapps.app.data.BuildProject
 enum class ProjectUpdateKind { CURRENT, AVAILABLE, INCOMPATIBLE }
 data class ProjectUpdate(val kind: ProjectUpdateKind, val releaseId: String?, val message: String)
 
+fun releaseKnownToProjects(release: ReleaseSummary, projects: List<BuildProject>): Boolean = projects.any {
+    catalogAndroidVersion(it.androidVersion.displayName) == release.androidVersion &&
+        it.defaultChannel == release.channel && it.architecture.value == release.architecture &&
+        (it.lastBuiltReleaseId ?: it.createdReleaseId) == release.id
+}
+
+fun dismissProjectsThroughRelease(projects: List<BuildProject>, target: ReleaseSummary,
+    metadataByProject: Map<String, RegistryMetadata>): List<BuildProject> = projects.map { project ->
+    val metadata = metadataByProject[project.id]
+    val pending = metadata?.release
+    val eligible = pending != null && pending.androidVersion == target.androidVersion &&
+        pending.channel == target.channel && pending.architecture == target.architecture &&
+        projectUpdate(project, metadata).kind == ProjectUpdateKind.AVAILABLE && runCatching {
+            java.time.Instant.parse(pending.createdAt) <= java.time.Instant.parse(target.createdAt)
+        }.getOrDefault(false)
+    if (eligible) project.copy(dismissedReleaseId = target.id) else project
+}
+
 fun projectUpdate(project: BuildProject, metadata: RegistryMetadata): ProjectUpdate {
     val release = metadata.release
     if (release != null && (release.androidVersion != catalogAndroidVersion(project.androidVersion.displayName) ||
@@ -28,7 +46,12 @@ fun projectUpdate(project: BuildProject, metadata: RegistryMetadata): ProjectUpd
         val previous = baselineDate?.let(java.time.Instant::parse)?.toEpochMilli() ?: project.createdAt
         java.time.Instant.parse(release.createdAt).toEpochMilli() > previous
     }.getOrDefault(false)
-    val update = (newRelease || newerConfig) && project.dismissedReleaseId != release?.id
+    val dismissedDate = metadata.releaseIndex?.releases?.firstOrNull { it.id == project.dismissedReleaseId }?.createdAt
+    val dismissed = project.dismissedReleaseId != null && (project.dismissedReleaseId == release?.id ||
+        (release != null && dismissedDate != null && runCatching {
+            java.time.Instant.parse(release.createdAt) <= java.time.Instant.parse(dismissedDate)
+        }.getOrDefault(false)))
+    val update = (newRelease || newerConfig) && !dismissed
     return ProjectUpdate(if (update) ProjectUpdateKind.AVAILABLE else ProjectUpdateKind.CURRENT,
         release?.id, if (update) "A newer NikGapps release is available with updated packages and fixes." else "")
 }

@@ -370,13 +370,13 @@ fun HomeScreen(navController: NavHostController) {
         if (projects.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                 WelcomeCard(GithubPrefs.username, isElite)
-                RegistryReleaseBanner(isOnline)
+                RegistryReleaseBanner(isOnline, projects)
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
-                RegistryReleaseBanner(isOnline)
+                RegistryReleaseBanner(isOnline, projects)
                 Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
                     Text("Projects", style = MaterialTheme.typography.headlineLarge)
                 }
@@ -393,6 +393,12 @@ fun HomeScreen(navController: NavHostController) {
                         update = updatesByProject[project.id],
                         onDismissUpdate = { releaseId -> projects = projectRepository.mutateProject(project.id) { it.copy(
                             dismissedReleaseId = releaseId) } },
+                        onDismissAllUpdates = { releaseId ->
+                            val target = metadataByProject[project.id]?.releaseIndex?.releases?.firstOrNull { it.id == releaseId }
+                            if (target != null) projects = projectRepository.mutateProjects { saved ->
+                                dismissProjectsThroughRelease(saved, target, metadataByProject)
+                            }
+                        },
                         onExport = {
                             val loaded = metadataByProject[project.id]
                             if (loaded != null) {
@@ -585,6 +591,7 @@ private fun ProjectCard(
     unavailable: Set<String>?,
     update: ProjectUpdate?,
     onDismissUpdate: (String) -> Unit,
+    onDismissAllUpdates: (String) -> Unit,
     onExport: () -> Unit,
     onOpen: () -> Unit,
     onBuild: () -> Unit,
@@ -595,11 +602,40 @@ private fun ProjectCard(
 ) {
     var dismissUpdate by remember { mutableStateOf(false) }
     var dismissalReleaseId by remember { mutableStateOf<String?>(null) }
-    if (dismissUpdate) AlertDialog(onDismissRequest = { dismissUpdate = false },
-        title = { Text("Dismiss this update for this project?") },
-        text = { Text("Your project will remain on its current release. You'll be notified when a newer compatible release is available.") },
-        confirmButton = { TextButton(onClick = { dismissalReleaseId?.let(onDismissUpdate); dismissUpdate = false }) { Text("Dismiss") } },
-        dismissButton = { TextButton(onClick = { dismissUpdate = false }) { Text("Keep") } })
+    if (dismissUpdate) androidx.compose.ui.window.Dialog(onDismissRequest = { dismissUpdate = false }) {
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+            Column {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Dismiss this update for this project?", style = MaterialTheme.typography.titleLarge)
+                    Text("Keep your current release, or dismiss this update for this project or all compatible projects on the same Android version, channel, and architecture awaiting this release or an older one. Newer releases will appear again.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.FilledTonalButton(onClick = { dismissUpdate = false },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text("Keep", style = MaterialTheme.typography.labelMedium)
+                    }
+                    androidx.compose.material3.FilledTonalButton(onClick = {
+                        dismissalReleaseId?.let(onDismissUpdate)
+                        dismissUpdate = false
+                    }, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text("Dismiss", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                androidx.compose.material3.FilledTonalButton(onClick = {
+                    dismissalReleaseId?.let(onDismissAllUpdates)
+                    dismissUpdate = false
+                }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                    Text("Dismiss for all projects", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
     var showProjectMenu by remember { mutableStateOf(false) }
     var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE

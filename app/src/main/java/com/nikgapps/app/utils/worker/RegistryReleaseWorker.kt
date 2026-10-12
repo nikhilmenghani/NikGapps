@@ -15,6 +15,8 @@ import com.nikgapps.MainActivity
 import com.nikgapps.R
 import com.nikgapps.app.data.ReleaseNoticeRepository
 import com.nikgapps.app.registry.CatalogRepository
+import com.nikgapps.app.registry.releaseKnownToProjects
+import com.nikgapps.app.data.BuildProjectRepository
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
@@ -26,6 +28,8 @@ class RegistryReleaseWorker(context: Context, params: WorkerParameters) : Corout
         val latest = index.latest.values.flatMap { it.values.flatMap { architecture -> architecture.values } }.toSet()
         val releases = index.releases.filter { it.id in latest && it.channel == "stable" }
         val notices = ReleaseNoticeRepository(applicationContext)
+        val projects = BuildProjectRepository(applicationContext).getProjects()
+        releases.filter { releaseKnownToProjects(it, projects) }.forEach { notices.acknowledge(it.id) }
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(NotificationChannel(
             CHANNEL, "NikGapps releases", NotificationManager.IMPORTANCE_DEFAULT))

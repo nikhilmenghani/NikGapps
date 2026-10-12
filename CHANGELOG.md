@@ -1,5 +1,19 @@
 # NikGapps changelog
 
+## 0.80.19
+- Fix the Pixel Setup Wizard crashes on a17 - marking a17 Gapps stable
+- Get dashboard and background notifications when a new NikGapps package release is available.
+- See update badges for projects matching the release's Android version, channel, and architecture.
+- Build compatible projects with the latest packages; clear their update badge after the ZIP is successfully saved.
+- Export incompatible project configurations, edit affected entries, and import them when creating a new project.
+- Dismiss release announcements separately from individual project updates; newer releases appear again.
+- Automatically hide release announcements and notifications when a project already uses that release.
+- Dismiss updates for all compatible projects awaiting the same release or an older one.
+- Use matching rounded Keep and Dismiss buttons in release and project confirmation dialogs.
+- Show a compact, expandable release card with a consistent UTC release date and device theme colors.
+- Move project actions into a rounded press-and-hold menu that opens near the touch position, including ZIP sharing.
+- Load cached release and project status first, then refresh in the background for a faster dashboard.
+
 ## 0.80.18
 - Add Elite ZIP date options, 25-character project names, and a feature overview; starred settings stay visible when locked.
 - Fixed Bootloop caused by Google Chrome and Google Clock on A17

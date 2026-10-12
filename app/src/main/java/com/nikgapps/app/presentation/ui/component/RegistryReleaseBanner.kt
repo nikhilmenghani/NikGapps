@@ -20,7 +20,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.nikgapps.app.data.ReleaseNoticeRepository
+import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.registry.*
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
@@ -29,15 +31,17 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun RegistryReleaseBanner(online: Boolean) {
+fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>) {
     val context = LocalContext.current
     val preferences = remember { ReleaseNoticeRepository(context) }
     var release by remember { mutableStateOf<ReleaseSummary?>(null) }
     var dismissTarget by remember { mutableStateOf<ReleaseSummary?>(null) }
-    LaunchedEffect(online) {
+    LaunchedEffect(online, projects) {
         val repository = CatalogRepository(context.cacheDir)
         fun display(metadata: RegistryMetadata) {
             val latest = metadata.releaseIndex?.latest?.values?.flatMap { it.values.flatMap { architectures -> architectures.values } }.orEmpty().toSet()
+            metadata.releaseIndex?.releases?.filter { it.id in latest && releaseKnownToProjects(it, projects) }
+                ?.forEach { preferences.acknowledge(it.id) }
             release = metadata.releaseIndex?.releases?.filter { it.id in latest && it.channel == "stable" }
                 ?.maxByOrNull { it.createdAt }?.takeUnless { preferences.dismissed(it.id) }
         }
@@ -94,14 +98,33 @@ fun RegistryReleaseBanner(online: Boolean) {
         }
     }
     dismissTarget?.let { target ->
-        AlertDialog(onDismissRequest = { dismissTarget = null },
-            title = { Text("Dismiss this release announcement?") },
-            text = { Text("Project update indicators will remain visible. You'll see another announcement when a newer release is available.") },
-            confirmButton = { TextButton(onClick = {
-                preferences.dismiss(target.id)
-                if (release?.id == target.id) release = null
-                dismissTarget = null
-            }) { Text("Dismiss") } },
-            dismissButton = { TextButton(onClick = { dismissTarget = null }) { Text("Keep") } })
+        Dialog(onDismissRequest = { dismissTarget = null }) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+                Column {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Dismiss this release announcement?", style = MaterialTheme.typography.titleLarge)
+                        Text("Project update indicators will remain visible. You'll see another announcement when a newer release is available.",
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { dismissTarget = null },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                            Text("Keep", style = MaterialTheme.typography.labelMedium)
+                        }
+                        FilledTonalButton(onClick = {
+                            preferences.dismiss(target.id)
+                            if (release?.id == target.id) release = null
+                            dismissTarget = null
+                        }, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                            Text("Dismiss", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

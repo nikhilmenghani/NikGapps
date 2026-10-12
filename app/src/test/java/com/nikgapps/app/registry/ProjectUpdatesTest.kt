@@ -44,4 +44,46 @@ class ProjectUpdatesTest {
         assertTrue(recoveryProjectConfig(original, metadata()).contains(">>retired=1"))
         assertEquals(setOf("retired"), original.selectedAppIds)
     }
+
+    private fun summary(id: String = "new", date: String = "2026-10-11T12:00:00Z") =
+        ReleaseSummary(id, "17", 37, "arm64-v8a", "stable", "test", date, "release.json")
+
+    @Test fun matchingProjectImplicitlyAcknowledgesOnlyItsReleaseGroup() {
+        val current = project().copy(createdReleaseId = "new")
+        assertTrue(releaseKnownToProjects(summary(), listOf(current)))
+        assertTrue(releaseKnownToProjects(summary(), listOf(project().copy(lastBuiltReleaseId = "new"))))
+        assertFalse(releaseKnownToProjects(summary(), listOf(project())))
+        assertFalse(releaseKnownToProjects(summary(), listOf(current.copy(androidVersion = AndroidVersion.ANDROID_16))))
+        assertFalse(releaseKnownToProjects(summary(), listOf(current.copy(defaultChannel = "beta"))))
+    }
+
+    @Test fun bulkDismissalSkipsOtherVersionsFutureReleasesAndIncompatibleProjects() {
+        val first = project().copy(id = "first")
+        val older = project().copy(id = "older")
+        val future = project().copy(id = "future")
+        val incompatible = project().copy(id = "incompatible")
+        val android16 = project().copy(id = "android16", androidVersion = AndroidVersion.ANDROID_16)
+        val before = listOf(first, older, future, incompatible, android16)
+        val olderMetadata = metadata(id = "previous").let {
+            it.copy(release = it.release!!.copy(createdAt = "2026-10-10T12:00:00Z"))
+        }
+        val futureMetadata = metadata(id = "future").let {
+            it.copy(release = it.release!!.copy(createdAt = "2026-10-12T12:00:00Z"))
+        }
+        val after = dismissProjectsThroughRelease(before, summary(), mapOf(
+            first.id to metadata(), older.id to olderMetadata, future.id to futureMetadata,
+            incompatible.id to metadata(digest = "changed"), android16.id to metadata(android = "16")))
+        assertEquals(listOf("new", "new", null, null, null), after.map { it.dismissedReleaseId })
+        assertEquals(before.map { it.createdReleaseId }, after.map { it.createdReleaseId })
+    }
+
+    @Test fun dismissalWatermarkCoversOlderReleaseButNotLaterRelease() {
+        val dismissed = project().copy(dismissedReleaseId = "dismissed")
+        val index = ReleaseIndex(1, "", emptyMap(), listOf(summary("dismissed", "2026-10-12T12:00:00Z")))
+        assertEquals(ProjectUpdateKind.CURRENT, projectUpdate(dismissed, metadata().copy(releaseIndex = index)).kind)
+        val newer = metadata(id = "next").let { it.copy(releaseIndex = index,
+            release = it.release!!.copy(createdAt = "2026-10-13T12:00:00Z")) }
+        assertEquals(ProjectUpdateKind.AVAILABLE, projectUpdate(dismissed, newer).kind)
+        assertEquals(ProjectUpdateKind.INCOMPATIBLE, projectUpdate(dismissed, metadata(digest = "changed").copy(releaseIndex = index)).kind)
+    }
 }

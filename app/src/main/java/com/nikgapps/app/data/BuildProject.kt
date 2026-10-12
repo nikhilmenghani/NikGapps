@@ -142,6 +142,10 @@ class BuildProjectRepository(context: Context) {
         saveProjects(getProjects().map { existing -> if (existing.id == id) update(existing) else existing })
     }
 
+    fun mutateProjects(update: (List<BuildProject>) -> List<BuildProject>): List<BuildProject> = synchronized(WRITE_LOCK) {
+        saveProjects(update(getProjects()))
+    }
+
     fun deleteProject(projectId: String): List<BuildProject> {
         return synchronized(WRITE_LOCK) { saveProjects(getProjects().filterNot { it.id == projectId }) }
     }
