@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,6 +73,7 @@ import com.nikgapps.app.presentation.ui.component.containers.AdvancedPreferences
 import com.nikgapps.app.presentation.ui.component.containers.AccountPreferences
 import com.nikgapps.app.presentation.ui.component.containers.AppearancePreferences
 import com.nikgapps.app.presentation.ui.component.containers.SystemPreferences
+import com.nikgapps.app.presentation.ui.component.containers.AboutPreferences
 import com.nikgapps.app.presentation.ui.component.dialogs.SingleChoiceDialog
 import com.nikgapps.app.presentation.ui.component.dialogs.SingleTextDialog
 import com.nikgapps.app.update.ChangelogDialog
@@ -86,6 +88,7 @@ private enum class SettingsCategory(
     APPEARANCE(R.string.settings_appearance, Icons.Outlined.Palette),
     ACCOUNT(R.string.settings_account, Icons.Outlined.AccountCircle),
     SYSTEM(R.string.settings_system, Icons.Outlined.PhoneAndroid),
+    ABOUT(R.string.settings_about, Icons.Outlined.Info),
     ADVANCED(R.string.settings_advanced, Icons.Outlined.Tune);
 
     fun isApplicable(developerOptionsEnabled: Boolean): Boolean =
@@ -192,8 +195,9 @@ fun SettingsScreen(onBack: () -> Unit, startOnAccount: Boolean = false) {
                     SettingsCategory.APPEARANCE -> AppearancePreferences()
                     SettingsCategory.ACCOUNT -> AccountPreferences(showSignInHint = startOnAccount)
                     SettingsCategory.ADVANCED -> AdvancedPreferences()
+                    SettingsCategory.ABOUT -> AboutPreferences(versionName = versionName,
+                        onChangelogClick = { showChangelog = true })
                     SettingsCategory.SYSTEM -> SystemPreferences(
-                        versionName = versionName,
                         onPermissionsClick = {
                             context.startActivity(
                                 Intent(context, PermissionsActivity::class.java)
@@ -207,9 +211,6 @@ fun SettingsScreen(onBack: () -> Unit, startOnAccount: Boolean = false) {
                                     Uri.parse("package:${context.packageName}")
                                 )
                             )
-                        },
-                        onChangelogClick = {
-                            showChangelog = true
                         }
                     )
                 }

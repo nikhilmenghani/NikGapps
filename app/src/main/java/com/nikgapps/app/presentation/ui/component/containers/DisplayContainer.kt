@@ -221,16 +221,12 @@ fun AccountPreferences(showSignInHint: Boolean = false) {
 @SuppressLint("BatteryLife")
 @Composable
 fun SystemPreferences(
-    versionName: String,
     onPermissionsClick: () -> Unit,
-    onAppSettingsClick: () -> Unit,
-    onChangelogClick: () -> Unit
+    onAppSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val dialog = globalClass.singleChoiceDialog
     val updatePrefs = globalClass.preferencesManager.updatePrefs
-    val developerPreference = globalClass.preferencesManager.displayPrefs
-    var developerTapCount by remember { mutableStateOf(0) }
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var ignoresBatteryOptimizations by remember {
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
@@ -276,6 +272,21 @@ fun SystemPreferences(
                 onClick = onAppSettingsClick
             )
 
+            PreferenceItem(
+                label = stringResource(R.string.settings_battery_optimization),
+                supportingText = stringResource(
+                    if (ignoresBatteryOptimizations) R.string.settings_battery_optimization_allowed
+                    else R.string.settings_battery_optimization_restricted
+                ),
+                icon = Icons.Outlined.BatterySaver,
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}"))
+                    )
+                }
+            )
+
             PreferenceSubtitle(text = stringResource(R.string.settings_background))
             PreferenceItem(
                 label = "Automatic update checks",
@@ -296,24 +307,18 @@ fun SystemPreferences(
                     )
                 }
             )
-            PreferenceItem(
-                label = stringResource(R.string.settings_battery_optimization),
-                supportingText = stringResource(
-                    if (ignoresBatteryOptimizations) R.string.settings_battery_optimization_allowed
-                    else R.string.settings_battery_optimization_restricted
-                ),
-                icon = Icons.Outlined.BatterySaver,
-                onClick = {
-                    context.startActivity(
-                        Intent(
-                            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                            Uri.parse("package:${context.packageName}")
-                        )
-                    )
-                }
-            )
 
-            PreferenceSubtitle(text = stringResource(R.string.settings_about))
+        }
+    }
+}
+
+@Composable
+fun AboutPreferences(versionName: String, onChangelogClick: () -> Unit) {
+    val context = LocalContext.current
+    val developerPreference = globalClass.preferencesManager.displayPrefs
+    var developerTapCount by remember { mutableStateOf(0) }
+    SettingsPage {
+        Container(title = stringResource(R.string.settings_about), initiallyExpanded = true) {
             PreferenceItem(
                 label = "Changelog",
                 supportingText = "See the complete NikGapps version history",
@@ -325,11 +330,9 @@ fun SystemPreferences(
                 supportingText = stringResource(R.string.settings_version, versionName),
                 icon = Icons.Outlined.Android,
                 onClick = {
-                    if (developerPreference.developerOptionsEnabled) {
-                        Toast.makeText(context, "Developer options are already enabled", Toast.LENGTH_SHORT).show()
-                    } else {
+                    if (!developerPreference.developerOptionsEnabled) {
                         developerTapCount++
-                        if (developerTapCount >= 14) {
+                        if (developerTapCount >= 28) {
                             developerPreference.developerOptionsEnabled = true
                             developerTapCount = 0
                             Toast.makeText(context, "Developer options enabled", Toast.LENGTH_SHORT).show()

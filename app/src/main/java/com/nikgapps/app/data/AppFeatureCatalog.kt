@@ -36,7 +36,7 @@ object AppFeatureCatalog {
         )),
         AppFeaturePage("Settings", "Make NikGapps work your way", listOf(
             AppFeature("Appearance", "Customize the app's look", "Open Settings → Appearance to adjust the available theme and display preferences."),
-            AppFeature("Updates and changelog", "Stay informed about new releases", "Settings → System offers automatic update-check intervals and a cached changelog. Expand release rows, use Show all for longer lists, or Refresh to download the latest changelog."),
+            AppFeature("Updates and changelog", "Stay informed about new releases", "Settings → System offers automatic update-check intervals. Settings → About has the cached changelog. Expand release rows, use Show all for longer lists, or Refresh to download the latest changelog."),
             AppFeature("Background operation", "Review permissions and battery access", "Use Settings → System to review device access and battery optimization settings so background operations can continue reliably.")
         )),
         AppFeaturePage("Elite features", "Extra options for eligible GitHub accounts", eliteFeatures)

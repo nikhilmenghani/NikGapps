@@ -61,6 +61,11 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
         val visible = if (onUpdate == null) source else source.filter { item -> entries.any { it.version == item.version } }
         visible.sortedWith { a, b -> ChangelogRepository.compareVersions(b.version, a.version) }
     }
+    // A refreshed catalog can add a newer release after the old first row was composed.
+    // Own expansion at the dialog level so the former first row cannot stay open by default.
+    var expandedVersions by rememberSaveable(releases.firstOrNull()?.version) {
+        mutableStateOf(listOfNotNull(releases.firstOrNull()?.version))
+    }
     val listState = rememberLazyListState()
     // Keyed items retain their position when a newer release is inserted above them.
     // Start at the newest release on opening and after a refresh changes the top entry.
@@ -94,8 +99,11 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
                         releases.isEmpty() && (loading || cachedEntries == null) -> item { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Loading changelog…", Modifier.padding(top = 12.dp)) }
                         releases.isEmpty() -> item { Text("No changelog entries are available.") }
                         else -> itemsIndexed(releases, key = { _, release -> release.version }) { index, release ->
-                            ReleaseTimelineItem(release, index == 0, index == releases.lastIndex,
-                                release.version.removePrefix("v") == installedVersion.removePrefix("v").substringBefore('-'))
+                            ReleaseTimelineItem(release, index == releases.lastIndex,
+                                release.version.removePrefix("v") == installedVersion.removePrefix("v").substringBefore('-'),
+                                expanded = release.version in expandedVersions,
+                                onToggle = { expandedVersions = if (release.version in expandedVersions)
+                                    expandedVersions - release.version else expandedVersions + release.version })
                         }
                     }
                 }
@@ -138,8 +146,8 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
 }
 
 @Composable
-private fun ReleaseTimelineItem(entry: ChangelogEntry, newest: Boolean, last: Boolean, installed: Boolean) {
-    var expanded by rememberSaveable(entry.version) { mutableStateOf(newest) }
+private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, installed: Boolean,
+    expanded: Boolean, onToggle: () -> Unit) {
     var showAll by rememberSaveable(entry.version) { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f,
         animationSpec = tween(280, easing = FastOutSlowInEasing), label = "releaseChevron")
@@ -156,7 +164,7 @@ private fun ReleaseTimelineItem(entry: ChangelogEntry, newest: Boolean, last: Bo
                 if (installed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline))
         }
         Column(Modifier.weight(1f).padding(start = 8.dp, bottom = 16.dp)) {
-            Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null) { expanded = !expanded }
+            Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null, onClick = onToggle)
                 .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
