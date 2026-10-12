@@ -58,6 +58,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
@@ -83,6 +86,8 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -815,8 +820,10 @@ private fun ProjectSheet(
 ) {
     val context = LocalActivity.current ?: return
     val creationScope = rememberCoroutineScope()
-    var importText by remember { mutableStateOf<String?>(null) }
     var importError by remember { mutableStateOf<String?>(null) }
+    var configAttempted by remember { mutableStateOf(false) }
+    var loadingConfig by remember { mutableStateOf(false) }
+    var validatedConfig by remember { mutableStateOf<BuildProject?>(null) }
     var savingProject by remember { mutableStateOf(false) }
     val nameFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -833,8 +840,19 @@ private fun ProjectSheet(
     val architecture = project?.architecture ?: Architecture.ARM64
     val configImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) creationScope.launch {
+            configAttempted = true
+            loadingConfig = true
+            validatedConfig = null
+            importError = null
+            val targetAndroid = androidVersion
             try {
-                val text = withContext(Dispatchers.IO) {
+                val validated = withContext(Dispatchers.IO) {
+                    val filename = context.contentResolver.query(uri,
+                        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+                    }
+                    require(filename?.endsWith(".config", ignoreCase = true) == true) { "Select a .config file" }
                     val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
                         val output = java.io.ByteArrayOutputStream()
                         val buffer = ByteArray(8192)
@@ -846,15 +864,27 @@ private fun ProjectSheet(
                         output.toByteArray()
                     } ?: error("Cannot open config")
                     require(bytes.size <= 262144) { "Config file is too large" }
-                    bytes.toString(Charsets.UTF_8)
+                    val text = bytes.toString(Charsets.UTF_8)
+                    val metadata = CatalogRepository(context.cacheDir).load(catalogAndroidVersion(targetAndroid.displayName),
+                        "stable", architecture.value, forceRefresh = true)
+                    require(!metadata.fromCache) { "Connect to the internet to validate the latest configuration." }
+                    val template = AndroidBuilderAssetSource(context, metadata.builderAssets)
+                        .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
+                    val candidate = BuildProject(name = "Config", androidVersion = targetAndroid, architecture = architecture,
+                        createdReleaseId = metadata.release?.id)
+                    NikGappsConfigImporter.forProject(text, template, candidate, metadata)
                 }
-                val android = Regex("(?m)^AndroidVersion=([^\\r\\n]+)").find(text)?.groupValues?.get(1)?.trim()
-                    ?: error("Config has no AndroidVersion")
-                androidVersion = AndroidVersion.entries.firstOrNull { catalogAndroidVersion(it.displayName) == android }
-                    ?: error("Unsupported Android version: $android")
-                importText = text; importError = null
+                require(androidVersion == targetAndroid) { "Android version changed. Load the config again." }
+                validatedConfig = validated
             } catch (cancelled: CancellationException) { throw cancelled }
               catch (error: Exception) { importError = error.message ?: "Unable to import config" }
+              finally { loadingConfig = false }
+        }
+    }
+    LaunchedEffect(androidVersion) {
+        if (validatedConfig != null && validatedConfig?.androidVersion != androidVersion) {
+            validatedConfig = null
+            importError = "Android version changed. Remove or reload the config."
         }
     }
 
@@ -893,6 +923,7 @@ private fun ProjectSheet(
 
     fun saveProject() {
         if (name.isBlank() || selectableVersions.isNullOrEmpty()) return
+        if (loadingConfig || (configAttempted && (validatedConfig == null || importError != null))) return
         keyboard?.hide()
         val savedName = name.trim()
         // Preserve existing longer names when editing other fields; don't silently truncate them.
@@ -906,17 +937,13 @@ private fun ProjectSheet(
             try {
                 val candidate = project?.copy(name = savedName, androidVersion = androidVersion, architecture = architecture)
                     ?: BuildProject(name = savedName, androidVersion = androidVersion, architecture = architecture)
-                val saved = if (project != null) candidate else withContext(Dispatchers.IO) {
+                val saved = if (project != null) candidate else if (validatedConfig != null)
+                    validatedConfig!!.copy(name = savedName) else withContext(Dispatchers.IO) {
                     val metadata = CatalogRepository(context.cacheDir).load(catalogAndroidVersion(candidate.androidVersion.displayName),
                         candidate.defaultChannel, architecture.value, forceRefresh = true)
                     require(!metadata.fromCache) { "Connect to the internet to validate the latest configuration." }
-                    val text = importText
                     val seeded = candidate.copy(createdReleaseId = metadata.release?.id)
-                    if (text == null) seeded.withCurrentConfig(metadata) else {
-                        val template = AndroidBuilderAssetSource(context, metadata.builderAssets)
-                            .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
-                        NikGappsConfigImporter.forProject(text, template, seeded, metadata)
-                    }
+                    seeded.withCurrentConfig(metadata)
                 }
                 onSave(saved)
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -987,18 +1014,11 @@ private fun ProjectSheet(
                 }
             }
             }
-            if (project == null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { importText = null; importError = null }, enabled = !savingProject) { Text("Start fresh") }
-                    TextButton(onClick = { configImport.launch(arrayOf("*/*")) }, enabled = !savingProject) { Text("Import config") }
-                }
-                if (importText != null) Text("Configuration selected. It will be validated against the latest definitions before this project is created.")
-                importError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it.take(nameLimit) },
                 label = { Text("Project name") },
+                shape = RoundedCornerShape(16.dp),
                 supportingText = { Text("${name.length}/$nameLimit${if (eliteNameLimit) " · Elite" else ""}") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -1039,6 +1059,7 @@ private fun ProjectSheet(
                             selectableVersions.forEachIndexed { index, option ->
                                 SegmentedButton(
                                     selected = androidVersion == option,
+                                    enabled = !loadingConfig && !savingProject,
                                     onClick = { androidVersion = option },
                                     shape = SegmentedButtonDefaults.itemShape(
                                         index = index,
@@ -1074,13 +1095,51 @@ private fun ProjectSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            if (project == null) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Package configuration · Optional", style = MaterialTheme.typography.labelLarge)
+                    Text("Load a config to preselect packages, or create an empty project.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { keyboard?.hide(); configImport.launch(arrayOf("*/*")) },
+                            enabled = !savingProject && !loadingConfig && !selectableVersions.isNullOrEmpty(),
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                            Icon(Icons.Default.FileUpload, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (loadingConfig) "Validating…" else if (configAttempted) "Replace config" else "Load config",
+                                style = MaterialTheme.typography.labelLarge)
+                        }
+                        if (configAttempted) OutlinedButton(onClick = {
+                            configAttempted = false; validatedConfig = null; importError = null
+                        }, enabled = !loadingConfig && !savingProject, shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
+                    }
+                    if (configAttempted || importError != null) Surface(shape = RoundedCornerShape(16.dp),
+                        color = if (importError != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (importError != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (loadingConfig) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            else Icon(if (importError != null) Icons.Default.ErrorOutline else Icons.Default.Info, null, Modifier.size(20.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(when { loadingConfig -> "Validating config"; importError != null -> "Config needs attention"; else -> "Config ready" },
+                                    style = MaterialTheme.typography.titleSmall)
+                                Text(importError ?: if (loadingConfig) "Checking the latest package definitions…"
+                                    else "${validatedConfig?.selectedAppIds?.size ?: 0} packages preselected. Ready to create.",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
             Button(
                 onClick = ::saveProject,
-                enabled = !savingProject && name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
+                enabled = !savingProject && !loadingConfig && (!configAttempted || (validatedConfig != null && importError == null))
+                    && name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text(if (savingProject) "Validating configuration..." else if (project == null) "Create project" else "Save changes")
+                Text(if (savingProject) "Creating project…" else if (project == null) "Create project" else "Save changes",
+                    style = MaterialTheme.typography.labelLarge)
             }
                     }
                 }
