@@ -23,6 +23,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -54,12 +55,16 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
     var cachedEntries by remember { mutableStateOf<List<ChangelogEntry>?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) { cachedEntries = ChangelogRepository.fetch(context) }
+    LaunchedEffect(Unit) { cachedEntries = ChangelogRepository.fetch(context, forceRefresh = true) }
     val source = cachedEntries ?: entries
     val releases = remember(source, entries, onUpdate != null) {
         val visible = if (onUpdate == null) source else source.filter { item -> entries.any { it.version == item.version } }
         visible.sortedWith { a, b -> ChangelogRepository.compareVersions(b.version, a.version) }
     }
+    val listState = rememberLazyListState()
+    // Keyed items retain their position when a newer release is inserted above them.
+    // Start at the newest release on opening and after a refresh changes the top entry.
+    LaunchedEffect(releases.firstOrNull()?.version) { listState.scrollToItem(0) }
     val maxHeight = (LocalConfiguration.current.screenHeightDp * .85f).dp
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxWidth(.94f).height(maxHeight), shape = RoundedCornerShape(24.dp),
@@ -83,6 +88,7 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
                     }
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
+                    state = listState,
                     contentPadding = PaddingValues(16.dp)) {
                     when {
                         releases.isEmpty() && (loading || cachedEntries == null) -> item { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Loading changelog…", Modifier.padding(top = 12.dp)) }
