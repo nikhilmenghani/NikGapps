@@ -15,7 +15,8 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val selectedIds: Set<String>, val timestamp: Instant = Instant.now(),
     val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
     val releaseId: String? = null, val compressionLevel: Int = 0,
-    val keepAospCounterparts: Set<String> = emptySet(), val filenameTimestamp: Instant? = null)
+    val keepAospCounterparts: Set<String> = emptySet(), val filenameTimestamp: Instant? = null,
+    val packageDefinitions: Map<String, String> = emptyMap(), val installerSettings: Map<String, String> = emptyMap())
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -122,12 +123,13 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 kept.getOrPut(set.name) { linkedSetOf() } +=
                     set.legacyPackageNames[artifact.resolved.catalogPackage.id] ?: artifact.resolved.catalogPackage.name
         }
-        return NikGappsConfigExporter.render(template, r.androidVersion, selected, kept)
+        return NikGappsConfigExporter.withInstallerSettings(NikGappsConfigExporter.render(template, r.androidVersion, selected, kept), r.installerSettings)
     }
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
         put("compressionLevel", r.compressionLevel)
         r.releaseId?.let { put("releaseId", it) }
+        put("packageDefinitions", buildJsonObject { r.packageDefinitions.forEach { (id, digest) -> put(id, digest) } })
         put("androidVersion", r.androidVersion); put("androidApi", r.api); put("architecture", r.architecture)
         put("selectedAppSet", r.appSet.id)
         put("selectedAppSets", buildJsonArray {

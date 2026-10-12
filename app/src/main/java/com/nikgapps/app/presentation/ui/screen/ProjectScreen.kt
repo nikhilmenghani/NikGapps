@@ -269,7 +269,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
 
-    fun save(value: BuildProject) { repository.updateProject(value); project = value }
+    fun save(value: BuildProject) {
+        val adjusted = if ((value.selectedAppIds != current.selectedAppIds || value.selectedPackageAppSets != current.selectedPackageAppSets ||
+            value.keepAospCounterparts != current.keepAospCounterparts) && value.configSnapshot == current.configSnapshot)
+            value.copy(configSnapshot = null) else value
+        val saved = if ((value.configVersion == null || current.selectedAppIds.isEmpty() || value.configVersion == metadata?.builderAssets?.get(RegistryZipAssembler.CONFIG_TEMPLATE)?.configVersion) && metadata != null) adjusted.withCurrentConfig(requireNotNull(metadata)) else adjusted
+        repository.updateProject(saved); project = saved
+    }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             importingConfig = true
@@ -325,7 +331,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         current.defaultChannel, current.architecture.value, forceRefresh = true)
                     val template = AndroidBuilderAssetSource(context, loaded.builderAssets)
                         .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
-                    NikGappsConfigExporter.forProject(template, current, loaded)
+                    if (projectUpdate(current, loaded).kind == ProjectUpdateKind.INCOMPATIBLE)
+                        recoveryProjectConfig(current, loaded)
+                    else NikGappsConfigExporter.forProject(template, current, loaded)
                 }
                 exportLauncher.launch("${current.name}.config")
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -374,6 +382,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
     fun startBuild() {
         val loaded = metadata ?: return
+        if (projectUpdate(current, loaded).kind == ProjectUpdateKind.INCOMPATIBLE) return
         val appSet = selectedAppSet ?: return
         val quota = BuildQuotaRepository(context)
         val quotaStatus = quota.status()
@@ -430,7 +439,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             timestamp = loaded.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                             releaseId = loaded.release?.id, compressionLevel = compressionLevel,
                             filenameTimestamp = verifiedZipFilenameTimestamp(),
-                            keepAospCounterparts = current.keepAospCounterparts), artifacts)
+                            keepAospCounterparts = current.keepAospCounterparts, installerSettings = current.installerSettings,
+                            packageDefinitions = loaded.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.packageDefinitions.orEmpty().filterKeys { it in current.selectedAppIds }), artifacts)
                 }
                 try {
                     GitHubBuildAuth.requireBuildAccess()
@@ -442,6 +452,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     ZipPublisher(context).publish(output, current.selectedAppIds.size)
                 }
                 quota.recordSuccess()
+                recordSuccessfulProjectZip(context, current, output)
+                project = repository.getProjects().firstOrNull { it.id == current.id }
                 output.delete()
                 progress = null; result = false to "Flashable ZIP created:\n$published"
             } catch (e: Exception) { progress = null; result = true to (e.message ?: "Build failed") }
@@ -449,13 +461,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
 
     LaunchedEffect(autoBuild, metadata) {
-        if (autoBuild && !autoBuildConsumed && metadata != null && unavailable.isEmpty()) {
+        if (autoBuild && !autoBuildConsumed && metadata != null && unavailable.isEmpty() && projectUpdate(current, requireNotNull(metadata)).kind != ProjectUpdateKind.INCOMPATIBLE) {
             autoBuildConsumed = true
             startBuild()
         }
     }
 
-    if (registry != null && unavailable.isNotEmpty()) {
+    if (registry != null && projectUpdate(current, registry).kind == ProjectUpdateKind.INCOMPATIBLE) {
         var confirmDelete by remember { mutableStateOf(false) }
         Scaffold(topBar = { TopAppBar(
             title = { Text(current.name) },
@@ -484,8 +496,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             Text("Read only · ${current.androidVersion.displayName}",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onErrorContainer)
-                            Text("Some selected packages are no longer in this release. Your original project " +
-                                "is safe, but it can't be edited or built. Duplicate it to continue without them.",
+                            Text(projectUpdate(current, registry).message,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onErrorContainer)
                         }
@@ -494,8 +505,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 item {
                     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Unavailable packages (${unavailable.size})",
+                            Text(if (unavailable.isEmpty()) "Configuration needs review" else "Unavailable packages (${unavailable.size})",
                                 style = MaterialTheme.typography.titleMedium)
+                            if (unavailable.isEmpty()) Text("Review the exported configuration against version ${registry.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.configVersion ?: "latest"} before importing it into a new project.")
                             unavailable.sorted().forEachIndexed { index, packageId ->
                                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -515,13 +527,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             Text("What would you like to do?", style = MaterialTheme.typography.titleMedium)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
-                                    val copy = duplicateCurrentProject(current, registry, projectNameLimit(eliteMember))
-                                    repository.addProject(copy)
-                                    navController.navigate(projectRoute(copy.id))
+                                    exportConfig()
                                 }, modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = PaddingValues(horizontal = 6.dp)) {
-                                    Text("Duplicate", maxLines = 1)
+                                    Text("Export config", maxLines = 1)
                                 }
                                 OutlinedButton(onClick = navController::navigateUp,
                                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
@@ -537,8 +547,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         color = MaterialTheme.colorScheme.error)
                                 }
                             }
-                            Text("Duplicate removes these packages from a new project. Keep returns to your " +
-                                "projects without changing this one.",
+                            Text("Edit the exported config to match the latest definitions, then choose Import config when creating a new project.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -548,7 +557,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
         if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false },
             title = { Text("Delete outdated project?") },
-            text = { Text("This cannot be undone. You can duplicate it first to keep a supported selection.") },
+            text = { Text("This cannot be undone. Export the configuration first if you want to recreate the project.") },
             confirmButton = { TextButton(onClick = {
                 repository.deleteProject(current.id)
                 confirmDelete = false

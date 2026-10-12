@@ -50,7 +50,7 @@ private enum class BuildStage { RUNNING, AWAITING_FILE_CHOICE, COMPLETE, FAILED 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BuildZipScreen(projectId: String, navController: NavHostController) {
+fun BuildZipScreen(projectId: String, navController: NavHostController, latestRelease: Boolean = false) {
     val context = LocalActivity.current ?: return
     val isOnline = LocalInternetAvailable.current
     val project = remember(projectId) { BuildProjectRepository(context).getProjects().firstOrNull { it.id == projectId } }
@@ -67,7 +67,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
     var pendingSource by remember { mutableStateOf<String?>(null) }
     var existingName by remember { mutableStateOf<String?>(null) }
     var activeRunId by remember { mutableStateOf("none") }
-    var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(!BuildCompressionPrefs.askBeforeBuild) }
+    var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(latestRelease || !BuildCompressionPrefs.askBeforeBuild) }
     var chosenCompression by rememberSaveable(projectId) { mutableStateOf(BuildCompressionPrefs.compressed) }
     var chosenLevel by rememberSaveable(projectId) { mutableIntStateOf(BuildCompressionPrefs.level) }
     var dontAskAgain by rememberSaveable(projectId) { mutableStateOf(false) }
@@ -157,6 +157,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
         }
         val request = OneTimeWorkRequestBuilder<BuildZipWorker>()
             .setInputData(workDataOf(BuildZipWorker.KEY_PROJECT_ID to projectId,
+                BuildZipWorker.KEY_LATEST_RELEASE to latestRelease,
                 BuildZipWorker.KEY_COMPRESSED to BuildCompressionPrefs.compressed,
                 BuildZipWorker.KEY_COMPRESSION_LEVEL to BuildCompressionPrefs.level))
             .build()
@@ -184,8 +185,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value) }
             val unavailable = unavailableProjectPackages(project, metadata)
-            check(unavailable.isEmpty()) {
-                "Project is outdated. Duplicate it to remove unavailable packages: ${unavailable.sorted().joinToString()}"
+            check(projectUpdate(project, metadata).kind != ProjectUpdateKind.INCOMPATIBLE) {
+                "This configuration is outdated. Export it, fix incompatible entries and import it into a new project."
             }
             log("Resolving ${project.selectedAppIds.size} selected apps and their dependencies…")
             operationLabel = "Resolving packages and dependencies"
@@ -245,6 +246,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                 ZipPublisher(context).publish(output, project.selectedAppIds.size)
             }
             LatestBuildRepository(context).save(projectId, location!!)
+            recordSuccessfulProjectZip(context, project, output)
             output.delete()
             log("Build complete")
             AppDiagnostics.info("build", "succeeded", mapOf("run" to activeRunId,
@@ -433,6 +435,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     )
                 } }.onSuccess { saved ->
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
+                    project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
                 }.onFailure { error -> logs += "Unable to save ZIP: ${error.message}"; stage = BuildStage.FAILED }
             }
@@ -447,6 +450,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController) {
                     )
                 } }.onSuccess { saved ->
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
+                    project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
                 }.onFailure { error -> logs += "Unable to replace ZIP: ${error.message}"; stage = BuildStage.FAILED }
             }

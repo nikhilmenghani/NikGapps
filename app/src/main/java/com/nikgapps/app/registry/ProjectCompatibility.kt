@@ -20,12 +20,14 @@ fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata, m
         name = "${project.name} copy".take(maxNameLength.coerceIn(1, MAX_PROJECT_NAME_LENGTH)),
         androidVersion = project.androidVersion,
         architecture = project.architecture,
+        createdReleaseId = metadata.release?.id,
         selectedAppSetId = project.selectedAppSetId,
         selectedPackageAppSets = owners,
         defaultChannel = project.defaultChannel,
         channelOverrides = overrides,
         selectedAppIds = selected,
         appSources = sources,
-        keepAospCounterparts = project.keepAospCounterparts.intersect(selected)
-    )
+        keepAospCounterparts = project.keepAospCounterparts.intersect(selected),
+        installerSettings = project.installerSettings
+    ).withCurrentConfig(metadata)
 }

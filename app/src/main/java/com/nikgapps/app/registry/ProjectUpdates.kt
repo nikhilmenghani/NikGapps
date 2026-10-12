@@ -1,0 +1,62 @@
+package com.nikgapps.app.registry
+
+import com.nikgapps.app.data.BuildProject
+
+enum class ProjectUpdateKind { CURRENT, AVAILABLE, INCOMPATIBLE }
+data class ProjectUpdate(val kind: ProjectUpdateKind, val releaseId: String?, val message: String)
+
+fun projectUpdate(project: BuildProject, metadata: RegistryMetadata): ProjectUpdate {
+    val release = metadata.release
+    if (release != null && (release.androidVersion != catalogAndroidVersion(project.androidVersion.displayName) ||
+        release.channel != project.defaultChannel || release.architecture != project.architecture.value))
+        return ProjectUpdate(ProjectUpdateKind.CURRENT, null, "")
+    val config = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]
+    val missing = unavailableProjectPackages(project, metadata)
+    val changedOwners = project.selectedPackageAppSets.any { (id, owner) ->
+        metadata.appSets.appSets.none { it.id == owner && id in it.packages }
+    }
+    val newerConfig = (config?.configVersion?.toIntOrNull() ?: 0) > (project.configVersion?.toIntOrNull() ?: Int.MAX_VALUE)
+    val changedDefinitions = newerConfig && project.selectedAppIds.isNotEmpty() && (project.packageDefinitions.isEmpty() ||
+        project.selectedAppIds.any { project.packageDefinitions[it] != config?.packageDefinitions?.get(it) })
+    if (missing.isNotEmpty() || changedOwners || changedDefinitions ||
+        config?.configSettings?.let { keys -> project.installerSettings.keys.any { it !in keys } } == true) return ProjectUpdate(
+        ProjectUpdateKind.INCOMPATIBLE, release?.id,
+        "This project's configuration is incompatible with the latest NikGapps definitions. Export your config, update the affected entries and config version, then import it to create a new project.")
+    val baseline = project.lastBuiltReleaseId ?: project.createdReleaseId
+    val baselineDate = metadata.releaseIndex?.releases?.firstOrNull { it.id == baseline }?.createdAt
+    val newRelease = release != null && release.id != baseline && runCatching {
+        val previous = baselineDate?.let(java.time.Instant::parse)?.toEpochMilli() ?: project.createdAt
+        java.time.Instant.parse(release.createdAt).toEpochMilli() > previous
+    }.getOrDefault(false)
+    val update = (newRelease || newerConfig) && project.dismissedReleaseId != release?.id
+    return ProjectUpdate(if (update) ProjectUpdateKind.AVAILABLE else ProjectUpdateKind.CURRENT,
+        release?.id, if (update) "A newer NikGapps release is available with updated packages and fixes." else "")
+}
+
+fun BuildProject.withCurrentConfig(metadata: RegistryMetadata): BuildProject {
+    val template = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]
+    return copy(configVersion = template?.configVersion ?: configVersion,
+        packageDefinitions = template?.packageDefinitions.orEmpty().filterKeys { it in selectedAppIds })
+}
+
+fun BuildProject.afterSuccessfulBuild(metadata: RegistryMetadata): BuildProject = withCurrentConfig(metadata).copy(
+    lastBuiltReleaseId = metadata.release?.id, dismissedReleaseId = dismissedReleaseId?.takeUnless { it == metadata.release?.id })
+
+fun recoveryProjectConfig(project: BuildProject, metadata: RegistryMetadata): String {
+    project.configSnapshot?.let { return it }
+    val groups = project.selectedAppIds.groupBy { id -> project.selectedPackageAppSets[id] ?: project.selectedAppSetId }
+    return buildString {
+        append("# Exported project configuration. Review incompatible entries before importing.\n")
+        append("AndroidVersion=${catalogAndroidVersion(project.androidVersion.displayName)}\n")
+        append("Version=${project.configVersion ?: metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.configVersion ?: "40"}\n")
+        append("UseZipConfig=1\n\n# Following are the packages with default configuration\n")
+        groups.forEach { (owner, ids) ->
+            val appSet = metadata.appSets.appSets.firstOrNull { it.id == owner }
+            append("${appSet?.name ?: owner}=1\n")
+            ids.forEach { id ->
+                val name = appSet?.legacyPackageNames?.get(id) ?: metadata.catalog.packages.firstOrNull { it.id == id }?.name ?: id
+                append(">>$name=${if (id in project.keepAospCounterparts) 2 else 1}\n")
+            }
+        }
+    }
+}

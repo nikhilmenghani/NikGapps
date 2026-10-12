@@ -11,7 +11,8 @@ import kotlinx.serialization.json.*
 import com.nikgapps.app.utils.AppDiagnostics
 
 data class BuilderAsset(val url: String, val sha256: String, val size: Long,
-    val configVersion: String? = null, val androidVersion: String? = null)
+    val configVersion: String? = null, val androidVersion: String? = null,
+    val definitionFingerprint: String? = null, val packageDefinitions: Map<String, String> = emptyMap(), val configSettings: Set<String>? = null)
 
 internal fun configTemplateAsset(text: String, androidVersion: String): BuilderAsset {
     val root = Json.parseToJsonElement(text).jsonObject
@@ -24,7 +25,10 @@ internal fun configTemplateAsset(text: String, androidVersion: String): BuilderA
     val artifact = entry.getValue("template").jsonObject
     return BuilderAsset(artifact.getValue("url").jsonPrimitive.content,
         artifact.getValue("sha256").jsonPrimitive.content.lowercase(),
-        artifact.getValue("size").jsonPrimitive.long, version, androidVersion)
+        artifact.getValue("size").jsonPrimitive.long, version, androidVersion,
+        entry["definitionFingerprint"]?.jsonPrimitive?.content,
+        entry["packageDefinitions"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content }.orEmpty(),
+        entry["configSettings"]?.jsonArray?.map { it.jsonPrimitive.content }?.toSet())
 }
 data class RegistryMetadata(val catalog: Catalog, val appSets: AppSetCatalog,
     val builderAssets: Map<String, BuilderAsset>, val releaseIndex: ReleaseIndex?,
@@ -134,7 +138,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 asset.getValue("sha256").jsonPrimitive.content.lowercase(),
                 asset.getValue("size").jsonPrimitive.long)
         }.toMutableMap()
-        assets[RegistryZipAssembler.CONFIG_TEMPLATE] = configTemplateAsset(
+        assets[RegistryZipAssembler.CONFIG_TEMPLATE] = release?.configTemplate ?: configTemplateAsset(
             templatesText ?: throw MetadataException("Config templates unavailable; refresh online"),
             release?.androidVersion ?: catalog.androidVersion)
         val missingAssets = RegistryZipAssembler.REQUIRED_ASSETS - assets.keys

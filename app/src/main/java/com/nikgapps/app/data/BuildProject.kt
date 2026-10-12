@@ -20,7 +20,14 @@ data class BuildProject(
     val selectedAppIds: Set<String> = emptySet(),
     val appSources: Map<String, AppSourceConfig> = emptyMap(),
     val createdAt: Long = System.currentTimeMillis(),
-    val keepAospCounterparts: Set<String> = emptySet()
+    val keepAospCounterparts: Set<String> = emptySet(),
+    val configVersion: String? = null,
+    val createdReleaseId: String? = null,
+    val lastBuiltReleaseId: String? = null,
+    val dismissedReleaseId: String? = null,
+    val packageDefinitions: Map<String, String> = emptyMap(),
+    val configSnapshot: String? = null,
+    val installerSettings: Map<String, String> = emptyMap()
 )
 
 enum class AppSource(val displayName: String) {
@@ -56,9 +63,9 @@ class BuildProjectRepository(context: Context) {
     private val preferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun getProjects(): List<BuildProject> {
-        val json = preferences.getString(PROJECTS_KEY, null) ?: return emptyList()
-        return runCatching {
+    fun getProjects(): List<BuildProject> = synchronized(WRITE_LOCK) {
+        val json = preferences.getString(PROJECTS_KEY, null) ?: return@synchronized emptyList()
+        runCatching {
             val projects = JSONArray(json)
             var needsTimestampMigration = false
             val result = List(projects.length()) { index ->
@@ -107,6 +114,17 @@ class BuildProjectRepository(context: Context) {
                             }
                         }
                         .orEmpty(),
+                    configVersion = project.optString("configVersion").takeIf { it.isNotBlank() },
+                    createdReleaseId = project.optString("createdReleaseId").takeIf { it.isNotBlank() },
+                    lastBuiltReleaseId = project.optString("lastBuiltReleaseId").takeIf { it.isNotBlank() },
+                    dismissedReleaseId = project.optString("dismissedReleaseId").takeIf { it.isNotBlank() },
+                    configSnapshot = project.optString("configSnapshot").takeIf { it.isNotBlank() },
+                    installerSettings = project.optJSONObject("installerSettings")?.let { values ->
+                        buildMap { values.keys().forEach { put(it, values.getString(it)) } }
+                    }.orEmpty(),
+                    packageDefinitions = project.optJSONObject("packageDefinitions")?.let { values ->
+                        buildMap { values.keys().forEach { put(it, values.getString(it)) } }
+                    }.orEmpty(),
                     createdAt = project.optLong("createdAt", System.currentTimeMillis())
                 )
             }
@@ -115,19 +133,17 @@ class BuildProjectRepository(context: Context) {
     }
 
     fun addProject(project: BuildProject): List<BuildProject> {
-        return saveProjects(getProjects() + project)
+        return synchronized(WRITE_LOCK) { saveProjects(getProjects() + project) }
     }
 
-    fun updateProject(project: BuildProject): List<BuildProject> {
-        return saveProjects(
-            getProjects().map { existing ->
-                if (existing.id == project.id) project else existing
-            }
-        )
+    fun updateProject(project: BuildProject): List<BuildProject> = mutateProject(project.id) { project }
+
+    fun mutateProject(id: String, update: (BuildProject) -> BuildProject): List<BuildProject> = synchronized(WRITE_LOCK) {
+        saveProjects(getProjects().map { existing -> if (existing.id == id) update(existing) else existing })
     }
 
     fun deleteProject(projectId: String): List<BuildProject> {
-        return saveProjects(getProjects().filterNot { it.id == projectId })
+        return synchronized(WRITE_LOCK) { saveProjects(getProjects().filterNot { it.id == projectId }) }
     }
 
     private fun saveProjects(projects: List<BuildProject>): List<BuildProject> {
@@ -144,6 +160,13 @@ class BuildProjectRepository(context: Context) {
                         .put("defaultChannel", it.defaultChannel)
                         .put("channelOverrides", JSONObject(it.channelOverrides))
                         .put("createdAt", it.createdAt)
+                        .put("configVersion", it.configVersion)
+                        .put("createdReleaseId", it.createdReleaseId)
+                        .put("lastBuiltReleaseId", it.lastBuiltReleaseId)
+                        .put("dismissedReleaseId", it.dismissedReleaseId)
+                        .put("packageDefinitions", JSONObject(it.packageDefinitions))
+                        .put("configSnapshot", it.configSnapshot)
+                        .put("installerSettings", JSONObject(it.installerSettings))
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
                         .put("keepAospCounterparts", JSONArray(it.keepAospCounterparts.toList()))
                         .put(
@@ -167,6 +190,7 @@ class BuildProjectRepository(context: Context) {
     }
 
     private companion object {
+        val WRITE_LOCK = Any()
         const val PREFERENCES_NAME = "build_projects"
         const val PROJECTS_KEY = "projects"
     }

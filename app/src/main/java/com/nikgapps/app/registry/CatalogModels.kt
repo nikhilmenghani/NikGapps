@@ -40,7 +40,8 @@ data class ReleaseIndex(val schemaVersion: Int, val updatedAt: String,
     val latest: Map<String, Map<String, Map<String, String>>>, val releases: List<ReleaseSummary>)
 data class CatalogRelease(val schemaVersion: Int, val id: String, val createdAt: String,
     val androidVersion: String, val platformApi: Int, val architecture: String, val channel: String,
-    val source: String, val packages: Map<String, String>, val appSets: List<CatalogAppSet>)
+    val source: String, val packages: Map<String, String>, val appSets: List<CatalogAppSet>,
+    val configTemplate: BuilderAsset? = null)
 
 class MetadataException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
@@ -106,7 +107,13 @@ object CatalogParser {
             root.string("channel"), root["source"]?.jsonPrimitive?.content ?: "legacy",
             root.obj("packages").mapValues { (_, value) ->
                 value.jsonObject.string("version")
-            }, root.array("appSets").map { item -> appSet(item.jsonObject) })
+            }, root.array("appSets").map { item -> appSet(item.jsonObject) },
+            root["configTemplate"]?.jsonObject?.let { asset -> BuilderAsset(
+                asset.string("url"), asset.string("sha256"), asset.getValue("size").jsonPrimitive.long,
+                root["configVersion"]?.jsonPrimitive?.content, root.string("androidVersion"),
+                root["definitionFingerprint"]?.jsonPrimitive?.content,
+                root["packageDefinitions"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content }.orEmpty(),
+                root["configSettings"]?.jsonArray?.map { it.jsonPrimitive.content }?.toSet()) })
     }
 
     private fun appSet(a: JsonObject) = CatalogAppSet(a.string("id"), a.string("name"),

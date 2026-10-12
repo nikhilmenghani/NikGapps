@@ -53,4 +53,25 @@ class NikGappsConfigImporterTest {
             }
         }
     }
+
+    @Test fun importsAndExportsInstallerSettings() {
+        val currentTemplate = template.replace("# Following", "WipeRuntimePermissions=1\nInstallPartition=default\n# Following")
+        val source = currentTemplate.replace("WipeRuntimePermissions=1", "WipeRuntimePermissions=0")
+            .replace("InstallPartition=default", "InstallPartition=/product")
+        val imported = NikGappsConfigImporter.forProject(source, currentTemplate, project, metadata)
+        assertEquals("0", imported.installerSettings["WipeRuntimePermissions"])
+        val exported = NikGappsConfigExporter.forProject(currentTemplate, imported, metadata)
+        assertTrue(exported.contains("WipeRuntimePermissions=0"))
+        assertTrue(exported.contains("InstallPartition=/product"))
+    }
+
+    @Test fun reportsVersionAndRetiredEntriesTogetherBeforeImport() {
+        val source = template.replace("Version=40", "Version=39") + "Retired=1\n"
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            NikGappsConfigImporter.forProject(source, template, project, metadata)
+        }
+        assertTrue(error.message.orEmpty().contains("Update Version to 40"))
+        assertTrue(error.message.orEmpty().contains("Retired"))
+        assertTrue(project.selectedAppIds.isEmpty())
+    }
 }

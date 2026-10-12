@@ -2,7 +2,7 @@ package com.nikgapps.app.registry
 
 import com.nikgapps.app.data.BuildProject
 
-/** Only package selections are imported; project/build settings are left untouched. */
+/** Validate selections and supported installer settings against the published configuration. */
 object NikGappsConfigImporter {
     private data class Entry(val group: String, val name: String, val value: Int)
     private data class Parsed(val headers: Map<String, String>, val entries: List<Entry>)
@@ -44,10 +44,21 @@ object NikGappsConfigImporter {
         val input = parse(text)
         val latest = parse(template)
         val version = latest.headers["Version"] ?: error("Published config has no version")
-        require(input.headers["Version"] == version) { "Unsupported config version. Import version $version only." }
+        val issues = mutableListOf<String>()
+        if (input.headers["Version"] != version) issues += "Update Version to $version."
         val android = catalogAndroidVersion(project.androidVersion.displayName)
-        require(input.headers["AndroidVersion"] == android) { "Config must target Android $android" }
+        if (input.headers["AndroidVersion"] != android) issues += "Config must target Android $android."
+        val settings = input.headers.filterKeys { it !in setOf("Version", "AndroidVersion", "UseZipConfig") }
+        require(settings.keys.all { it in latest.headers }) { "Config contains unsupported installer settings" }
+        val booleans = setOf("WipeDalvikCache", "WipeRuntimePermissions", "ExecuteBackupRestore", "OverwriteWithZipConfig", "GmsOptimization", "GenerateLogs")
+        settings.filterKeys { it in booleans }.forEach { (key, value) -> require(value in setOf("0", "1")) { "Invalid $key: use 0 or 1" } }
+        settings["Mode"]?.let { require(it in setOf("install", "uninstall")) { "Invalid installation mode" } }
+        settings["InstallPartition"]?.let { require(it in setOf("default", "/system", "/product", "/system_ext")) { "Invalid install partition" } }
         val supported = latest.entries.map { it.group to it.name }.toSet()
+        input.entries.filter { it.group to it.name !in supported }.forEach {
+            issues += "Remove or correct unavailable package: ${it.group}/${it.name}."
+        }
+        require(issues.isEmpty()) { issues.joinToString("\n") }
         val owners = linkedMapOf<String, String>()
         val kept = linkedSetOf<String>()
         val groups = input.entries.filter { !it.name.startsWith(">>") }.associate { it.group to it.value }
@@ -79,7 +90,7 @@ object NikGappsConfigImporter {
         require(owners.keys.all { id -> resolution.packages.any { it.catalogPackage.id == id } }) {
             "Config selects a dependency without its parent package"
         }
-        return project.copy(selectedAppIds = selectedOwners.keys.toSet(), selectedPackageAppSets = selectedOwners,
-            keepAospCounterparts = kept, appSources = project.appSources.filterKeys { it in selectedOwners })
+        return project.withCurrentConfig(metadata).copy(configVersion = version, configSnapshot = text, installerSettings = settings, selectedAppIds = selectedOwners.keys.toSet(), selectedPackageAppSets = selectedOwners,
+            keepAospCounterparts = kept, appSources = project.appSources.filterKeys { it in selectedOwners }).withCurrentConfig(metadata)
     }
 }

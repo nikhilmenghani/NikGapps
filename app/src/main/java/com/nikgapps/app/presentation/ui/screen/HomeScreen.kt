@@ -1,6 +1,8 @@
 package com.nikgapps.app.presentation.ui.screen
 
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import com.nikgapps.app.network.LocalInternetAvailable
 import com.nikgapps.app.analytics.AppAnalytics
@@ -125,6 +127,8 @@ import com.nikgapps.app.presentation.navigation.Screens
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.presentation.ui.component.HomeUpdateIndicator
+import com.nikgapps.app.registry.*
+import com.nikgapps.app.presentation.ui.component.RegistryReleaseBanner
 import com.nikgapps.app.registry.CatalogRepository
 import com.nikgapps.app.registry.catalogAndroidVersion
 import com.nikgapps.app.registry.duplicateCurrentProject
@@ -169,21 +173,54 @@ fun HomeScreen(navController: NavHostController) {
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
+    var metadataByProject by remember { mutableStateOf<Map<String, RegistryMetadata>>(emptyMap()) }
+    var updatesByProject by remember { mutableStateOf<Map<String, ProjectUpdate>>(emptyMap()) }
     var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var isElite by remember { mutableStateOf(false) }
     val projectScope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
+    var pendingExport by remember { mutableStateOf<String?>(null) }
+    val projectExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+        val config = pendingExport; pendingExport = null
+        if (uri != null && config != null) projectScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(config.toByteArray(Charsets.UTF_8)) }
+                        ?: error("Cannot save config")
+                }
+                Toast.makeText(context, "Config exported", Toast.LENGTH_SHORT).show()
+            } catch (cancelled: CancellationException) { throw cancelled }
+              catch (error: Exception) { Toast.makeText(context, error.message ?: "Export failed", Toast.LENGTH_LONG).show() }
+        }
+    }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) projects = projectRepository.getProjects()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(projects, isOnline) {
         if (!isOnline) return@LaunchedEffect
         val results = mutableMapOf<String, Set<String>>()
+        val updates = mutableMapOf<String, ProjectUpdate>()
+        val checkedMetadata = mutableMapOf<String, RegistryMetadata>()
+        val targets = mutableMapOf<Triple<String,String,String>, RegistryMetadata>()
         projects.forEach { saved ->
             runCatching {
-                catalogRepository.load(catalogAndroidVersion(saved.androidVersion.displayName),
-                    saved.defaultChannel, saved.architecture.value)
-            }.onSuccess { metadata -> results[saved.id] = unavailableProjectPackages(saved, metadata) }
+                val target = Triple(catalogAndroidVersion(saved.androidVersion.displayName), saved.defaultChannel, saved.architecture.value)
+                targets[target] ?: catalogRepository.load(target.first, target.second, target.third, forceRefresh = true).also { targets[target] = it }
+            }.onSuccess { metadata ->
+                checkedMetadata[saved.id] = metadata
+                results[saved.id] = unavailableProjectPackages(saved, metadata)
+                updates[saved.id] = projectUpdate(saved, metadata)
+            }
         }
         unavailableByProject = results
+        updatesByProject = updates
+        metadataByProject = checkedMetadata
     }
 
     LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
@@ -308,11 +345,13 @@ fun HomeScreen(navController: NavHostController) {
         if (projects.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                 WelcomeCard(GithubPrefs.username, isElite)
+                RegistryReleaseBanner(isOnline)
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
+                RegistryReleaseBanner(isOnline)
                 Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
                     Text("Projects", style = MaterialTheme.typography.headlineLarge)
                 }
@@ -326,13 +365,23 @@ fun HomeScreen(navController: NavHostController) {
                     ProjectCard(
                         project = project,
                         unavailable = unavailableByProject[project.id],
+                        update = updatesByProject[project.id],
+                        onDismissUpdate = { releaseId -> projects = projectRepository.mutateProject(project.id) { it.copy(
+                            dismissedReleaseId = releaseId) } },
+                        onExport = {
+                            val loaded = metadataByProject[project.id]
+                            if (loaded != null) {
+                                pendingExport = recoveryProjectConfig(project, loaded)
+                                projectExport.launch("${project.name}.config")
+                            }
+                        },
                         onOpen = {
                             AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
                             navController.navigate(projectRoute(project.id))
                         },
                         onBuild = {
-                            if (isOnline && unavailableByProject[project.id]?.isEmpty() == true)
-                                navController.navigate(buildZipRoute(project.id))
+                            if (isOnline && unavailableByProject[project.id]?.isEmpty() == true && updatesByProject[project.id]?.kind != ProjectUpdateKind.INCOMPATIBLE)
+                                navController.navigate(buildZipRoute(project.id, latest = updatesByProject[project.id]?.kind == ProjectUpdateKind.AVAILABLE))
                             else Toast.makeText(
                                 context,
                                 "Internet connection is required before building the ZIP",
@@ -341,6 +390,10 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onOpenZip = latestBuild?.let { saved -> { context.openPublishedZip(saved) } },
                         onDuplicate = {
+                            if (updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) {
+                                Toast.makeText(context, "Export this config and recreate the project using Import config.", Toast.LENGTH_LONG).show()
+                                return@ProjectCard
+                            }
                             projectScope.launch {
                                 runCatching {
                                     catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
@@ -355,7 +408,7 @@ fun HomeScreen(navController: NavHostController) {
                             }
                         },
                         onEdit = {
-                            if (unavailableByProject[project.id]?.isNotEmpty() == true) return@ProjectCard
+                            if (unavailableByProject[project.id]?.isNotEmpty() == true || updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) return@ProjectCard
                             AppDiagnostics.info("project", "edit_opened", mapOf("project" to project.id.take(8)))
                             projectToEdit = project
                         },
@@ -505,6 +558,9 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 private fun ProjectCard(
     project: BuildProject,
     unavailable: Set<String>?,
+    update: ProjectUpdate?,
+    onDismissUpdate: (String) -> Unit,
+    onExport: () -> Unit,
     onOpen: () -> Unit,
     onBuild: () -> Unit,
     onOpenZip: (() -> Unit)?,
@@ -512,8 +568,15 @@ private fun ProjectCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var dismissUpdate by remember { mutableStateOf(false) }
+    var dismissalReleaseId by remember { mutableStateOf<String?>(null) }
+    if (dismissUpdate) AlertDialog(onDismissRequest = { dismissUpdate = false },
+        title = { Text("Dismiss this update for this project?") },
+        text = { Text("Your project will remain on its current release. You'll be notified when a newer compatible release is available.") },
+        confirmButton = { TextButton(onClick = { dismissalReleaseId?.let(onDismissUpdate); dismissUpdate = false }) { Text("Dismiss") } },
+        dismissButton = { TextButton(onClick = { dismissUpdate = false }) { Text("Keep") } })
     var showProjectMenu by remember { mutableStateOf(false) }
-    val outdated = unavailable?.isNotEmpty() == true
+    val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
     var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
     Box {
         Surface(
@@ -527,14 +590,14 @@ private fun ProjectCard(
                 onLongClick = { showProjectMenu = true }
             ),
         shape = RoundedCornerShape(18.dp),
-        color = if (unavailable?.isNotEmpty() == true) androidx.compose.ui.graphics.lerp(
+        color = if (outdated) androidx.compose.ui.graphics.lerp(
             MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp), MaterialTheme.colorScheme.errorContainer, 0.35f)
             else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 2.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, if (unavailable?.isNotEmpty() == true)
-            MaterialTheme.colorScheme.error.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(1.dp, if (outdated)
+            MaterialTheme.colorScheme.error.copy(alpha = 0.45f) else if (update?.kind == ProjectUpdateKind.AVAILABLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.animateContentSize().padding(12.dp),
@@ -559,7 +622,7 @@ private fun ProjectCard(
                         )
                     }
                 }
-                if (unavailable?.isNotEmpty() == true) {
+                if (outdated) {
                     Surface(modifier = Modifier.width(44.dp), shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer) {
@@ -602,10 +665,15 @@ private fun ProjectCard(
                     }
                 }
             }
+            if (update?.kind == ProjectUpdateKind.AVAILABLE) {
+                Text("Update available", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                TextButton(onClick = { dismissalReleaseId = update.releaseId; dismissUpdate = true }) { Text("Dismiss this update") }
+            }
+            if (outdated && actionsExpanded) Text(update?.message ?: "Export this configuration, review unavailable packages, and import it to recreate your project.", style = MaterialTheme.typography.bodySmall)
             if (!outdated || actionsExpanded) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
                 ProjectActionButton(
@@ -622,17 +690,19 @@ private fun ProjectCard(
                     )
                 }
                 if (outdated) {
+                    ProjectActionButton(icon = Icons.Default.ContentCopy,
+                        label = "Export config", onClick = onExport)
                     ProjectActionButton(icon = Icons.Default.FolderOpen,
-                        label = "Open", onClick = onOpen)
+                        label = "Review", onClick = onOpen)
                 }
                 AnimatedVisibility(
-                    visible = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true,
+                    visible = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated,
                     enter = expandHorizontally(tween(240), expandFrom = Alignment.End) + fadeIn(tween(180)),
                     exit = shrinkHorizontally(tween(200), shrinkTowards = Alignment.End) + fadeOut(tween(120))
                 ) {
                     ProjectActionButton(
                         icon = Icons.Default.Inventory2,
-                        label = "Create ZIP",
+                        label = if (update?.kind == ProjectUpdateKind.AVAILABLE) "Build latest ZIP" else "Create ZIP",
                         onClick = onBuild
                     )
                 }
@@ -701,6 +771,10 @@ private fun ProjectSheet(
     onSave: (BuildProject) -> Unit
 ) {
     val context = LocalActivity.current ?: return
+    val creationScope = rememberCoroutineScope()
+    var importText by remember { mutableStateOf<String?>(null) }
+    var importError by remember { mutableStateOf<String?>(null) }
+    var savingProject by remember { mutableStateOf(false) }
     val nameFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     var sheetVisible by remember { mutableStateOf(false) }
@@ -714,6 +788,33 @@ private fun ProjectSheet(
     val nameLimit = projectNameLimit(eliteNameLimit)
     var androidVersion by remember(project) { mutableStateOf(project?.androidVersion ?: AndroidVersion.ANDROID_16) }
     val architecture = project?.architecture ?: Architecture.ARM64
+    val configImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) creationScope.launch {
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (output.size() <= 262144) {
+                            val read = stream.read(buffer, 0, minOf(buffer.size, 262145 - output.size()))
+                            if (read <= 0) break
+                            output.write(buffer, 0, read)
+                        }
+                        output.toByteArray()
+                    } ?: error("Cannot open config")
+                    require(bytes.size <= 262144) { "Config file is too large" }
+                    bytes.toString(Charsets.UTF_8)
+                }
+                val android = Regex("(?m)^AndroidVersion=([^\\r\\n]+)").find(text)?.groupValues?.get(1)?.trim()
+                    ?: error("Config has no AndroidVersion")
+                androidVersion = AndroidVersion.entries.firstOrNull { catalogAndroidVersion(it.displayName) == android }
+                    ?: error("Unsupported Android version: $android")
+                importText = text; importError = null
+            } catch (cancelled: CancellationException) { throw cancelled }
+              catch (error: Exception) { importError = error.message ?: "Unable to import config" }
+        }
+    }
+
     var metadataVersions by remember { mutableStateOf<Set<AndroidVersion>?>(null) }
     val developerPrefs = globalClass.preferencesManager.displayPrefs
     LaunchedEffect(project) {
@@ -756,17 +857,29 @@ private fun ProjectSheet(
             Toast.makeText(context, "Project names can have up to $nameLimit characters", Toast.LENGTH_SHORT).show()
             return
         }
-        onSave(
-            project?.copy(
-                name = savedName,
-                androidVersion = androidVersion,
-                architecture = architecture
-            ) ?: BuildProject(
-                name = savedName,
-                androidVersion = androidVersion,
-                architecture = architecture
-            )
-        )
+        if (savingProject) return
+        savingProject = true
+        creationScope.launch {
+            try {
+                val candidate = project?.copy(name = savedName, androidVersion = androidVersion, architecture = architecture)
+                    ?: BuildProject(name = savedName, androidVersion = androidVersion, architecture = architecture)
+                val saved = if (project != null) candidate else withContext(Dispatchers.IO) {
+                    val metadata = CatalogRepository(context.cacheDir).load(catalogAndroidVersion(candidate.androidVersion.displayName),
+                        candidate.defaultChannel, architecture.value, forceRefresh = true)
+                    require(!metadata.fromCache) { "Connect to the internet to validate the latest configuration." }
+                    val text = importText
+                    val seeded = candidate.copy(createdReleaseId = metadata.release?.id)
+                    if (text == null) seeded.withCurrentConfig(metadata) else {
+                        val template = AndroidBuilderAssetSource(context, metadata.builderAssets)
+                            .registryAsset(RegistryZipAssembler.CONFIG_TEMPLATE).decodeToString()
+                        NikGappsConfigImporter.forProject(text, template, seeded, metadata)
+                    }
+                }
+                onSave(saved)
+            } catch (cancelled: CancellationException) { throw cancelled }
+              catch (error: Exception) { importError = error.message ?: "Cannot create project" }
+              finally { savingProject = false }
+        }
     }
 
     Dialog(
@@ -830,6 +943,14 @@ private fun ProjectSheet(
                     Text("ARM64 only", style = MaterialTheme.typography.labelSmall)
                 }
             }
+            }
+            if (project == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { importText = null; importError = null }, enabled = !savingProject) { Text("Start fresh") }
+                    TextButton(onClick = { configImport.launch(arrayOf("*/*")) }, enabled = !savingProject) { Text("Import config") }
+                }
+                if (importText != null) Text("Configuration selected. It will be validated against the latest definitions before this project is created.")
+                importError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
             OutlinedTextField(
                 value = name,
@@ -912,11 +1033,11 @@ private fun ProjectSheet(
             }
             Button(
                 onClick = ::saveProject,
-                enabled = name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
+                enabled = !savingProject && name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text(if (project == null) "Create project" else "Save changes")
+                Text(if (savingProject) "Validating configuration..." else if (project == null) "Create project" else "Save changes")
             }
                     }
                 }

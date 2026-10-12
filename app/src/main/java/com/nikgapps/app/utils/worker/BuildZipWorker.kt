@@ -56,13 +56,20 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             log(if (compressionLevel == 0) "Standard build: package compression off"
                 else "Compressed build: level $compressionLevel (smaller ZIP, slower assembly)")
             progress("Loading package catalog", 0, 0)
-            val metadata = CatalogRepository(applicationContext.cacheDir).load(
+            val repository = CatalogRepository(applicationContext.cacheDir)
+            val latest = repository.load(
                 catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
                 project.architecture.value, forceRefresh = true)
-            val unavailable = unavailableProjectPackages(project, metadata)
-            check(unavailable.isEmpty()) {
-                "Project is outdated. Duplicate it to remove unavailable packages: ${unavailable.sorted().joinToString()}"
+            check(!latest.fromCache) { "Unable to verify the latest release. Please try again online." }
+            check(projectUpdate(project, latest).kind != ProjectUpdateKind.INCOMPATIBLE) {
+                "This configuration is outdated. Export it, fix incompatible entries and import it into a new project."
             }
+            val baseline = project.lastBuiltReleaseId ?: project.createdReleaseId
+            val pinnedMetadata = if (!inputData.getBoolean(KEY_LATEST_RELEASE, false) && baseline != null)
+                repository.load(catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
+                    project.architecture.value, releaseId = baseline) else latest
+            val metadata = if ((project.configVersion?.toIntOrNull() ?: 0) >
+                (pinnedMetadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.configVersion?.toIntOrNull() ?: 0)) latest else pinnedMetadata
             metadata.release?.let { log("Using release ${it.createdAt.take(10)}") }
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
             val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
@@ -106,7 +113,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     projectName = project.name,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id, compressionLevel = compressionLevel,
-                    keepAospCounterparts = project.keepAospCounterparts,
+                    keepAospCounterparts = project.keepAospCounterparts, installerSettings = project.installerSettings,
+                    packageDefinitions = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.packageDefinitions.orEmpty().filterKeys { it in project.selectedAppIds },
                     filenameTimestamp = verifiedZipFilenameTimestamp()
                 ), artifacts)
             try {
@@ -126,6 +134,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val location = publisher.publish(output, project.selectedAppIds.size)
             quota.recordSuccess()
             LatestBuildRepository(applicationContext).save(projectId, location)
+            recordSuccessfulProjectZip(applicationContext, project, output)
             output.delete()
             log("Build complete")
             Result.success(workDataOf(KEY_LOCATION to location))
@@ -179,6 +188,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     companion object {
         const val KEY_PROJECT_ID = "project_id"
+        const val KEY_LATEST_RELEASE = "latest_release"
         const val KEY_COMPRESSED = "compressed"
         const val KEY_COMPRESSION_LEVEL = "compression_level"
         const val KEY_LABEL = "label"

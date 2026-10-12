@@ -24,7 +24,17 @@ object NikGappsConfigExporter {
                 kept.getOrPut(set.name) { linkedSetOf() } +=
                     set.legacyPackageNames[pkg.catalogPackage.id] ?: pkg.catalogPackage.name
         }
-        return render(template, project.androidVersion.displayName, selected, kept)
+        return withInstallerSettings(render(template, project.androidVersion.displayName, selected, kept), project.installerSettings)
+    }
+
+    fun withInstallerSettings(config: String, settings: Map<String, String>): String {
+        var packages = false
+        return config.lineSequence().joinToString("\n") { line ->
+            if (line.startsWith("# Following are the packages")) packages = true
+            val key = line.substringBefore('=')
+            if (!packages && '=' in line && key !in setOf("Version", "AndroidVersion", "UseZipConfig") && key in settings)
+                "$key=${settings.getValue(key)}" else line
+        }
     }
 
     fun render(template: String, androidVersion: String, selected: Map<String, Set<String>>,

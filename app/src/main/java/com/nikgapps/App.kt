@@ -35,6 +35,7 @@ class App: Application() {
         appContext = this
         AppAnalytics.initialize(this)
         AppUpdateManager.scheduleChecks(this, UpdatePrefs.intervalHours)
+        com.nikgapps.app.utils.worker.RegistryReleaseWorker.schedule(this)
     }
 
     fun showMsg(@StringRes msgSrc: Int) {
