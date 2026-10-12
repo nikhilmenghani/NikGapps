@@ -184,6 +184,7 @@ fun HomeScreen(navController: NavHostController) {
     var isDownloading by remember { mutableStateOf(false) }
     var updateChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     var showUpdateChangelog by remember { mutableStateOf(false) }
+    var showFeatureGuide by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -356,6 +357,9 @@ fun HomeScreen(navController: NavHostController) {
                     IconButton(onClick = context::restartActivity) {
                         Icon(Icons.Default.Refresh, contentDescription = "Restart")
                     }
+                    IconButton(onClick = { showFeatureGuide = true }) {
+                        Icon(Icons.Default.Info, contentDescription = "Discover NikGapps features")
+                    }
                     IconButton(
                         onClick = {
                             navController.navigateWithState(Screens.Settings.name)
@@ -466,6 +470,9 @@ fun HomeScreen(navController: NavHostController) {
             onDismiss = { showUpdateChangelog = false },
             onUpdate = ::downloadUpdate
         )
+    }
+    if (showFeatureGuide) com.nikgapps.app.presentation.ui.component.AppFeatureGuideDialog {
+        showFeatureGuide = false
     }
 
     if (showCreateProject) {
