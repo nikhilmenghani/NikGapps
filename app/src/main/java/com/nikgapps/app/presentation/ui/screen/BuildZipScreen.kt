@@ -1,6 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
 import android.content.Context
+import android.widget.Toast
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -481,7 +482,28 @@ private fun Context.openNikGappsFolder() {
 }
 
 internal fun Context.openPublishedZip(location: String) {
-    val uri: Uri? = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+    publishedZipUri(location)?.let { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(it, "application/zip")
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+}
+
+internal fun Context.sharePublishedZip(location: String) {
+    val uri = publishedZipUri(location)
+    if (uri == null) {
+        Toast.makeText(this, "The saved ZIP could not be found", Toast.LENGTH_LONG).show()
+        return
+    }
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "application/zip"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = android.content.ClipData.newRawUri("NikGapps ZIP", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    startActivity(Intent.createChooser(send, "Share ZIP"))
+}
+
+private fun Context.publishedZipUri(location: String): Uri? {
+    if (location.startsWith("content://")) return Uri.parse(location)
+    return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
         FileProvider.getUriForFile(this, "$packageName.provider", File(location))
     } else {
         val name = location.substringAfterLast('/')
@@ -490,6 +512,4 @@ internal fun Context.openPublishedZip(location: String) {
             if (cursor.moveToFirst()) Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0).toString()) else null
         }
     }
-    uri?.let { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(it, "application/zip")
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
 }

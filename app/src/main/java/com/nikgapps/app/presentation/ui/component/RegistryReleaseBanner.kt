@@ -1,21 +1,39 @@
 package com.nikgapps.app.presentation.ui.component
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SystemUpdateAlt
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nikgapps.app.data.ReleaseNoticeRepository
 import com.nikgapps.app.registry.*
 import kotlinx.coroutines.CancellationException
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun RegistryReleaseBanner(online: Boolean) {
     val context = LocalContext.current
     val preferences = remember { ReleaseNoticeRepository(context) }
     var release by remember { mutableStateOf<ReleaseSummary?>(null) }
-    var confirm by remember { mutableStateOf(false) }
+    var dismissTarget by remember { mutableStateOf<ReleaseSummary?>(null) }
     LaunchedEffect(online) {
         if (online) try {
             val metadata = CatalogRepository(context.cacheDir).load(forceRefresh = true)
@@ -25,17 +43,61 @@ fun RegistryReleaseBanner(online: Boolean) {
         } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
     }
     release?.let { published ->
-        Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("A new NikGapps release is available", style = MaterialTheme.typography.titleMedium)
-                Text("Updated packages and fixes are available for Android ${published.androidVersion}. Build an updated ZIP for your compatible projects.")
-                TextButton(onClick = { confirm = true }) { Text("Dismiss") }
+        var expanded by rememberSaveable(published.id) { mutableStateOf(false) }
+        val releaseDate = remember(published.createdAt) {
+            runCatching { DateTimeFormatter.ofPattern("MMM d, yyyy 'UTC'", Locale.getDefault())
+                .withZone(ZoneOffset.UTC).format(Instant.parse(published.createdAt)) }.getOrNull()
+        }
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                contentColor = MaterialTheme.colorScheme.onSurface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+                Row(modifier = Modifier.fillMaxWidth()
+                    .semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }
+                    .clickable(role = Role.Button, onClickLabel = if (expanded) "Hide release details" else "Show release details") {
+                        expanded = !expanded
+                    }.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                        Icon(Icons.Outlined.SystemUpdateAlt, contentDescription = null,
+                            modifier = Modifier.padding(8.dp).size(20.dp))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("NikGapps release available", style = MaterialTheme.typography.titleSmall)
+                        Text(listOfNotNull("Android ${published.androidVersion}", releaseDate).joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    Text("Updated packages and fixes are available. Use Build latest ZIP on a compatible project to update.",
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
+                        FilledTonalButton(onClick = { dismissTarget = published }, shape = CircleShape,
+                            modifier = Modifier.height(40.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) { Text("Dismiss", style = MaterialTheme.typography.labelMedium) }
+                    }
+                }
             }
         }
-        if (confirm) AlertDialog(onDismissRequest = { confirm = false },
+    }
+    dismissTarget?.let { target ->
+        AlertDialog(onDismissRequest = { dismissTarget = null },
             title = { Text("Dismiss this release announcement?") },
             text = { Text("Project update indicators will remain visible. You'll see another announcement when a newer release is available.") },
-            confirmButton = { TextButton(onClick = { preferences.dismiss(published.id); release = null; confirm = false }) { Text("Dismiss") } },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Keep") } })
+            confirmButton = { TextButton(onClick = {
+                preferences.dismiss(target.id)
+                if (release?.id == target.id) release = null
+                dismissTarget = null
+            }) { Text("Dismiss") } },
+            dismissButton = { TextButton(onClick = { dismissTarget = null }) { Text("Keep") } })
     }
 }

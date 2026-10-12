@@ -17,6 +17,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.draw.clip
+import kotlin.math.roundToInt
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +54,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FolderOpen
@@ -58,7 +71,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -388,7 +400,7 @@ fun HomeScreen(navController: NavHostController) {
                                 Toast.LENGTH_LONG
                             ).show()
                         },
-                        onOpenZip = latestBuild?.let { saved -> { context.openPublishedZip(saved) } },
+                        onShareZip = latestBuild?.let { saved -> { context.sharePublishedZip(saved) } },
                         onDuplicate = {
                             if (updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) {
                                 Toast.makeText(context, "Export this config and recreate the project using Import config.", Toast.LENGTH_LONG).show()
@@ -563,7 +575,7 @@ private fun ProjectCard(
     onExport: () -> Unit,
     onOpen: () -> Unit,
     onBuild: () -> Unit,
-    onOpenZip: (() -> Unit)?,
+    onShareZip: (() -> Unit)?,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -576,16 +588,27 @@ private fun ProjectCard(
         confirmButton = { TextButton(onClick = { dismissalReleaseId?.let(onDismissUpdate); dismissUpdate = false }) { Text("Dismiss") } },
         dismissButton = { TextButton(onClick = { dismissUpdate = false }) { Text("Keep") } })
     var showProjectMenu by remember { mutableStateOf(false) }
+    var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
+    val canBuild = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated
+    val buildLabel = if (update?.kind == ProjectUpdateKind.AVAILABLE) "Build latest ZIP" else "Create ZIP"
+    val hasBadge = outdated || update?.kind == ProjectUpdateKind.AVAILABLE
+    var badgeHeight by remember { mutableStateOf(0) }
+    val badgeInset = with(LocalDensity.current) { (badgeHeight / 2f).toDp() }
     var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
-    Box {
+    Box(Modifier.padding(top = if (hasBadge) badgeInset else 0.dp)) {
         Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    menuTouch = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
+                }
+            }
             .combinedClickable(
                 onClick = { if (outdated) actionsExpanded = !actionsExpanded else onOpen() },
                 onClickLabel = if (outdated) {
-                    if (actionsExpanded) "Hide project actions" else "Show project actions"
+                    if (actionsExpanded) "Hide configuration details" else "Show configuration details"
                 } else "Open project",
                 onLongClick = { showProjectMenu = true }
             ),
@@ -622,16 +645,6 @@ private fun ProjectCard(
                         )
                     }
                 }
-                if (outdated) {
-                    Surface(modifier = Modifier.width(44.dp), shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-                        Text("Outdated", Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, lineHeight = 12.sp,
-                                letterSpacing = 0.sp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1)
-                    }
-                }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f).heightIn(min = 44.dp),
@@ -665,102 +678,83 @@ private fun ProjectCard(
                     }
                 }
             }
-            if (update?.kind == ProjectUpdateKind.AVAILABLE) {
-                Text("Update available", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                TextButton(onClick = { dismissalReleaseId = update.releaseId; dismissUpdate = true }) { Text("Dismiss this update") }
-            }
             if (outdated && actionsExpanded) Text(update?.message ?: "Export this configuration, review unavailable packages, and import it to recreate your project.", style = MaterialTheme.typography.bodySmall)
-            if (!outdated || actionsExpanded) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-            ) {
-                ProjectActionButton(
-                    icon = Icons.Default.Delete,
-                    label = "Delete",
-                    onClick = onDelete,
-                    destructive = true
-                )
-                onOpenZip?.let { openZip ->
-                    ProjectActionButton(
-                        icon = Icons.AutoMirrored.Filled.OpenInNew,
-                        label = "Open ZIP",
-                        onClick = openZip
-                    )
-                }
-                if (outdated) {
-                    ProjectActionButton(icon = Icons.Default.ContentCopy,
-                        label = "Export config", onClick = onExport)
-                    ProjectActionButton(icon = Icons.Default.FolderOpen,
-                        label = "Review", onClick = onOpen)
-                }
-                AnimatedVisibility(
-                    visible = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated,
-                    enter = expandHorizontally(tween(240), expandFrom = Alignment.End) + fadeIn(tween(180)),
-                    exit = shrinkHorizontally(tween(200), shrinkTowards = Alignment.End) + fadeOut(tween(120))
-                ) {
-                    ProjectActionButton(
-                        icon = Icons.Default.Inventory2,
-                        label = if (update?.kind == ProjectUpdateKind.AVAILABLE) "Build latest ZIP" else "Create ZIP",
-                        onClick = onBuild
-                    )
-                }
-            }
-            }
+
         }
     }
+        if (hasBadge) {
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 12.dp)
+                    .absoluteOffset { IntOffset(0, -badgeHeight / 2) }
+                    .onSizeChanged { badgeHeight = it.height },
+                shape = RoundedCornerShape(8.dp),
+                color = if (outdated) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                contentColor = if (outdated) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                border = BorderStroke(1.dp, if (outdated) MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
+                    else MaterialTheme.colorScheme.primary)
+            ) {
+                Text(if (outdated) "Outdated" else "Update available",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Box(Modifier.absoluteOffset { IntOffset(menuTouch.x.roundToInt(), menuTouch.y.roundToInt()) }.size(0.dp)) {
         DropdownMenu(
             expanded = showProjectMenu,
-            onDismissRequest = { showProjectMenu = false }
+            onDismissRequest = { showProjectMenu = false },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
-            DropdownMenuItem(
-                text = { Text("Copy project") },
-                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+            ProjectMenuItem(if (outdated) "Review project" else "Open project", Icons.Default.FolderOpen,
+                onClick = { showProjectMenu = false; onOpen() })
+            if (canBuild) ProjectMenuItem(buildLabel, Icons.Default.Inventory2,
+                onClick = { showProjectMenu = false; onBuild() })
+            onShareZip?.let { share ->
+                ProjectMenuItem("Share ZIP", Icons.Default.Share, onClick = { showProjectMenu = false; share() })
+            }
+            if (outdated) ProjectMenuItem("Export config", Icons.Default.ContentCopy,
+                onClick = { showProjectMenu = false; onExport() })
+            if (update?.kind == ProjectUpdateKind.AVAILABLE) {
+                ProjectMenuItem("Dismiss this update", Icons.Default.Close,
+                    onClick = { showProjectMenu = false; dismissalReleaseId = update.releaseId; dismissUpdate = true })
+            }
+            HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            ProjectMenuItem(
+                label = "Copy project", icon = Icons.Default.ContentCopy,
+                enabled = !outdated,
                 onClick = {
                     showProjectMenu = false
                     onDuplicate()
                 }
             )
-            DropdownMenuItem(
-                text = { Text("Edit project") },
-                enabled = unavailable?.isEmpty() == true,
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+            ProjectMenuItem(
+                label = "Edit project", icon = Icons.Default.Edit,
+                enabled = unavailable?.isEmpty() == true && !outdated,
                 onClick = {
                     showProjectMenu = false
                     onEdit()
                 }
             )
+            ProjectMenuItem("Delete project", Icons.Default.Delete, destructive = true,
+                onClick = { showProjectMenu = false; onDelete() })
+        }
         }
     }
 }
 
 @Composable
-private fun ProjectActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun ProjectMenuItem(
     label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     destructive: Boolean = false
 ) {
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        shape = CircleShape,
-        colors = if (destructive) {
-            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            )
-        } else {
-            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors()
-        },
-        contentPadding = PaddingValues(horizontal = 10.dp)
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-    }
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    DropdownMenuItem(text = { Text(label, color = if (enabled) color else color.copy(alpha = 0.38f)) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = if (enabled) color else color.copy(alpha = 0.38f)) },
+        onClick = onClick, enabled = enabled, contentPadding = PaddingValues(horizontal = 12.dp),
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp).clip(RoundedCornerShape(9.dp)))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
