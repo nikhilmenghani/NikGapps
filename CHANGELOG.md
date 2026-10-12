@@ -1,5 +1,10 @@
 # NikGapps changelog
 
+## 0.80.20
+- Discover app features in a paged guide; About now has its own Settings tab.
+- Group Battery Optimization under Device Access.
+- Expand only the newest changelog release by default.
+
 ## 0.80.19
 - Fix the Pixel Setup Wizard crashes on a17 - marking a17 Gapps stable
 - Get dashboard and background notifications when a new NikGapps package release is available.
