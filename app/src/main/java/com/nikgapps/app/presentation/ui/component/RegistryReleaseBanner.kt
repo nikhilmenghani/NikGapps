@@ -35,11 +35,15 @@ fun RegistryReleaseBanner(online: Boolean) {
     var release by remember { mutableStateOf<ReleaseSummary?>(null) }
     var dismissTarget by remember { mutableStateOf<ReleaseSummary?>(null) }
     LaunchedEffect(online) {
-        if (online) try {
-            val metadata = CatalogRepository(context.cacheDir).load(forceRefresh = true)
+        val repository = CatalogRepository(context.cacheDir)
+        fun display(metadata: RegistryMetadata) {
             val latest = metadata.releaseIndex?.latest?.values?.flatMap { it.values.flatMap { architectures -> architectures.values } }.orEmpty().toSet()
             release = metadata.releaseIndex?.releases?.filter { it.id in latest && it.channel == "stable" }
                 ?.maxByOrNull { it.createdAt }?.takeUnless { preferences.dismissed(it.id) }
+        }
+        repository.cached()?.let(::display)
+        if (online) try {
+            display(repository.load())
         } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
     }
     release?.let { published ->
@@ -76,7 +80,7 @@ fun RegistryReleaseBanner(online: Boolean) {
                 }
             AnimatedVisibility(visible = expanded) {
                 Column {
-                    Text("Updated packages and fixes are available. Use Build latest ZIP on a compatible project to update.",
+                    Text("Updated packages and fixes are available. Press and hold a compatible project and choose Build latest ZIP to update.",
                         modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

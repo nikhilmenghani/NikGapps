@@ -38,6 +38,17 @@ fun catalogAndroidVersion(displayName: String): String =
     displayName.removePrefix("Android ").replace("12L", "12.1")
 
 class CatalogRepository(private val cacheDirectory: File, private val client: OkHttpClient = OkHttpClient()) {
+    /** Read the last snapshot without a network request or waiting for an ongoing refresh. */
+    suspend fun cached(androidVersion: String? = null, channel: String = "stable",
+        architecture: String = "arm64-v8a"): RegistryMetadata? = withContext(Dispatchers.IO) {
+        val directory = File(cacheDirectory, "nikgapps/metadata")
+        val fetchedAt = runCatching { File(directory, "fetched-at.txt").readText().trim().toLong() }.getOrDefault(0L)
+        // Files are replaced atomically; an invalid or incomplete snapshot is ignored by loadCached.
+        loadCached(File(directory, "catalog.json"), File(directory, "appsets.json"),
+            File(directory, "builder-assets.json"), File(directory, "release-index.json"),
+            androidVersion, channel, architecture, null, fetchedAt)
+    }
+
     suspend fun load(androidVersion: String? = null, channel: String = "stable",
         architecture: String = "arm64-v8a", releaseId: String? = null,
         forceRefresh: Boolean = false): RegistryMetadata = withContext(Dispatchers.IO) {

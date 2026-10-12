@@ -215,24 +215,37 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     LaunchedEffect(projects, isOnline) {
-        if (!isOnline) return@LaunchedEffect
         val results = mutableMapOf<String, Set<String>>()
         val updates = mutableMapOf<String, ProjectUpdate>()
         val checkedMetadata = mutableMapOf<String, RegistryMetadata>()
-        val targets = mutableMapOf<Triple<String,String,String>, RegistryMetadata>()
-        projects.forEach { saved ->
-            runCatching {
-                val target = Triple(catalogAndroidVersion(saved.androidVersion.displayName), saved.defaultChannel, saved.architecture.value)
-                targets[target] ?: catalogRepository.load(target.first, target.second, target.third, forceRefresh = true).also { targets[target] = it }
-            }.onSuccess { metadata ->
+        fun display(saved: BuildProject, metadata: RegistryMetadata) {
                 checkedMetadata[saved.id] = metadata
                 results[saved.id] = unavailableProjectPackages(saved, metadata)
                 updates[saved.id] = projectUpdate(saved, metadata)
+        }
+        fun publish() {
+            unavailableByProject = results.toMap()
+            updatesByProject = updates.toMap()
+            metadataByProject = checkedMetadata.toMap()
+        }
+        val grouped = projects.groupBy { Triple(catalogAndroidVersion(it.androidVersion.displayName), it.defaultChannel, it.architecture.value) }
+        // Show saved status even offline, before any network requests start.
+        grouped.forEach { (target, savedProjects) ->
+            catalogRepository.cached(target.first, target.second, target.third)?.let { metadata ->
+                savedProjects.forEach { display(it, metadata) }
             }
         }
-        unavailableByProject = results
-        updatesByProject = updates
-        metadataByProject = checkedMetadata
+        publish()
+        if (!isOnline) return@LaunchedEffect
+        grouped.forEach { (target, savedProjects) ->
+            try {
+                // Fresh snapshots are reused for 30 minutes; stale ones refresh in the background.
+                val metadata = catalogRepository.load(target.first, target.second, target.third)
+                savedProjects.forEach { display(it, metadata) }
+                publish()
+            } catch (cancelled: CancellationException) { throw cancelled }
+              catch (_: Exception) { /* Keep the last known status if refresh fails. */ }
+        }
     }
 
     LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
