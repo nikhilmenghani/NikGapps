@@ -87,6 +87,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.Text
@@ -1059,7 +1060,7 @@ private fun ProjectSheet(
                             selectableVersions.forEachIndexed { index, option ->
                                 SegmentedButton(
                                     selected = androidVersion == option,
-                                    enabled = !loadingConfig && !savingProject,
+                                    enabled = !configAttempted && !loadingConfig && !savingProject,
                                     onClick = { androidVersion = option },
                                     shape = SegmentedButtonDefaults.itemShape(
                                         index = index,
@@ -1112,6 +1113,8 @@ private fun ProjectSheet(
                         if (configAttempted) OutlinedButton(onClick = {
                             configAttempted = false; validatedConfig = null; importError = null
                         }, enabled = !loadingConfig && !savingProject, shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
                     }
                     if (configAttempted || importError != null) Surface(shape = RoundedCornerShape(16.dp),
