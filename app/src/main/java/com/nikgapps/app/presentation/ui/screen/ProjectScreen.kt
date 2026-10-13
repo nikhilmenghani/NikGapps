@@ -47,6 +47,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -631,12 +632,32 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }) }, bottomBar = {
         if (metadata != null) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding(),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Row(Modifier.widthIn(max = 448.dp).fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    listOf(true to "AppSets", false to "Packages").forEach { (grouped, label) ->
+                        val active = appSetView == grouped
+                        Surface(onClick = { appSetView = grouped },
+                            modifier = Modifier.weight(1f).semantics { role = Role.Tab; selected = active },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                            tonalElevation = if (active) 2.dp else 0.dp) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (grouped) Icons.Default.Folder else Icons.Default.Apps, null, Modifier.size(20.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            }
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier
                         .widthIn(max = 448.dp)
@@ -648,10 +669,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         Surface(onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
                             "application/x-config", "text/x-config")) },
                             enabled = !importingConfig && !exportingConfig && isOnline,
-                            modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer, tonalElevation = 2.dp) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                            Row(Modifier.fillMaxSize().padding(horizontal = 12.dp),
                                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.FileUpload, null, Modifier.size(20.dp))
                                 Spacer(Modifier.width(6.dp))
@@ -679,19 +700,19 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 navController.navigate(buildZipRoute(projectId))
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         tonalElevation = 2.dp
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Inventory2, null, Modifier.size(24.dp))
-                            Spacer(Modifier.width(10.dp))
+                            Icon(Icons.Default.Inventory2, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 "Build ZIP · ${current.selectedAppIds.size}",
                                 style = MaterialTheme.typography.labelLarge,
@@ -700,10 +721,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         }
                     }
                     if (current.selectedAppIds.isNotEmpty()) Surface(onClick = ::exportConfig, enabled = !exportingConfig && !importingConfig,
-                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer, tonalElevation = 2.dp) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.FileDownload, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
@@ -946,14 +967,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
                 Text("Tap to select · Press and hold for package info and options.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(16.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf(true to "AppSets", false to "Packages").forEachIndexed { index, (grouped, label) ->
-                        SegmentedButton(selected = appSetView == grouped, onClick = { appSetView = grouped },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2,
-                                baseShape = RoundedCornerShape(16.dp))) { Text(label) }
-                    }
-                }
                 Spacer(Modifier.height(16.dp))
                 AnimatedVisibility(
                     visible = !searchVisible,
