@@ -973,16 +973,28 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
                 ) {
-                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
                         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(interactionSource = null, indication = null,
                             onClick = { summaryExpanded = !summaryExpanded }),
                             verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, Modifier.size(20.dp))
+                            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                                Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                                }
+                            }
                             Spacer(Modifier.width(8.dp))
-                            Text("${current.selectedAppIds.size} apps selected", Modifier.weight(1f),
+                            Text("Selected apps", Modifier.weight(1f),
                                 style = MaterialTheme.typography.titleSmall)
+                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                                Text("${current.selectedAppIds.size}", Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelMedium)
+                            }
+                            Spacer(Modifier.width(8.dp))
                             Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 if (summaryExpanded) "Hide selection" else "Review selection", Modifier.size(20.dp))
                         }
@@ -990,32 +1002,39 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(160)),
                             exit = shrinkVertically(tween(220), shrinkTowards = Alignment.Top) + fadeOut(tween(120))) {
                             Column(Modifier.padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .18f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilledTonalButton(
+                                    OutlinedButton(
                                         onClick = { updateAllSelections("select") },
+                                        enabled = isOnline,
                                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(18.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                         contentPadding = PaddingValues(horizontal = 10.dp)
                                     ) {
                                         Icon(Icons.Default.SelectAll, null, Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text("Select", maxLines = 1, style = MaterialTheme.typography.labelMedium)
                                     }
-                                    FilledTonalButton(
+                                    OutlinedButton(
                                         onClick = { updateAllSelections("clear") },
+                                        enabled = isOnline && current.selectedAppIds.isNotEmpty(),
                                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(18.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .65f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                         contentPadding = PaddingValues(horizontal = 10.dp)
                                     ) {
                                         Icon(Icons.Default.Deselect, null, Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text("Clear", maxLines = 1, style = MaterialTheme.typography.labelMedium)
                                     }
-                                    FilledTonalButton(
+                                    OutlinedButton(
                                         onClick = { updateAllSelections("invert") },
+                                        enabled = isOnline,
                                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(18.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                         contentPadding = PaddingValues(horizontal = 10.dp)
                                     ) {
                                         Icon(Icons.Default.SwapHoriz, null, Modifier.size(18.dp))
@@ -1025,16 +1044,16 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 }
                                 val selectedPackages = displayedPackages.filter { it.id in current.selectedAppIds }
                                 selectedPackages.forEachIndexed { index, selectedPkg ->
-                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Android, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                                         Column(Modifier.weight(1f)) {
                                             Text(selectedPkg.name, style = MaterialTheme.typography.bodyMedium)
                                             Text(selectedPkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: selectedPkg.id,
-                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .72f))
+                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
                                     if (index != selectedPackages.lastIndex) HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .14f))
+                                        color = MaterialTheme.colorScheme.outlineVariant)
                                 }
                             }
                         }
