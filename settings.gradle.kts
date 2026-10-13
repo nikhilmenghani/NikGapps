@@ -20,4 +20,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "NikGapps"
 include(":app")
-include(":nikadmin")
