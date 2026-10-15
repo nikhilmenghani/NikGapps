@@ -42,7 +42,7 @@ class DownloadWorker(
 
         // Instantiate the appropriate download strategy
         val downloadStrategy: DownloadStrategy = when (downloadType) {
-            DOWNLOAD_TYPE_APK -> ApkDownloadStrategy()
+            DOWNLOAD_TYPE_APK -> ApkDownloadStrategy(applicationContext, inputData.getString(VERSION_KEY))
             DOWNLOAD_TYPE_FILE -> FileDownloadStrategy()
             else -> {
                 Log.e("NikGapps-DownloadWorker", "Invalid download type specified.")
@@ -82,6 +82,8 @@ class DownloadWorker(
                     Log.e("NikGapps-DownloadWorker", "Download failed.")
                     if (runAttemptCount < 2) Result.retry() else Result.failure()
                 }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.e("NikGapps-DownloadWorker", "Exception during download: ${e.message}")
@@ -111,7 +113,7 @@ class DownloadWorker(
         return ForegroundInfo(
             NotificationUtility.UPDATE_DOWNLOAD_NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            if (android.os.Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
         )
     }
 }

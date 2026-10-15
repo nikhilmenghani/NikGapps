@@ -43,7 +43,8 @@ object PermissionConstants {
             put(INSTALL_APPS, PermissionInfo(
                 permission = arrayOf(Manifest.permission.REQUEST_INSTALL_PACKAGES),
                 rationale = "Install unknown apps permission is for seamless NikGapps app updates.",
-                action = Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES
+                action = if (Build.VERSION.SDK_INT >= 26) Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES
+                    else Settings.ACTION_SECURITY_SETTINGS
             ))
         }
 }

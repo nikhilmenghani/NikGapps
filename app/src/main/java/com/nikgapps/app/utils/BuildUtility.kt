@@ -140,9 +140,9 @@ object BuildUtility {
         progressLogViewModel: ProgressLogViewModel,
         appSet: AppSet,
         rootManager: RootManager,
-        resManager: ResourceManager
-    ) {
-        val scriptDir = NIKGAPPS_APP_DIR
+        resManager: ResourceManager,
+        scriptDir: String = NIKGAPPS_APP_DIR
+    ): Boolean {
         appSet.packages.forEach { pkg ->
             val installationResult = installPackage(pkg, resManager, rootManager, scriptDir)
             if (installationResult.success) {
@@ -151,13 +151,15 @@ object BuildUtility {
                     progressLogViewModel.addLog("Successfully generated addon.d for ${pkg.packageTitle}")
                 } else {
                     progressLogViewModel.addLog("Failed to generate addon.d for ${pkg.packageTitle}: ${generateOTAResult.output}")
-                    return
+                    return false
                 }
                 progressLogViewModel.addLog("Successfully installed ${pkg.packageTitle}")
             } else {
                 progressLogViewModel.addLog("Failed to install ${pkg.packageTitle}: ${installationResult.output}")
+                return false
             }
         }
+        return true
     }
 
     fun installPackage(
@@ -186,24 +188,25 @@ object BuildUtility {
         )
         // Generate ota name
         val generatedOtaNameResult = rootManager.executeCommandAsRoot(
-            "ota_utility.sh",
+            "$scriptDir/ota_utility.sh",
             "generate_filename",
-            "\"/system/addon.d\"",
-            "\"${pkg.addonIndex}\"",
-            "\"${pkg.packageTitle}\""
+            "/system/addon.d",
+            pkg.addonIndex,
+            pkg.packageTitle
         )
         if (!generatedOtaNameResult.success) {
             return generatedOtaNameResult
         }
         var generatedOtaName = File(generatedOtaNameResult.output.trim()).name
+        require(generatedOtaName.matches(Regex("[A-Za-z0-9_.-]+")) && ".." !in generatedOtaName)
 
         val otaScriptCore = buildString {
-            appendLine(getPropValues(pkg, "install", "list_files", rootManager))
-            appendLine(getPropValues(pkg, "buildprop", "list_build_props", rootManager))
-            appendLine(getPropValues(pkg, "delete", "delete_folders", rootManager))
-            appendLine(getPropValues(pkg, "forceDelete", "force_delete_folders", rootManager))
-            appendLine(getPropValues(pkg, "debloat", "debloat_folders", rootManager))
-            appendLine(getPropValues(pkg, "forceDebloat", "force_debloat_folders", rootManager))
+            appendLine(getPropValues(pkg, "install", "list_files", rootManager, scriptDir))
+            appendLine(getPropValues(pkg, "buildprop", "list_build_props", rootManager, scriptDir))
+            appendLine(getPropValues(pkg, "delete", "delete_folders", rootManager, scriptDir))
+            appendLine(getPropValues(pkg, "forceDelete", "force_delete_folders", rootManager, scriptDir))
+            appendLine(getPropValues(pkg, "debloat", "debloat_folders", rootManager, scriptDir))
+            appendLine(getPropValues(pkg, "forceDebloat", "force_debloat_folders", rootManager, scriptDir))
         }
 
         // Generate package specific addon script
@@ -220,11 +223,11 @@ object BuildUtility {
             return ScriptResult(false, "Failed to create addon file for ${pkg.packageTitle}")
         }
         val copyOtaScriptResult = rootManager.executeCommandAsRoot(
-            "ota_utility.sh",
+            "$scriptDir/ota_utility.sh",
             "copy_ota_script",
-            "\"${otaUtility.absolutePath}\""
+            addonFile.absolutePath
         )
-        if (!copyOtaScriptResult.output.contains("Addon script copied successfully")) {
+        if (!copyOtaScriptResult.success) {
             return copyOtaScriptResult
         }
         return ScriptResult(true, "Successfully generated addon.d for ${pkg.packageTitle}")
@@ -234,22 +237,20 @@ object BuildUtility {
         pkg: Package,
         type: String,
         folder: String,
-        rootManager: RootManager
+        rootManager: RootManager,
+        scriptDir: String = NIKGAPPS_APP_DIR
     ): String {
         val result = rootManager.executeCommandAsRoot(
-            "ota_utility.sh",
+            "$scriptDir/ota_utility.sh",
             "read_prop",
-            "\"$type\"",
-            "\"${pkg.packageTitle}\""
+            type,
+            pkg.packageTitle
         )
+        check(result.success) { "Cannot read installation properties: ${result.output}" }
         val files = result.output.split(" ")
         return buildString {
             appendLine("$folder() {")
-            appendLine("cat <<EOF")
-            if (files.size > 1) {
-                append(files.joinToString("\n"))
-            }
-            appendLine("EOF")
+            appendLine("printf '%s\\n' " + files.joinToString(" ") { com.nikgapps.app.utils.root.ShellCommands.quote(it) })
             appendLine("}")
         }
     }

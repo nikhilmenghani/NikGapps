@@ -25,6 +25,18 @@ class ProjectUpdatesTest {
         assertEquals("41", built.configVersion)
         assertEquals(ProjectUpdateKind.CURRENT, projectUpdate(built, metadata).kind)
     }
+    @Test fun platformEditCannotRestorePreviousReleaseOrConfiguration() {
+        val previous = project().copy(androidVersion = AndroidVersion.ANDROID_16,
+            lastBuiltReleaseId = "old-built", dismissedReleaseId = "old-dismissed", configSnapshot = "AndroidVersion=16")
+        val edited = previous.copy(androidVersion = AndroidVersion.ANDROID_17).rebasePlatform(metadata())
+        assertEquals(AndroidVersion.ANDROID_17, edited.androidVersion)
+        assertEquals("new", edited.createdReleaseId)
+        assertEquals("41", edited.configVersion)
+        assertNull(edited.lastBuiltReleaseId); assertNull(edited.dismissedReleaseId); assertNull(edited.configSnapshot)
+        assertEquals(previous.selectedAppIds, edited.selectedAppIds)
+        assertEquals(previous.selectedPackageAppSets, edited.selectedPackageAppSets)
+        assertEquals(ProjectUpdateKind.CURRENT, projectUpdate(edited, metadata()).kind)
+    }
     @Test fun dismissalAppliesOnlyToOneRelease() {
         val dismissed = project().copy(dismissedReleaseId="new")
         assertEquals(ProjectUpdateKind.CURRENT, projectUpdate(dismissed, metadata()).kind)

@@ -62,13 +62,21 @@ enum class Architecture(val displayName: String, val value: String) {
 class BuildProjectRepository(context: Context) {
     private val preferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    fun recoveryBackup(): String? = preferences.getString("recovery_backup", null)
+    private fun preserveRecovery(json: String) {
+        if (recoveryBackup() != json) {
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(json.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            check(preferences.edit().putString("recovery_backup:$digest", json).putString("recovery_backup", json).commit())
+        }
+    }
 
     fun getProjects(): List<BuildProject> = synchronized(WRITE_LOCK) {
         val json = preferences.getString(PROJECTS_KEY, null) ?: return@synchronized emptyList()
         runCatching {
             val projects = JSONArray(json)
             var needsTimestampMigration = false
-            val result = List(projects.length()) { index ->
+            val result = recoverRecords((0 until projects.length()).toList(), decode = { index ->
                 val project = projects.getJSONObject(index)
                 if (!project.has("createdAt")) needsTimestampMigration = true
                 BuildProject(
@@ -127,9 +135,9 @@ class BuildProjectRepository(context: Context) {
                     }.orEmpty(),
                     createdAt = project.optLong("createdAt", System.currentTimeMillis())
                 )
-            }
+            }, onFailure = { _, _ -> preserveRecovery(json) })
             if (needsTimestampMigration) saveProjects(result) else result
-        }.getOrDefault(emptyList())
+        }.getOrElse { preserveRecovery(json); emptyList() }
     }
 
     fun addProject(project: BuildProject): List<BuildProject> {

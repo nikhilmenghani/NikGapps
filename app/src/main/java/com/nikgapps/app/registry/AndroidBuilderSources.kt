@@ -15,13 +15,15 @@ class AndroidBuilderAssetSource(private val context: Context,
     private val builderAssets: Map<String, BuilderAsset>) : BuilderAssetSource {
     override fun assets(): Map<String, ByteArray> = RegistryZipAssembler.REQUIRED_ASSETS
         .associateWith(::registryAsset)
-    fun registryAsset(name: String): ByteArray {
+    fun registryAsset(name: String): ByteArray = RegistryCache.withReadLease { synchronized(ASSET_LOCK) { readAsset(name) } }
+    private fun readAsset(name: String): ByteArray {
         val metadata = builderAssets[name] ?: error("Missing builder asset metadata for '$name'")
+        require(metadata.sha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Invalid builder asset checksum" }
         val directory = File(context.cacheDir, "nikgapps/builder-assets").apply { mkdirs() }
         val target = File(directory, metadata.sha256)
         if (target.isFile && target.length() == metadata.size && ArtifactDownloader.sha256(target) == metadata.sha256)
             return validateConfigTemplate(metadata, target.readBytes())
-        val part = File(directory, "${metadata.sha256}.part")
+        val part = File(directory, "${metadata.sha256}.${java.util.UUID.randomUUID()}.part")
         try {
             OkHttpClient().executeRegistryRequest(Request.Builder().url(metadata.url).build()) { response ->
                 part.outputStream().use { output -> response.body.byteStream().use { it.copyTo(output) } }
@@ -41,6 +43,7 @@ class AndroidBuilderAssetSource(private val context: Context,
         }
         return bytes
     }
+    companion object { private val ASSET_LOCK = Any() }
 }
 
 class DeviceArtifactFactory(private val context: Context) {
@@ -61,8 +64,8 @@ class DeviceArtifactFactory(private val context: Context) {
             val path = if (index == 0) primary else "$parent/${input.name}"
             Triple(path, input, sha256(input))
         }
-        directory.mkdirs()
-        val output = File(directory, "device-${resolved.catalogPackage.id}.zip")
+        val workspace = File(directory, "device-${java.util.UUID.randomUUID()}").apply { mkdirs() }
+        val output = File(workspace, "device.zip")
         val descriptorJson = buildJsonObject {
             put("schemaVersion", 1); put("id", resolved.catalogPackage.id); put("packageName", packageName)
             put("defaultPartition", resolved.version.defaultPartition)

@@ -189,6 +189,19 @@ fun HomeScreen(navController: NavHostController) {
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var projects by remember { mutableStateOf(projectRepository.getProjects()) }
+    var recoveryMessage by remember { mutableStateOf(projectRepository.recoveryBackup() != null) }
+    val recoveryExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) runCatching {
+            val backup = projectRepository.recoveryBackup() ?: error("No recovery data")
+            (context.contentResolver.openOutputStream(uri) ?: error("Cannot open recovery destination"))
+                .use { it.write(backup.toByteArray(Charsets.UTF_8)) }
+        }.onFailure { Toast.makeText(context, "Cannot export recovery data: ${it.message}", Toast.LENGTH_LONG).show() }
+    }
+    if (recoveryMessage) AlertDialog(onDismissRequest = { recoveryMessage = false },
+        title = { Text("Some projects need recovery") },
+        text = { Text("Valid projects are still available. Damaged project data has been preserved. Export it for recovery before recreating missing projects.") },
+        confirmButton = { TextButton(onClick = { recoveryExport.launch("nikgapps-project-recovery.json") }) { Text("Export recovery data") } },
+        dismissButton = { TextButton(onClick = { recoveryMessage = false }) { Text("Close") } })
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
@@ -945,17 +958,20 @@ private fun ProjectSheet(
             try {
                 val candidate = project?.copy(name = savedName, androidVersion = androidVersion, architecture = architecture)
                     ?: BuildProject(name = savedName, androidVersion = androidVersion, architecture = architecture)
-                val saved = if (project != null) candidate else if (validatedConfig != null)
+                val platformChanged = project != null && (candidate.androidVersion != project.androidVersion || candidate.architecture != project.architecture)
+                val saved = if (project != null && !platformChanged) candidate else if (validatedConfig != null)
                     validatedConfig!!.copy(name = savedName) else withContext(Dispatchers.IO) {
                     val metadata = CatalogRepository(context.cacheDir).load(catalogAndroidVersion(candidate.androidVersion.displayName),
                         candidate.defaultChannel, architecture.value, forceRefresh = true)
                     require(!metadata.fromCache) { "Connect to the internet to validate the latest configuration." }
-                    val seeded = candidate.copy(createdReleaseId = metadata.release?.id)
-                    seeded.withCurrentConfig(metadata)
+                    candidate.rebasePlatform(metadata)
                 }
                 onSave(saved)
             } catch (cancelled: CancellationException) { throw cancelled }
-              catch (error: Exception) { importError = error.message ?: "Cannot create project" }
+              catch (error: Exception) {
+                  importError = error.message ?: "Cannot save project"
+                  Toast.makeText(context, importError, Toast.LENGTH_LONG).show()
+              }
               finally { savingProject = false }
         }
     }

@@ -33,7 +33,7 @@ object GitHubDeviceAuth {
     suspend fun start(clientId: String): Challenge = withContext(Dispatchers.IO) {
         val response = post(
             "https://github.com/login/device/code",
-            FormBody.Builder().add("client_id", clientId).add("scope", "repo").build(),
+            FormBody.Builder().add("client_id", clientId).build(),
         )
         Challenge(
             response.getString("device_code"),

@@ -44,7 +44,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nikgapps"
+        applicationId = providers.gradleProperty("reviewApplicationId").orElse("com.nikgapps").get()
         minSdk = 24
         targetSdk = 37
         versionCode = 1
@@ -60,6 +60,10 @@ android {
 
     buildTypes {
         debug {
+            if (providers.gradleProperty("reviewApplicationId").isPresent) {
+                buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
+                buildConfigField("String", "GITHUB_CLIENT_ID", "\"\"")
+            }
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
@@ -78,6 +82,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
@@ -102,6 +107,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk)
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

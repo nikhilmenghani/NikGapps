@@ -1,7 +1,8 @@
 #!/system/bin/sh
 
 
-. $(dirname "$0")/variables.sh
+. "$(dirname "$0")/variables.sh"
+FLAG_FILE="$(dirname "$0")/NikGapps_flags.log"
 
 # Utility function for logging
 log_message() {
@@ -82,8 +83,8 @@ store_partition_info() {
   partition_name="$1"
   mount_point="$2"
   derived_path="$3"
-  write_to_flags "${partition_name}_mount_point" "$mount_point"
-  write_to_flags "${partition_name}_derived_path" "$derived_path"
+  write_to_flags "${partition_name}_mount_point" "$mount_point" || return 1
+  write_to_flags "${partition_name}_derived_path" "$derived_path" || return 1
 }
 
 
@@ -102,9 +103,9 @@ check_and_remount_partition() {
 
   # Check if the derived path is writable
   if [ -d "$derived_path" ]; then
-    touch "$derived_path/.rw" && rm "$derived_path/.rw"
+    probe=$(mktemp "$derived_path/.nikgapps-write-test.XXXXXX") && rm "$probe"
     if [ $? -eq 0 ]; then
-      store_partition_info "$partition_name" "$mount_point" "$derived_path"
+      store_partition_info "$partition_name" "$mount_point" "$derived_path" || return 1
       echo_message "- $derived_path is writable"
     else
       echo_message "- $derived_path is not writable"
@@ -137,7 +138,7 @@ mount_partition() {
       target=$(readlink "$mount_point")
       log_message "- $mount_point is a symlink to $target. Proceeding with $target."
       if [ ! -d "$target" ]; then
-        echlog_messageo_message "- Target $target does not exist. Skipping."
+        log_message "- Target $target does not exist. Skipping."
         return 1
       fi
     else
@@ -168,7 +169,7 @@ mount_partition() {
 
 mount_additional_partitions() {
   for partition in product system_ext; do
-    mount_partition "$partition" "/$partition" "$1"
+    mount_partition "$partition" "/$partition" "$1" || return 1
   done
 }
 
@@ -218,10 +219,10 @@ main() {
   system_derived_path=`echo "$system_info" | awk '{print $3}'`
 
   # Remount the system partition and check writability of the derived path
-  check_and_remount_partition "$system_mount_point" "$system_derived_path" "system"
+  check_and_remount_partition "$system_mount_point" "$system_derived_path" "system" || exit 1
 
   # Handle additional partitions
-  mount_additional_partitions "$system_mount_point"
+  mount_additional_partitions "$system_mount_point" || exit 1
   log_message "- Partition mounting process complete"
 }
 

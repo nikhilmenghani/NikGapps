@@ -4,89 +4,35 @@ import android.content.Context
 import com.nikgapps.app.utils.constants.ApplicationConstants.NIKGAPPS_APP_DIR
 import java.io.File
 
-data class ScriptResult(val success: Boolean, val output: String)
-
-class RootManager(private val context: Context? = null) {
-
-    fun executeScript(scriptId: Int, vararg args: String, asRoot: Boolean = true): ScriptResult {
-        val resourceName = context?.resources?.getResourceEntryName(scriptId)
-        val scriptFile = File(context?.filesDir, "$resourceName.sh")
-        val inputStream = context?.resources?.openRawResource(scriptId)
-        return try {
-            scriptFile.outputStream().use { outputStream ->
-                inputStream?.copyTo(outputStream)
+class RootManager(private val context: Context? = null, private val runner: ShellRunner = ProcessShellRunner()) {
+    fun executeScript(scriptId: Int, vararg args: String, asRoot: Boolean = true): ScriptResult = synchronized(RESOURCE_LOCK) {
+        val owner = context ?: return@synchronized ScriptResult(false, "Context required")
+        // Developer mount/test tools share only private flags, never externally writable scripts.
+        val directory = File(owner.filesDir, "root-tools").apply { check(mkdirs() || isDirectory) }
+        val script = File.createTempFile("root-script-", ".sh", directory)
+        try {
+            owner.resources.openRawResource(com.nikgapps.R.raw.variables).use { input ->
+                File(directory, "variables.sh").outputStream().use { input.copyTo(it) }
             }
-            if (asRoot) {
-                val process = Runtime.getRuntime().exec("su -c chmod +x $scriptFile.absolutePath")
-                process.waitFor()
-                executeScriptAsRoot(scriptFile.absolutePath, *args)
-            } else {
-                val process = Runtime.getRuntime().exec("chmod +x $scriptFile.absolutePath")
-                process.waitFor()
-                executeScript(scriptFile.absolutePath, *args)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            ScriptResult(false, "Exception: ${e.message}")
-        }
+            owner.resources.openRawResource(scriptId).use { input -> script.outputStream().use { input.copyTo(it) } }
+            ShellCommands.runScript(runner, script.absolutePath, args.toList(), asRoot)
+        } finally { script.delete() }
     }
-
-    fun executeScript(filePath: String, vararg args: String): ScriptResult {
-        return try {
-            val process = Runtime.getRuntime().exec("su -c sh $filePath ${args.joinToString(" ")}")
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
-            process.waitFor()
-            if (error.isNotEmpty()) ScriptResult(false, "Error: $error") else ScriptResult(true, output)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "Exception: ${e.message}"
-            ScriptResult(false, "Exception: ${e.message}")
-        }
-    }
-
-    fun executeScriptAsRoot(filePath: String, vararg args: String): ScriptResult {
-        return try {
-            val process = Runtime.getRuntime().exec("su -c sh $filePath ${args.joinToString(" ")}")
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
-            process.waitFor()
-            if (error.isNotEmpty()) ScriptResult(false, "Error: $error") else ScriptResult(true, output)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "Exception: ${e.message}"
-            ScriptResult(false, "Exception: ${e.message}")
-        }
-    }
-
+    fun executeScript(filePath: String, vararg args: String): ScriptResult =
+        ShellCommands.runScript(runner, filePath, args.toList(), false)
+    fun executeScriptAsRoot(filePath: String, vararg args: String): ScriptResult =
+        ShellCommands.runScript(runner, filePath, args.toList(), true)
     fun executeCommandAsRoot(fileSource: String, command: String, vararg args: String): ScriptResult {
-        return try {
-            val commandString = buildString {
-                if (fileSource.isNotEmpty()) {
-                    append("source $NIKGAPPS_APP_DIR/$fileSource && ")
-                }
-                append("echo \$($command ${args.joinToString(" ")})")
+        require(command.matches(Regex("[A-Za-z_][A-Za-z0-9_]*")))
+        val source = if (fileSource.isEmpty()) "" else {
+            val file = if (File(fileSource).isAbsolute) File(fileSource) else {
+                require(fileSource.matches(Regex("[A-Za-z0-9_.-]+")) && fileSource != "..")
+                File(NIKGAPPS_APP_DIR, fileSource)
             }
-            println(commandString)
-            val process = Runtime.getRuntime().exec("su -c $commandString")
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
-            process.waitFor()
-            if (error.isNotEmpty()) ScriptResult(false, "Error: $error") else ScriptResult(true, output)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "Exception: ${e.message}"
-            ScriptResult(false, "Exception: ${e.message}")
+            ". ${ShellCommands.quote(file.absolutePath)} && "
         }
+        return runner.run(listOf("su", "-c", "set -e; " + source + ShellCommands.command(command, args.toList())))
     }
-
-    fun hasRootAccess(): Boolean {
-        return try {
-            val process = Runtime.getRuntime().exec("su")
-            process.waitFor() == 0
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
+    fun hasRootAccess(): Boolean = runner.run(listOf("su", "-c", "id -u")).let { it.success && it.output.trim() == "0" }
+    companion object { private val RESOURCE_LOCK = Any() }
 }

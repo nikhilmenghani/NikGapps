@@ -20,6 +20,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,12 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-private var appLockSessionAuthenticated = false
+private val lockPolicy = RelockPolicy()
 
 fun markAppLockSessionAuthenticated() {
-    appLockSessionAuthenticated = true
+    lockPolicy.authenticate(android.os.SystemClock.elapsedRealtime())
 }
 
+@androidx.annotation.ChecksSdkIntAtLeast(api = 29)
 fun canUseAppLock(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
     return context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
@@ -42,15 +48,36 @@ fun canUseAppLock(context: Context): Boolean {
 @Composable
 fun AppLock(enabled: Boolean, activity: Activity, content: @Composable () -> Unit) {
     var unlocked by remember(enabled) {
-        mutableStateOf(!enabled || appLockSessionAuthenticated)
+        mutableStateOf(!enabled || lockPolicy.unlocked(android.os.SystemClock.elapsedRealtime()))
     }
     var request by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
+    val owner = LocalLifecycleOwner.current
+    var foreground by remember { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
+    var authentication by remember { mutableStateOf<CancellationSignal?>(null) }
+    DisposableEffect(owner, enabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (event == Lifecycle.Event.ON_STOP) foreground = false
+            if (event == Lifecycle.Event.ON_START) foreground = true
+            if (enabled && event == Lifecycle.Event.ON_STOP) lockPolicy.background(now)
+            if (enabled && event == Lifecycle.Event.ON_START) unlocked = lockPolicy.resume(now)
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer); authentication?.cancel() }
+    }
+    LaunchedEffect(enabled, unlocked) {
+        while (enabled && unlocked) {
+            delay(1_000)
+            if (!lockPolicy.unlocked(android.os.SystemClock.elapsedRealtime())) unlocked = false
+        }
+    }
     if (unlocked) { content(); return }
 
-    LaunchedEffect(request) {
+    LaunchedEffect(request, foreground) {
+        if (!foreground) return@LaunchedEffect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            authenticateForAppLock(activity, {
+            authentication = authenticateForAppLock(activity, {
                 markAppLockSessionAuthenticated()
                 unlocked = true
             }, { error = it })
@@ -75,7 +102,8 @@ fun authenticateForAppLock(
     onError: (String) -> Unit,
     title: String = "Unlock NikGapps",
     subtitle: String = "Authenticate to continue"
-) {
+): CancellationSignal {
+    val signal = CancellationSignal()
     val callback = object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) = onSuccess()
         override fun onAuthenticationError(code: Int, message: CharSequence?) =
@@ -94,8 +122,9 @@ fun authenticateForAppLock(
                 onError("Authentication cancelled")
             }
         }
-        builder.build().authenticate(CancellationSignal(), activity.mainExecutor, callback)
+        builder.build().authenticate(signal, activity.mainExecutor, callback)
     }.onFailure { failure ->
         onError(failure.message ?: "Authentication is unavailable")
     }
+    return signal
 }

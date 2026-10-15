@@ -40,17 +40,22 @@ fun catalogAndroidVersion(displayName: String): String =
 class CatalogRepository(private val cacheDirectory: File, private val client: OkHttpClient = OkHttpClient()) {
     /** Read the last snapshot without a network request or waiting for an ongoing refresh. */
     suspend fun cached(androidVersion: String? = null, channel: String = "stable",
-        architecture: String = "arm64-v8a"): RegistryMetadata? = withContext(Dispatchers.IO) {
+        architecture: String = "arm64-v8a"): RegistryMetadata? = withContext(Dispatchers.IO) { RegistryCache.withReadLease {
         val directory = File(cacheDirectory, "nikgapps/metadata")
         val fetchedAt = runCatching { File(directory, "fetched-at.txt").readText().trim().toLong() }.getOrDefault(0L)
         // Files are replaced atomically; an invalid or incomplete snapshot is ignored by loadCached.
         loadCached(File(directory, "catalog.json"), File(directory, "appsets.json"),
             File(directory, "builder-assets.json"), File(directory, "release-index.json"),
             androidVersion, channel, architecture, null, fetchedAt)
-    }
+    } }
 
     suspend fun load(androidVersion: String? = null, channel: String = "stable",
         architecture: String = "arm64-v8a", releaseId: String? = null,
+        forceRefresh: Boolean = false): RegistryMetadata = RegistryCache.withLease {
+        loadUnleased(androidVersion, channel, architecture, releaseId, forceRefresh)
+    }
+    private suspend fun loadUnleased(androidVersion: String?, channel: String,
+        architecture: String, releaseId: String?,
         forceRefresh: Boolean = false): RegistryMetadata = withContext(Dispatchers.IO) {
         CACHE_MUTEX.withLock {
         val directory = File(cacheDirectory, "nikgapps/metadata").apply { mkdirs() }
@@ -88,6 +93,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 "android" to (parsed.release?.androidVersion ?: parsed.catalog.androidVersion),
                 "release" to parsed.release?.id, "packages" to parsed.catalog.packages.size))
             parsed.copy(fetchedAtMillis = networkFetchedAt)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
         } catch (networkOrMetadata: Exception) {
             if (!catalogCache.isFile || !appSetsCache.isFile || !builderAssetsCache.isFile) throw MetadataException(
                 "Unable to load valid NikGapps metadata and no offline cache is available: ${networkOrMetadata.message}", networkOrMetadata)
@@ -169,9 +175,9 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         }
     }
     private fun atomicWrite(target: File, text: String) {
-        val part = File(target.parentFile, "${target.name}.part")
-        part.writeText(text)
-        if (!part.renameTo(target)) { target.delete(); check(part.renameTo(target)) { "Cannot update ${target.name}" } }
+        SafeFilePublication.write(target, { text.byteInputStream() }, { staged ->
+            check(staged.readText() == text) { "Metadata write incomplete" }
+        })
     }
     companion object {
         const val CATALOG_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main/catalog.json"

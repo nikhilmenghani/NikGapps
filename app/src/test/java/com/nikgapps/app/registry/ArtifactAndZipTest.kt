@@ -7,6 +7,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -107,6 +109,28 @@ class ArtifactAndZipTest {
         assertEquals(1, com.nikgapps.app.data.compressionLevelFor(true, 1, true))
     }
 
+    @Test fun concurrentDownloadsShareOnlyVerifiedFinalCache() = runBlocking {
+        val dir = Files.createTempDirectory("concurrent-artifacts").toFile()
+        try {
+            val bytes = "trusted fixture".toByteArray()
+            val hash = RegistryTestFixtures.hash(bytes)
+            val target = File(dir, "nikgapps/packages/$hash.zip").apply { parentFile!!.mkdirs(); writeText("corrupt cache") }
+            val calls = java.util.concurrent.atomic.AtomicInteger()
+            val client = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+                calls.incrementAndGet()
+                okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("fixture")
+                    .body(bytes.toResponseBody()).build()
+            }.build()
+            val downloader = ArtifactDownloader(dir, client, maxAttempts = 1)
+            kotlinx.coroutines.coroutineScope {
+                val first = async { downloader.obtain(resolved(Artifact("https://fixture.invalid/package.zip", hash, bytes.size.toLong()))) }
+                val second = async { downloader.obtain(resolved(Artifact("https://fixture.invalid/package.zip", hash, bytes.size.toLong()))) }
+                assertEquals(first.await(), second.await())
+            }
+            assertEquals(1, calls.get()); assertArrayEquals(bytes, target.readBytes())
+            assertFalse(target.parentFile!!.listFiles()!!.any { it.name.endsWith(".part") })
+        } finally { dir.deleteRecursively() }
+    }
     private fun resolved(artifact: Artifact = Artifact("https://example.test/a", "a".repeat(64), 1)) = ResolvedPackage(
         CatalogPackage("gms_core", "gms_core", true, false, emptyList(), mapOf("stable" to "s"), emptyMap()), "s",
         PackageVersion("stable", 1, "test.app", AndroidCompatibility(null, 36, null), listOf("arm64-v8a"), "product",

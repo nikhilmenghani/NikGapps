@@ -25,9 +25,10 @@ import java.util.Date
 
 class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     private val projectId = inputData.getString(KEY_PROJECT_ID).orEmpty()
-    private val logFile = File(applicationContext.cacheDir, "build-runs/$projectId.log")
+    private val logFile = logFile(applicationContext, id.toString())
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = RegistryCache.withLease { runBuild() }
+    private suspend fun runBuild(): Result {
         setForeground(foreground("Preparing build", 0, 0))
         logFile.parentFile?.mkdirs(); logFile.writeText("")
         try {
@@ -42,6 +43,19 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
+        val operations = applicationContext.getSharedPreferences("build-operations", Context.MODE_PRIVATE)
+        (operations.getString("worker-published:$id", null) ?: operations.getString("publication:$id", null))?.let { saved ->
+            quota.recordSuccess(operationId = id.toString())
+            return Result.success(workDataOf(KEY_LOCATION to saved))
+        }
+        operations.getString("worker-output:$id", null)?.let { path ->
+            val pending = File(path)
+            if (!pending.isFile) return failure("Saved operation output is missing. Start a new build explicitly.")
+            try { SafeFilePublication.validZip(pending) } catch (error: Exception) {
+                return failure("Saved operation output is corrupt. Start a new build explicitly.", error)
+            }
+            return Result.success(workDataOf(KEY_PENDING_SOURCE to path, KEY_EXISTING_NAME to pending.name))
+        }
         val quotaStatus = quota.status()
         if (!quotaStatus.allowed) {
             val resetTime = quotaStatus.resetsAtMillis?.let {
@@ -81,6 +95,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val resolution = CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolveAcrossAppSets(
                 selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value)
             val packageTotal = resolution.packages.size
+            StoragePreflight.check(applicationContext.cacheDir, resolution.packages.map { it.version.artifact.size })
             var completed = 0
             val artifacts = mutableListOf<ValidatedArtifact>()
             val downloader = ArtifactDownloader(applicationContext.cacheDir)
@@ -106,7 +121,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val primarySet = metadata.appSets.appSets.firstOrNull { it.id == project.selectedAppSetId }
                 ?: metadata.appSets.appSets.first()
             val output = RegistryZipAssembler(AndroidBuilderAssetSource(applicationContext, metadata.builderAssets)).build(
-                File(applicationContext.cacheDir, "zip-builds"), BuildRequest(
+                File(applicationContext.filesDir, "build-operations"), BuildRequest(
                     project.androidVersion.displayName, project.androidVersion.apiLevel,
                     project.architecture.value, primarySet, defaultChannel, overrides,
                     project.selectedAppIds, packageAppSets = resolution.packageAppSets,
@@ -117,6 +132,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     packageDefinitions = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.packageDefinitions.orEmpty().filterKeys { it in project.selectedAppIds },
                     filenameTimestamp = verifiedZipFilenameTimestamp()
                 ), artifacts)
+            check(operations.edit().putString("worker-output:$id", output.absolutePath).commit())
             try {
                 GitHubBuildAuth.requireBuildAccess()
             } catch (error: Exception) {
@@ -126,13 +142,13 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             progress("Saving ZIP to Downloads/NikGapps", completed, packageTotal)
             val publisher = ZipPublisher(applicationContext)
             if (publisher.exists(output.name)) {
-                quota.recordSuccess()
                 log("A ZIP named ${output.name} already exists")
                 return Result.success(workDataOf(KEY_PENDING_SOURCE to output.absolutePath,
                     KEY_EXISTING_NAME to output.name))
             }
-            val location = publisher.publish(output, project.selectedAppIds.size)
-            quota.recordSuccess()
+            val location = publisher.publish(output, project.selectedAppIds.size, operationId = id.toString())
+            check(operations.edit().putString("worker-published:$id", location).commit())
+            quota.recordSuccess(operationId = id.toString())
             LatestBuildRepository(applicationContext).save(projectId, location)
             recordSuccessfulProjectZip(applicationContext, project, output)
             output.delete()
@@ -173,7 +189,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     private fun foreground(label: String, completed: Int, total: Int): ForegroundInfo {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "ZIP builds", NotificationManager.IMPORTANCE_LOW))
+        if (android.os.Build.VERSION.SDK_INT >= 26)
+            manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "ZIP builds", NotificationManager.IMPORTANCE_LOW))
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Building NikGapps ZIP")
@@ -182,7 +199,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            if (android.os.Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
         )
     }
 

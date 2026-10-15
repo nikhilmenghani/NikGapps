@@ -87,6 +87,7 @@ install_file(){
   else
     log_message "- File $source_location not found"
     echo "File $source_location not found"
+    return 1
   fi
 }
 

@@ -51,7 +51,8 @@ private enum class BuildStage { RUNNING, AWAITING_FILE_CHOICE, COMPLETE, FAILED 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BuildZipScreen(projectId: String, navController: NavHostController, latestRelease: Boolean = false) {
+fun BuildZipScreen(projectId: String, navController: NavHostController, latestRelease: Boolean = false,
+    operationId: String = projectId) {
     val context = LocalActivity.current ?: return
     val isOnline = LocalInternetAvailable.current
     val project = remember(projectId) { BuildProjectRepository(context).getProjects().firstOrNull { it.id == projectId } }
@@ -67,6 +68,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
     var confirmClearCache by remember { mutableStateOf(false) }
     var pendingSource by remember { mutableStateOf<String?>(null) }
     var existingName by remember { mutableStateOf<String?>(null) }
+    var publishing by remember { mutableStateOf(false) }
+    var saveFailure by remember { mutableStateOf<String?>(null) }
     var activeRunId by remember { mutableStateOf("none") }
     var compressionConfirmed by rememberSaveable(projectId) { mutableStateOf(latestRelease || !BuildCompressionPrefs.askBeforeBuild) }
     var chosenCompression by rememberSaveable(projectId) { mutableStateOf(BuildCompressionPrefs.compressed) }
@@ -76,16 +79,19 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val workManager = remember(context) { WorkManager.getInstance(context) }
-    val workInfos by remember(workManager, projectId) {
-        workManager.getWorkInfosForUniqueWorkFlow(BuildZipWorker.uniqueName(projectId))
-    }.collectAsState(initial = emptyList())
-    val workInfo = workInfos.lastOrNull()
+    val operationPreferences = remember(context) { context.getSharedPreferences("build-operations", Context.MODE_PRIVATE) }
+    val operationKey = "$projectId-$operationId"
+    var observedWorkId by remember(operationKey) { mutableStateOf(operationPreferences.getString("work:$operationKey", null)) }
+    val workInfo by remember(workManager, observedWorkId) {
+        observedWorkId?.let { workManager.getWorkInfoByIdFlow(java.util.UUID.fromString(it)) }
+            ?: kotlinx.coroutines.flow.flowOf(null)
+    }.collectAsState(initial = null)
 
     LaunchedEffect(projectId) {
         val existing = withContext(Dispatchers.IO) {
-            workManager.getWorkInfosForUniqueWork(BuildZipWorker.uniqueName(projectId)).get()
+            observedWorkId?.let { workManager.getWorkInfoById(java.util.UUID.fromString(it)).get() }
         }
-        if (existing.any { !it.state.isFinished }) compressionConfirmed = true
+        if (existing != null || operationPreferences.getBoolean("started:$operationKey", false)) compressionConfirmed = true
         existingWorkChecked = true
     }
 
@@ -105,7 +111,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
         if (!compressionConfirmed) return@LaunchedEffect
         if (authFailure) return@LaunchedEffect
         val info = workInfo ?: return@LaunchedEffect
-        BuildZipWorker.logFile(context, projectId).takeIf(File::isFile)?.readLines()?.let {
+        BuildZipWorker.logFile(context, info.id.toString()).takeIf(File::isFile)?.readLines()?.let {
             logs.clear(); logs.addAll(it)
         }
         operationLabel = info.progress.getString(BuildZipWorker.KEY_LABEL) ?: operationLabel
@@ -115,12 +121,14 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
             .takeIf { it >= 0 }?.div(100f)
         when (info.state) {
             WorkInfo.State.SUCCEEDED -> {
-                pendingSource = info.outputData.getString(BuildZipWorker.KEY_PENDING_SOURCE)
+                val saved = operationPreferences.getString("published:$operationKey", null)
+                    ?: operationPreferences.getString("publication:${info.id}", null)
+                pendingSource = if (saved == null) info.outputData.getString(BuildZipWorker.KEY_PENDING_SOURCE) else null
                 existingName = info.outputData.getString(BuildZipWorker.KEY_EXISTING_NAME)
                 if (pendingSource != null) {
                     stage = BuildStage.AWAITING_FILE_CHOICE
                 } else {
-                    location = info.outputData.getString(BuildZipWorker.KEY_LOCATION)
+                    location = saved ?: info.outputData.getString(BuildZipWorker.KEY_LOCATION)
                         ?: LatestBuildRepository(context).get(projectId)
                     stage = BuildStage.COMPLETE
                 }
@@ -134,8 +142,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
         }
     }
     BackHandler(enabled = stage == BuildStage.RUNNING && compressionConfirmed) { }
-    LaunchedEffect(projectId, retryKey, compressionConfirmed) {
-        if (!compressionConfirmed) return@LaunchedEffect
+    LaunchedEffect(projectId, retryKey, compressionConfirmed, existingWorkChecked) {
+        if (!compressionConfirmed || !existingWorkChecked) return@LaunchedEffect
+        val existing = withContext(Dispatchers.IO) { observedWorkId?.let { workManager.getWorkInfoById(java.util.UUID.fromString(it)).get() } }
+        if (!shouldEnqueueBuild(operationPreferences.getBoolean("started:$operationKey", false), existing != null, retryKey > 0)) {
+            if (existing == null) { stage = BuildStage.FAILED; log("Previous operation is no longer available. Start a new build explicitly.") }
+            return@LaunchedEffect
+        }
         stage = BuildStage.RUNNING
         authFailure = false
         operationLabel = if (GithubPrefs.guestMode && GithubPrefs.token.isBlank()) "Preparing guest build"
@@ -162,104 +175,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
                 BuildZipWorker.KEY_COMPRESSED to BuildCompressionPrefs.compressed,
                 BuildZipWorker.KEY_COMPRESSION_LEVEL to BuildCompressionPrefs.level))
             .build()
-        workManager.enqueueUniqueWork(
-            BuildZipWorker.uniqueName(projectId),
-            if (retryKey == 0) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE,
-            request
-        )
-        if (retryKey < 0) {
-        activeRunId = java.util.UUID.randomUUID().toString().take(8)
-        logs.clear()
-        completed = 0
-        total = 0
-        operationProgress = null
-        operationLabel = "Preparing build"
-        stage = BuildStage.RUNNING
-        AppDiagnostics.info("build", "started", mapOf("run" to activeRunId,
-            "project" to projectId.take(8), "selected" to (project?.selectedAppIds?.size ?: 0),
-            "android" to project?.androidVersion?.displayName, "architecture" to project?.architecture?.value))
-        if (project == null) { stage = BuildStage.FAILED; log("Project not found"); return@LaunchedEffect }
-        try {
-            log("Loading the NikGapps package catalog…")
-            operationLabel = "Loading package catalog"
-            val metadata = withContext(Dispatchers.IO) { CatalogRepository(context.cacheDir).load(
-                catalogAndroidVersion(project.androidVersion.displayName), project.defaultChannel,
-                project.architecture.value) }
-            val unavailable = unavailableProjectPackages(project, metadata)
-            check(projectUpdate(project, metadata).kind != ProjectUpdateKind.INCOMPATIBLE) {
-                "This configuration is outdated. Export it, fix incompatible entries and import it into a new project."
-            }
-            log("Resolving ${project.selectedAppIds.size} selected apps and their dependencies…")
-            operationLabel = "Resolving packages and dependencies"
-            val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
-            val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
-            val selections = project.selectedAppIds.associateWith { id ->
-                project.selectedPackageAppSets[id] ?: metadata.appSets.appSets.firstOrNull { id in it.packages }?.id
-                ?: error("No AppSet owns selected package '$id'")
-            }
-            val resolution = withContext(Dispatchers.IO) { CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolveAcrossAppSets(
-                selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value) }
-            AppDiagnostics.info("build", "resolved", mapOf("run" to activeRunId,
-                "selected" to project.selectedAppIds.size, "total" to resolution.packages.size,
-                "dependencies" to resolution.packages.count { it.hidden },
-                "packageIds" to resolution.packages.joinToString(",") { it.catalogPackage.id }))
-            total = resolution.packages.count { !it.hidden }
-            val artifacts = mutableListOf<ValidatedArtifact>()
-            val downloader = ArtifactDownloader(context.cacheDir)
-            val validator = PackageZipValidator()
-            resolution.packages.forEach { pkg ->
-                log(if (pkg.hidden) "Downloading required dependency ${pkg.catalogPackage.name}…"
-                    else "Downloading ${pkg.catalogPackage.name}…")
-                operationProgress = 0f
-                operationLabel = "Downloading ${pkg.catalogPackage.name}"
-                val file = downloader.obtain(pkg) { download -> withContext(Dispatchers.Main) {
-                    val percent = download.total?.takeIf { it > 0 }?.let { download.downloaded * 100 / it }
-                    if (percent != null) {
-                        operationProgress = (percent / 100f).coerceIn(0f, 1f)
-                        downloadProgress(pkg.catalogPackage.name, percent)
-                    }
-                } }
-                log("Validating ${pkg.catalogPackage.name}…")
-                operationProgress = null
-                operationLabel = "Validating ${pkg.catalogPackage.name}"
-                val artifact = withContext(Dispatchers.IO) { ValidatedArtifact(pkg, file, validator.validate(file, pkg)) }
-                artifacts += artifact
-                if (!pkg.hidden) completed++
-                log("Prepared ${pkg.catalogPackage.name}")
-            }
-            log("Assembling the flashable ZIP…")
-            operationProgress = null
-            operationLabel = "Assembling flashable ZIP"
-            val primarySet = metadata.appSets.appSets.firstOrNull { it.id == project.selectedAppSetId }
-                ?: metadata.appSets.appSets.first()
-            val output = withContext(Dispatchers.IO) { RegistryZipAssembler(AndroidBuilderAssetSource(context, metadata.builderAssets)).build(
-                File(context.cacheDir, "zip-builds"), BuildRequest(project.androidVersion.displayName,
-                    project.androidVersion.apiLevel, project.architecture.value, primarySet, defaultChannel,
-                    overrides, project.selectedAppIds, packageAppSets = resolution.packageAppSets,
-                    timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
-                    releaseId = metadata.release?.id,
-                    filenameTimestamp = com.nikgapps.app.data.verifiedZipFilenameTimestamp(),
-                    compressionLevel = verifiedCompressionLevel(BuildCompressionPrefs.compressed,
-                        BuildCompressionPrefs.level), keepAospCounterparts = project.keepAospCounterparts), artifacts) }
-            log("Saving ${output.name} to Downloads/NikGapps…")
-            operationLabel = "Saving ZIP to Downloads/NikGapps"
-            location = withContext(Dispatchers.IO) {
-                ZipPublisher(context).publish(output, project.selectedAppIds.size)
-            }
-            LatestBuildRepository(context).save(projectId, location!!)
-            recordSuccessfulProjectZip(context, project, output)
-            output.delete()
-            log("Build complete")
-            AppDiagnostics.info("build", "succeeded", mapOf("run" to activeRunId,
-                "packages" to artifacts.size, "destination" to "Downloads/NikGapps"))
-            stage = BuildStage.COMPLETE
-        } catch (e: Exception) {
-            log("Build failed: ${e.message ?: "Unknown error"}")
-            AppDiagnostics.failure("build", "failed", e, mapOf("run" to activeRunId,
-                "stage" to operationLabel, "prepared" to completed, "total" to total))
-            stage = BuildStage.FAILED
-        }
-        }
+        observedWorkId = com.nikgapps.app.utils.worker.BuildWorkScheduler.enqueue(
+            context, projectId, operationKey, request, explicitRetry = retryKey > 0).toString()
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Build flashable ZIP") }, navigationIcon = {
@@ -423,37 +340,58 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
         }) { Text("Clear & rebuild") } }
     )
     if (stage == BuildStage.AWAITING_FILE_CHOICE && pendingSource != null) AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = { if (!publishing) navController.navigateUp() },
         title = { Text("ZIP already exists") },
-        text = { Text("$existingName already exists in Downloads/NikGapps. Do you want to replace it?") },
-        dismissButton = { TextButton(onClick = {
+        text = { Column {
+            Text("$existingName already exists in Downloads/NikGapps. Do you want to replace it? Back leaves this build ready to save without using a build slot.")
+            saveFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        } },
+        dismissButton = { TextButton(enabled = !publishing, onClick = {
             val source = pendingSource ?: return@TextButton
+            if (publishing) return@TextButton
+            publishing = true
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) {
                     ZipPublisher(context).publish(
                         File(source), project?.selectedAppIds?.size ?: total,
-                        ZipPublisher.ConflictResolution.RENAME
+                        ZipPublisher.ConflictResolution.RENAME, operationId = workInfo?.id?.toString() ?: operationKey
                     )
                 } }.onSuccess { saved ->
+                    operationPreferences.edit().putString("published:$operationKey", saved).apply()
+                    BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
                     project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
-                }.onFailure { error -> logs += "Unable to save ZIP: ${error.message}"; stage = BuildStage.FAILED }
+                }.onFailure { error ->
+                    publishing = false
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    logs += "Unable to save ZIP: ${error.message}"
+                    saveFailure = "Unable to save ZIP: ${error.message}. Your previous ZIP is preserved."
+                }
             }
         }) { Text("Keep both") } },
-        confirmButton = { TextButton(onClick = {
+        confirmButton = { TextButton(enabled = !publishing, onClick = {
             val source = pendingSource ?: return@TextButton
+            if (publishing) return@TextButton
+            publishing = true
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) {
                     ZipPublisher(context).publish(
                         File(source), project?.selectedAppIds?.size ?: total,
-                        ZipPublisher.ConflictResolution.REPLACE
+                        ZipPublisher.ConflictResolution.REPLACE, operationId = workInfo?.id?.toString() ?: operationKey
                     )
                 } }.onSuccess { saved ->
+                    operationPreferences.edit().putString("published:$operationKey", saved).apply()
+                    BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
                     location = saved; LatestBuildRepository(context).save(projectId, saved)
                     project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
                     File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
-                }.onFailure { error -> logs += "Unable to replace ZIP: ${error.message}"; stage = BuildStage.FAILED }
+                }.onFailure { error ->
+                    publishing = false
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    logs += "Unable to replace ZIP: ${error.message}"
+                    saveFailure = "Unable to replace ZIP: ${error.message}. Your previous ZIP is preserved."
+                }
             }
         }) { Text("Replace") } }
     )

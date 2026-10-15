@@ -11,8 +11,8 @@ data class BuildQuotaStatus(val successfulBuilds: Int, val limit: Int, val windo
     val allowed: Boolean get() = remaining > 0
 }
 
-class BuildQuotaRepository(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+class BuildQuotaRepository(context: Context, preferencesName: String = PREFERENCES_NAME) {
+    private val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
     fun status(now: Long = System.currentTimeMillis()): BuildQuotaStatus = synchronized(LOCK) {
         val baseLimit = preferences.getInt(KEY_LIMIT, if (BuildConfig.DEBUG) TEST_LIMIT else DEFAULT_LIMIT).coerceAtLeast(1)
@@ -35,12 +35,14 @@ class BuildQuotaRepository(context: Context) {
             nextEliteResetAtMillis = if (resetReady) null else lastEliteResetAt + window)
     }
 
-    fun recordSuccess(now: Long = System.currentTimeMillis()): BuildQuotaStatus = synchronized(LOCK) {
+    fun recordSuccess(now: Long = System.currentTimeMillis(), operationId: String = java.util.UUID.randomUUID().toString()): BuildQuotaStatus = synchronized(LOCK) {
         val current = status(now)
+        val recorded = preferences.getStringSet("recorded_operations", emptySet()).orEmpty()
+        if (operationId in recorded) return@synchronized current
         if (!current.allowed) return@synchronized current
         val editor = preferences.edit().putInt(KEY_SUCCESS_COUNT, current.successfulBuilds + 1)
         if (current.resetsAtMillis == null) editor.putLong(KEY_WINDOW_STARTED_AT, now)
-        editor.commit()
+        check(editor.putStringSet("recorded_operations", recorded + operationId).commit()) { "Cannot persist build accounting" }
         status(now)
     }
 

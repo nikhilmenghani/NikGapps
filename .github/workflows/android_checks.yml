@@ -1,0 +1,29 @@
+name: Android verification
+on:
+  pull_request:
+    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', 'dev.txt', 'release.txt', '.github/workflows/android_checks.yml']
+  push:
+    branches: [main]
+    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', 'dev.txt', 'release.txt', '.github/workflows/android_checks.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - run: chmod +x gradlew
+      - run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --continue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.*

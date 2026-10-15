@@ -5,6 +5,7 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.nikgapps.app.utils.root.ShellCommands
 
 object RootUtility {
     /**
@@ -19,7 +20,8 @@ object RootUtility {
     fun mountPartition(partition: String): Boolean {
         return try {
             // Remount the partition with read-write access
-            val remountResult = Shell.cmd("mount -o rw,remount $partition").exec()
+            require(partition in setOf("/system", "/system_ext", "/product", "/vendor"))
+            val remountResult = Shell.cmd(ShellCommands.command("mount", listOf("-o", "rw,remount", partition))).exec()
             if (!remountResult.isSuccess) {
                 Log.e("RootUtility", "Failed to remount partition $partition: ${remountResult.out.joinToString("\n")}")
                 return false
@@ -45,7 +47,7 @@ object RootUtility {
             scriptFile.setExecutable(true)
 
             // Execute the shell script with root privileges
-            val result = Shell.cmd("sh ${scriptFile.absolutePath} ${args.joinToString(" ")}").exec()
+            val result = Shell.cmd(ShellCommands.command("sh", listOf("-e", scriptFile.absolutePath) + args)).exec()
             val output = result.out.joinToString("\n")
             Log.d("RootUtility", "Shell script output: \n$output")
 
@@ -79,14 +81,14 @@ object RootUtility {
             }
 
             // Create the destination directory if it doesn't exist
-            val createDirResult = Shell.cmd("mkdir -p $destDirPath").exec()
+            val createDirResult = Shell.cmd(ShellCommands.command("mkdir", listOf("-p", destDirPath))).exec()
             if (!createDirResult.isSuccess) {
                 Log.e("RootUtility", "Failed to create directory: ${createDirResult.out.joinToString("\n")}")
                 return false
             }
 
             // Copy files from source to destination
-            val copyResult = Shell.cmd("cp -r $sourceDirPath/* $destDirPath").exec()
+            val copyResult = Shell.cmd(ShellCommands.command("cp", listOf("-r", "$sourceDirPath/.", destDirPath))).exec()
             if (copyResult.isSuccess) {
                 Log.d("RootUtility", "Files copied successfully: ${copyResult.out.joinToString("\n")}")
                 return true

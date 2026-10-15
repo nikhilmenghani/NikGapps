@@ -6,6 +6,10 @@ import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.nikgapps.app.utils.AppDiagnostics
@@ -17,8 +21,9 @@ class ArtifactDownloadException(message: String, cause: Throwable? = null,
 class ArtifactDownloader(private val cacheDirectory: File, private val client: OkHttpClient = OkHttpClient(),
     private val maxAttempts: Int = 5) {
     suspend fun obtain(pkg: ResolvedPackage, onProgress: suspend (DownloadProgress) -> Unit = {}): File =
-        withContext(Dispatchers.IO) {
+        RegistryCache.withLease { artifactLock.withLock { withContext(Dispatchers.IO) {
             val artifact = pkg.version.artifact
+            require(artifact.sha256.matches(Regex("[a-fA-F0-9]{64}")))
             val directory = File(cacheDirectory, "nikgapps/packages").apply { mkdirs() }
             val target = File(directory, "${artifact.sha256}.zip")
             if (target.isFile) {
@@ -30,8 +35,9 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
                 AppDiagnostics.info("artifact", "cache_invalid", mapOf("package" to pkg.catalogPackage.id))
                 target.delete()
             }
-            val part = File(directory, "${artifact.sha256}.part")
+            val part = File(directory, "${artifact.sha256}.${java.util.UUID.randomUUID()}.part")
             var last: Throwable? = null
+            try {
             repeat(maxAttempts) { attempt ->
                 try {
                     AppDiagnostics.info("artifact", "download_started", mapOf("package" to pkg.catalogPackage.id,
@@ -47,6 +53,8 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
                         "bytes" to target.length(), "attempt" to attempt + 1))
                     return@withContext target
                 } catch (e: Throwable) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    if (e is kotlinx.coroutines.CancellationException) { part.delete(); throw e }
                     AppDiagnostics.failure("artifact", "download_attempt_failed", e,
                         mapOf("package" to pkg.catalogPackage.id, "attempt" to attempt + 1))
                     last = e
@@ -59,12 +67,18 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
             }
             part.delete()
             throw ArtifactDownloadException("Download failed for '${pkg.catalogPackage.id}' after $maxAttempts attempts: ${last?.message}", last)
-        }
+            } finally { part.delete() }
+        } }
 
-    private suspend fun download(id: String, artifact: Artifact, part: File, progress: suspend (DownloadProgress) -> Unit) {
+    }
+    private suspend fun download(id: String, artifact: Artifact, part: File, progress: suspend (DownloadProgress) -> Unit) = kotlinx.coroutines.coroutineScope {
         val offset = part.takeIf { it.isFile }?.length() ?: 0L
         val request = Request.Builder().url(artifact.url).apply { if (offset > 0) header("Range", "bytes=$offset-") }.build()
-        client.newCall(request).execute().use { response ->
+        val call = client.newCall(request)
+        val watcher = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            try { kotlinx.coroutines.awaitCancellation() } finally { call.cancel() }
+        }
+        try { call.execute().use { response ->
             if (!response.isSuccessful) throw ArtifactDownloadException(
                 "HTTP ${response.code} while downloading '$id'",
                 retryAfterMillis = response.header("Retry-After")?.toLongOrNull()?.let { it * 1_000L }
@@ -77,15 +91,16 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
                 output.seek(start); if (!append) output.setLength(0)
                 body.byteStream().use { input ->
                     val buffer = ByteArray(128 * 1024); var downloaded = start
-                    while (true) { val count = input.read(buffer); if (count < 0) break
+                    while (true) { kotlinx.coroutines.currentCoroutineContext().ensureActive(); val count = input.read(buffer); if (count < 0) break
                         output.write(buffer, 0, count); downloaded += count
                         progress(DownloadProgress(id, downloaded, artifact.size))
                     }
                 }
             }
-        }
+        } } finally { watcher.cancel() }
     }
     companion object {
+        private val artifactLock = Mutex()
         fun sha256(file: File): String { val digest = MessageDigest.getInstance("SHA-256")
             file.inputStream().buffered().use { input -> val buffer = ByteArray(128 * 1024)
                 while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) } }

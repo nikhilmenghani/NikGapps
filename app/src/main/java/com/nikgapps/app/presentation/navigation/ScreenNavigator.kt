@@ -83,12 +83,16 @@ enum class Screens {
 
 const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
 const val APP_CONFIG_ROUTE = "Project/{projectId}/app/{packageId}"
-const val BUILD_ZIP_ROUTE = "Project/{projectId}/build"
-const val BUILD_LATEST_ZIP_ROUTE = "Project/{projectId}/build-latest"
+const val BUILD_ZIP_ROUTE = "Project/{projectId}/build?operation={operation}"
+const val BUILD_LATEST_ZIP_ROUTE = "Project/{projectId}/build-latest?operation={operation}"
 
 fun projectRoute(projectId: String, build: Boolean = false) = "Project/$projectId?build=$build"
 fun appConfigRoute(projectId: String, packageId: String) = "Project/$projectId/app/$packageId"
-fun buildZipRoute(projectId: String, latest: Boolean = false) = "Project/$projectId/${if (latest) "build-latest" else "build"}"
+fun buildZipRoute(projectId: String, latest: Boolean = false): String {
+    val operation = com.nikgapps.app.utils.worker.BuildWorkScheduler.currentOperation(com.nikgapps.App.appContext, projectId)
+        ?: java.util.UUID.randomUUID().toString()
+    return "Project/$projectId/${if (latest) "build-latest" else "build"}?operation=$operation"
+}
 
 @Composable
 fun ScreenNavigator(
@@ -287,12 +291,14 @@ fun NavigationHost(
         }
         composable(route = BUILD_LATEST_ZIP_ROUTE) { backStackEntry ->
             BuildZipScreen(projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
-                navController = navController, latestRelease = true)
+                navController = navController, latestRelease = true,
+                operationId = backStackEntry.arguments?.getString("operation").orEmpty())
         }
         composable(route = BUILD_ZIP_ROUTE) { backStackEntry ->
             BuildZipScreen(
                 projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
-                navController = navController
+                navController = navController,
+                operationId = backStackEntry.arguments?.getString("operation").orEmpty()
             )
         }
     }

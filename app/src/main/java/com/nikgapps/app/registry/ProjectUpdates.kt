@@ -62,6 +62,11 @@ fun BuildProject.withCurrentConfig(metadata: RegistryMetadata): BuildProject {
         packageDefinitions = template?.packageDefinitions.orEmpty().filterKeys { it in selectedAppIds })
 }
 
+/** Platform edits establish a fresh baseline; old build/config receipts belong to the old target. */
+fun BuildProject.rebasePlatform(metadata: RegistryMetadata): BuildProject =
+    copy(createdReleaseId = metadata.release?.id, lastBuiltReleaseId = null,
+        dismissedReleaseId = null, configSnapshot = null).withCurrentConfig(metadata)
+
 fun BuildProject.afterSuccessfulBuild(metadata: RegistryMetadata): BuildProject = withCurrentConfig(metadata).copy(
     lastBuiltReleaseId = metadata.release?.id, dismissedReleaseId = dismissedReleaseId?.takeUnless { it == metadata.release?.id })
 

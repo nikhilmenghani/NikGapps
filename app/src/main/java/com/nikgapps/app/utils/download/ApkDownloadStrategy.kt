@@ -1,60 +1,28 @@
 package com.nikgapps.app.utils.download
-
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okio.Buffer
-import okio.buffer
-import okio.sink
 import java.io.File
-import java.util.concurrent.TimeUnit
 
-class ApkDownloadStrategy : DownloadStrategy {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .callTimeout(5, TimeUnit.MINUTES)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+class ApkDownloadStrategy(private val context: android.content.Context? = null,
+    private val expectedVersion: String? = null) : DownloadStrategy {
+    override suspend fun download(downloadUrl: String, destFilePath: String): Boolean =
+        VerifiedDownload().download(downloadUrl, File(destFilePath), validate = ::validateApk)
+    // Legacy synchronous Worker API; the Worker invokes this on its background executor.
+    suspend fun downloadApk(url: String, destFilePath: String, onProgressUpdate: ((Float) -> Unit)? = null): Boolean =
+        VerifiedDownload().download(url, File(destFilePath), validate = ::validateApk, progress = { onProgressUpdate?.invoke(it) })
 
-    override suspend fun download(downloadUrl: String, destFilePath: String): Boolean {
-        return downloadApk(downloadUrl, destFilePath)
-    }
-
-    fun downloadApk(url: String, destFilePath: String, onProgressUpdate: ((Float) -> Unit)? = null): Boolean {
-        return try {
-            val request = Request.Builder().url(url).build()
-            val response: Response = client.newCall(request).execute()
-
-            if (response.isSuccessful) {
-                response.body.let { responseBody ->
-                    val totalBytes = responseBody.contentLength()
-                    var downloadedBytes: Long = 0
-
-                    val file = File(destFilePath)
-                    file.sink().buffer().use { bufferedSink ->
-                        responseBody.source().use { source ->
-                            val buffer = Buffer()
-                            var bytesRead: Long
-
-                            while (source.read(buffer, 8 * 1024).also { bytesRead = it } != -1L) {
-                                bufferedSink.write(buffer, bytesRead)
-                                downloadedBytes += bytesRead
-
-                                // Notify progress if required
-                                onProgressUpdate?.invoke(downloadedBytes.toFloat() / totalBytes)
-                            }
-                        }
-                    }
-                }
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
+    @Suppress("DEPRECATION") // GET_SIGNATURES supports the existing API-24 minimum.
+    internal fun validateApk(file: File) {
+        java.util.zip.ZipFile(file).use { require(it.getEntry("AndroidManifest.xml") != null) { "Not an APK" } }
+        val owner = context ?: return
+        val manager = owner.packageManager
+        val archive = manager.getPackageArchiveInfo(file.path, android.content.pm.PackageManager.GET_SIGNATURES)
+            ?: error("Invalid APK metadata")
+        val installed = manager.getPackageInfo(owner.packageName, android.content.pm.PackageManager.GET_SIGNATURES)
+        require(archive.packageName == owner.packageName) { "Update belongs to another app" }
+        expectedVersion?.takeUnless { it == "update" }?.let { expected ->
+            require(archive.versionName == expected || archive.versionName?.startsWith("$expected-") == true) { "Update version mismatch" }
         }
+        fun signatures(info: android.content.pm.PackageInfo) = info.signatures.orEmpty().map { it.toCharsString() }.toSet()
+        val trusted = signatures(installed)
+        require(trusted.isNotEmpty() && signatures(archive) == trusted) { "Update signing certificate mismatch" }
     }
 }

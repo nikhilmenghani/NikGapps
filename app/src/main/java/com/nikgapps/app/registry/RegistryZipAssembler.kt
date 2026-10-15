@@ -40,9 +40,10 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
             else -> request.architecture
         }
         val androidVersion = catalogAndroidVersion(request.androidVersion)
-        val output = File(outputDirectory.apply { mkdirs() },
+        val workspace = File(outputDirectory, "operation-${java.util.UUID.randomUUID()}").apply { check(mkdirs()) }
+        val output = File(workspace,
             "NikGapps-$projectName-$architecture-$androidVersion-$date.zip")
-        val part = File(output.parentFile, "${output.name}.part")
+        val part = File(output.parentFile, "${output.name}.${java.util.UUID.randomUUID()}.part")
         AppDiagnostics.info("assembly", "started", mapOf("packages" to artifacts.size,
             "appSets" to appSetIds.joinToString(","), "android" to request.androidVersion,
             "architecture" to request.architecture))
