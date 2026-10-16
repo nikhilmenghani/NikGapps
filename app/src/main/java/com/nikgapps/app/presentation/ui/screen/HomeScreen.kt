@@ -197,11 +197,31 @@ fun HomeScreen(navController: NavHostController) {
                 .use { it.write(backup.toByteArray(Charsets.UTF_8)) }
         }.onFailure { Toast.makeText(context, "Cannot export recovery data: ${it.message}", Toast.LENGTH_LONG).show() }
     }
-    if (recoveryMessage) AlertDialog(onDismissRequest = { recoveryMessage = false },
-        title = { Text("Some projects need recovery") },
-        text = { Text("Valid projects are still available. Damaged project data has been preserved. Export it for recovery before recreating missing projects.") },
-        confirmButton = { TextButton(onClick = { recoveryExport.launch("nikgapps-project-recovery.json") }) { Text("Export recovery data") } },
-        dismissButton = { TextButton(onClick = { recoveryMessage = false }) { Text("Close") } })
+    if (recoveryMessage) Dialog(onDismissRequest = { recoveryMessage = false }) {
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+            Column {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Some projects need recovery", style = MaterialTheme.typography.titleLarge)
+                    Text("Valid projects are still available. Damaged project data has been preserved. Export it for recovery before recreating missing projects.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { recoveryMessage = false },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text("Close", style = MaterialTheme.typography.labelMedium)
+                    }
+                    FilledTonalButton(onClick = { recoveryExport.launch("nikgapps-project-recovery.json") },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text("Export recovery data", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+    }
     var showCreateProject by remember { mutableStateOf(false) }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
