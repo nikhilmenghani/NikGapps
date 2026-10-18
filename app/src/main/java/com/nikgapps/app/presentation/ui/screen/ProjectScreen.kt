@@ -616,12 +616,10 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             add(ProjectDockAction(
                                 if (importingConfig) "Importing…" else "Import config", Icons.Default.FileUpload,
                                 enabled = !importingConfig && !exportingConfig && isOnline,
-                                highlighted = !debloaterOpen,
                                 onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
                                     "application/x-config", "text/x-config")) }))
                         } else {
                             add(ProjectDockAction("Build ZIP", Icons.Default.Inventory2,
-                                highlighted = !debloaterOpen,
                                 onClick = {
                                     if (!isOnline) Toast.makeText(context,
                                         "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
@@ -636,7 +634,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 onClick = ::exportConfig))
                         }
                         add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
-                            highlighted = debloaterOpen, onClick = { debloaterOpen = true }))
+                            configured = current.debloatTargets.isNotEmpty(),
+                            onClick = { debloaterOpen = true }))
                     },
                     modifier = Modifier.widthIn(max = 448.dp).fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
