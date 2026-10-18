@@ -1,5 +1,12 @@
 # NikGapps changelog
 
+## 0.80.21
+- Bundle project-specific debloating with standard commented configs in build ZIPs.
+- Choose compact radial or classic list project menus in Settings.
+- Use standalone build, export and debloater buttons with a configured badge.
+- Place Load config and Create project side by side.
+- Fix Back navigation so returning Home clears screen history.
+
 ## 0.80.20
 - Discover app features in a paged guide; About now has its own Settings tab.
 - Group Battery Optimization under Device Access.

@@ -7,6 +7,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DebloaterConfigTest {
+    @Test fun renderPreservesStandardBuilderCommentsBeforeSelectedTargets() {
+        val template = requireNotNull(javaClass.getResource("/debloater-template.config"))
+            .readText().replace("\r\n", "\n")
+        val targets = listOf("YouTube", "/product/app/SomeApp")
+        val rendered = DebloaterConfig.render(targets)
+        assertEquals(template + "YouTube\n/product/app/SomeApp\n", rendered)
+        assertEquals(targets, DebloaterConfig.parse(rendered))
+        assertFalse(rendered.contains('\r'))
+        assertEquals(template, DebloaterConfig.render(emptyList()))
+        assertTrue(DebloaterConfig.parse(template).isEmpty())
+    }
+
     @Test fun addUpdatesPreviewWithoutMutatingOrAcceptingInvalidEntries() {
         val empty = emptyList<String>()
         val first = DebloaterConfig.add(empty, " YouTube ")

@@ -33,6 +33,8 @@ class ArtifactAndZipTest {
                 assertEquals(1, zip.entries().asSequence().count { it.name == "afzc/debloater.config" })
                 fun text(path: String) = zip.getInputStream(zip.getEntry(path)).bufferedReader().readText()
                 assertEquals(listOf("YouTube", "youtube"), DebloaterConfig.parse(text("afzc/debloater.config")))
+                assertTrue(text("afzc/debloater.config").startsWith("# NikGapps debloater - Supports all devices, all android versions\n"))
+                assertTrue(text("afzc/debloater.config").contains("## Debloater Configuration\n"))
                 assertTrue(text("customize.sh").contains("unpack \"common/debloater_guard.sh\""))
                 assertTrue(text("customize.sh").contains(". \"\$COMMONDIR/debloater_guard.sh\""))
                 assertTrue(text("common/debloater_protected.txt").contains("Test"))

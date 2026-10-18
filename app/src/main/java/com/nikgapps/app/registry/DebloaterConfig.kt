@@ -7,7 +7,25 @@ object DebloaterConfig {
     const val CONFIG_MARKER = "# NikGapps debloater starts here"
     private val name = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
     private val path = Regex("/(?:system(?:/system|/product|/system_ext)?|product|system_ext|system_root/system(?:/product|/system_ext)?)/(?:app|priv-app)/(.+)")
-    private const val HEADER = "# Removed when this ZIP is flashed, not while building.\n"
+    // Standard NikGapps/helper/assets/debloater.config header from the Python builder.
+    private val HEADER = """
+        # NikGapps debloater - Supports all devices, all android versions
+        # Debloat your system as per your need
+        # just enter the path of the file/folder that you want to remove
+        # For E.g.
+        # /system/app/YouTube
+        # /system/priv-app/Calculator
+        # you can also simply mention the Folder name and Debloater will take care of it
+        # For E.g.
+        # YouTube
+        # this will delete the folder from /system/app/YouTube, /system/priv-app/YouTube, /system/product/app/YouTube, /system/product/priv-app/YouTube
+        # should you have any further doubts/questions don't hesitate to ask in the telegram channel (@NikGapps)
+        # removing following apps by default, comment them by adding # before them like below if you don't want to remove them during installation
+        # YouTube
+        #-------------------------------------------------------#
+        ## Debloater Configuration
+        #-------------------------------------------------------#
+    """.trimIndent() + "\n"
     private val protected = setOf("android", "system", "product", "system_ext", "app", "priv-app", "etc",
         "bin", "lib", "lib64", "framework", "systemui", "settings", "settingsprovider",
         "permissioncontroller", "googlepermissioncontroller", "packageinstaller", "googlepackageinstaller",
