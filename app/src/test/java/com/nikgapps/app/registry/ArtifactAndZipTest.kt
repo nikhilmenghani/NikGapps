@@ -13,6 +13,39 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ArtifactAndZipTest {
+    @Test fun projectDebloaterIsBundledOnceWithRuntimeGuardAndManifest() {
+        val dir = Files.createTempDirectory("debloater-build").toFile()
+        try {
+            val (fixture, sha) = RegistryTestFixtures.artifact(dir)
+            val pkg = resolved(Artifact(fixture.toURI().toString(), sha, fixture.length()))
+            val descriptor = PackageZipValidator().validate(fixture, pkg)
+            val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
+            val assets = RegistryZipAssembler.REQUIRED_ASSETS.associateWith { "asset".toByteArray() }.toMutableMap().apply {
+                put(RegistryZipAssembler.CONFIG_TEMPLATE, "Version=41\n# Following are the packages\nCore=1\n>>GmsCore=1\n".toByteArray())
+                put(RegistryZipAssembler.CUSTOMIZE_TEMPLATE, "    debloat\n".toByteArray())
+                put(RegistryZipAssembler.DEBLOATER_GUARD, "# safe fixture".toByteArray())
+            }
+            val request = BuildRequest("17", 37, "arm64-v8a", set, ReleaseChannel.STABLE, emptyMap(),
+                setOf("gms_core"), debloatTargets = listOf("YouTube", "youtube"))
+            val artifacts = listOf(ValidatedArtifact(pkg, fixture, descriptor))
+            val output = RegistryZipAssembler { assets }.build(dir, request, artifacts)
+            ZipFile(output).use { zip ->
+                assertEquals(1, zip.entries().asSequence().count { it.name == "afzc/debloater.config" })
+                fun text(path: String) = zip.getInputStream(zip.getEntry(path)).bufferedReader().readText()
+                assertEquals(listOf("YouTube", "youtube"), DebloaterConfig.parse(text("afzc/debloater.config")))
+                assertTrue(text("customize.sh").contains("unpack \"common/debloater_guard.sh\""))
+                assertTrue(text("customize.sh").contains(". \"\$COMMONDIR/debloater_guard.sh\""))
+                assertTrue(text("common/debloater_protected.txt").contains("Test"))
+                assertTrue(text("afzc/nikgapps.config").contains("UseZipConfig=1"))
+                assertTrue(text("nikgapps/build-manifest.json").contains("YouTube"))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                RegistryZipAssembler { assets }.build(dir, request.copy(debloatTargets = listOf("Test")), artifacts)
+            }
+            assets.remove(RegistryZipAssembler.DEBLOATER_GUARD)
+            assertThrows(IllegalArgumentException::class.java) { RegistryZipAssembler { assets }.build(dir, request, artifacts) }
+        } finally { dir.deleteRecursively() }
+    }
     @Test fun sha256AndCacheReuse() = runBlocking {
         val dir = Files.createTempDirectory("registry-cache").toFile(); val bytes = "cached".toByteArray()
         val sha = RegistryTestFixtures.hash(bytes); val cache = File(dir, "nikgapps/packages/$sha.zip").apply { parentFile.mkdirs(); writeBytes(bytes) }

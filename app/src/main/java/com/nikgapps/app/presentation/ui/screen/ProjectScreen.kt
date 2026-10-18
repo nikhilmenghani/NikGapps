@@ -9,6 +9,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -47,7 +50,6 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,6 +117,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var appSetView by rememberSaveable(projectId) { mutableStateOf(true) }
+    var debloaterOpen by rememberSaveable(projectId) { mutableStateOf(false) }
     var expandedAppSets by rememberSaveable(projectId) { mutableStateOf(emptyList<String>()) }
     var searchInput by rememberSaveable(projectId, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
@@ -272,7 +275,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     fun save(value: BuildProject) {
         val adjusted = if ((value.selectedAppIds != current.selectedAppIds || value.selectedPackageAppSets != current.selectedPackageAppSets ||
-            value.keepAospCounterparts != current.keepAospCounterparts) && value.configSnapshot == current.configSnapshot)
+            value.keepAospCounterparts != current.keepAospCounterparts || value.debloatTargets != current.debloatTargets) && value.configSnapshot == current.configSnapshot)
             value.copy(configSnapshot = null) else value
         val saved = if ((value.configVersion == null || current.selectedAppIds.isEmpty() || value.configVersion == metadata?.builderAssets?.get(RegistryZipAssembler.CONFIG_TEMPLATE)?.configVersion) && metadata != null) adjusted.withCurrentConfig(requireNotNull(metadata)) else adjusted
         repository.updateProject(saved); project = saved
@@ -347,7 +350,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }
     fun openPackage(id: String) {
         AppDiagnostics.info("navigation", "package_details_opened", mapOf("package" to id))
-        navController.navigate(appConfigRoute(projectId, id))
+        navController.navigate(appConfigRoute(projectId, id)) { launchSingleTop = true }
     }
     fun selectPackages(ids: Set<String>, enabled: Boolean, owner: CatalogAppSet? = null) {
         if (!isOnline) {
@@ -384,6 +387,12 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     fun startBuild() {
         val loaded = metadata ?: return
         if (projectUpdate(current, loaded).kind == ProjectUpdateKind.INCOMPATIBLE) return
+        val validation = runCatching { DebloaterConfig.validate(current.debloatTargets,
+            DebloaterConfig.conflicts(catalogPackages.filter { it.id in current.selectedAppIds }, current.keepAospCounterparts)) }
+        if (validation.isFailure) {
+            Toast.makeText(context, validation.exceptionOrNull()?.message, Toast.LENGTH_LONG).show()
+            return
+        }
         navController.navigate(buildZipRoute(projectId)) { launchSingleTop = true }
     }
 
@@ -494,6 +503,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         return
     }
 
+    DebloaterSettings(current.id, current.name, current.debloatTargets,
+        DebloaterConfig.conflicts(catalogPackages.filter { it.id in current.selectedAppIds }, current.keepAospCounterparts),
+        visible = debloaterOpen, onDismiss = { debloaterOpen = false },
+        onApply = { save(current.copy(debloatTargets = it)) })
+
     Scaffold(topBar = { TopAppBar(title = {
         Text(current.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }, navigationIcon = {
@@ -564,101 +578,69 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(Modifier.widthIn(max = 448.dp).fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .widthIn(max = 448.dp)
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp))
+                        .padding(3.dp)
+                        .selectableGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     listOf(true to "AppSets", false to "Packages").forEach { (grouped, label) ->
                         val active = appSetView == grouped
-                        Surface(onClick = { appSetView = grouped },
-                            modifier = Modifier.weight(1f).semantics { role = Role.Tab; selected = active },
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                            tonalElevation = if (active) 2.dp else 0.dp) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (grouped) Icons.Default.Folder else Icons.Default.Apps, null, Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.dp))
+                        val tabColor by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
+                            animationSpec = tween(180), label = "App view tab background"
+                        )
+                        val tabContentColor by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = tween(180), label = "App view tab text"
+                        )
+                        Surface(
+                            modifier = Modifier.weight(1f).height(40.dp)
+                                .selectable(selected = active, role = Role.Tab, onClick = { appSetView = grouped }),
+                            shape = RoundedCornerShape(10.dp),
+                            color = tabColor,
+                            contentColor = tabContentColor) {
+                            Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
                                 Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             }
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier
-                        .widthIn(max = 448.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (current.selectedAppIds.isEmpty()) {
-                        Surface(onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
-                            "application/x-config", "text/x-config")) },
-                            enabled = !importingConfig && !exportingConfig && isOnline,
-                            modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer, tonalElevation = 2.dp) {
-                            Row(Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.FileUpload, null, Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(if (importingConfig) "Importing…" else "Import config",
-                                    style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                            }
+                ProjectActionDock(
+                    actions = buildList {
+                        if (current.selectedAppIds.isEmpty()) {
+                            add(ProjectDockAction(
+                                if (importingConfig) "Importing…" else "Import config", Icons.Default.FileUpload,
+                                enabled = !importingConfig && !exportingConfig && isOnline,
+                                highlighted = !debloaterOpen,
+                                onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
+                                    "application/x-config", "text/x-config")) }))
+                        } else {
+                            add(ProjectDockAction("Build ZIP", Icons.Default.Inventory2,
+                                highlighted = !debloaterOpen,
+                                onClick = {
+                                    if (!isOnline) Toast.makeText(context,
+                                        "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
+                                    else {
+                                        AppDiagnostics.info("navigation", "build_opened",
+                                            mapOf("project" to projectId.take(8), "selected" to current.selectedAppIds.size))
+                                        startBuild()
+                                    }
+                                }))
+                            add(ProjectDockAction(if (exportingConfig) "Exporting…" else "Export config",
+                                Icons.Default.FileDownload, enabled = !exportingConfig && !importingConfig,
+                                onClick = ::exportConfig))
                         }
-                    } else Surface(
-                        onClick = {
-                            if (!isOnline) {
-                                Toast.makeText(
-                                    context,
-                                    "Internet connection is required before building the ZIP",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            } else {
-                                AppDiagnostics.info(
-                                    "navigation",
-                                    "build_opened",
-                                    mapOf(
-                                        "project" to projectId.take(8),
-                                        "selected" to current.selectedAppIds.size
-                                    )
-                                )
-                                navController.navigate(buildZipRoute(projectId))
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        tonalElevation = 2.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Inventory2, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "Build ZIP · ${current.selectedAppIds.size}",
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                    if (current.selectedAppIds.isNotEmpty()) Surface(onClick = ::exportConfig, enabled = !exportingConfig && !importingConfig,
-                        modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer, tonalElevation = 2.dp) {
-                        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.FileDownload, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (exportingConfig) "Exporting…" else "Export config",
-                                style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                        }
-                    }
-                }
+                        add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
+                            highlighted = debloaterOpen, onClick = { debloaterOpen = true }))
+                    },
+                    modifier = Modifier.widthIn(max = 448.dp).fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
         }
     }) { padding ->

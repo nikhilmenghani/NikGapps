@@ -5,6 +5,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NikGappsConfigImporterTest {
+    @Test fun debloaterSectionRoundTripsLikePythonAndRejectsUnsafeTargets() {
+        val selected = project.copy(selectedAppIds = setOf("gms_core"), selectedPackageAppSets = mapOf("gms_core" to "core"),
+            debloatTargets = listOf("YouTube", "/product/app/SomeApp/SomeApp.apk"))
+        val exported = NikGappsConfigExporter.forProject(template, selected, metadata)
+        assertTrue(exported.contains("${DebloaterConfig.CONFIG_MARKER}\nYouTube\n/product/app/SomeApp/SomeApp.apk\n"))
+        val imported = NikGappsConfigImporter.forProject(exported, template, project, metadata)
+        assertEquals(selected.debloatTargets, imported.debloatTargets)
+        assertEquals(emptyList<String>(), NikGappsConfigImporter.forProject(template, template, selected, metadata).debloatTargets)
+        val unsafe = template + "\n${DebloaterConfig.CONFIG_MARKER}, examples below\n/system\n"
+        assertThrows(IllegalArgumentException::class.java) { NikGappsConfigImporter.forProject(unsafe, template, project, metadata) }
+    }
     private val metadata = RegistryMetadata(
         CatalogParser.parseCatalog(RegistryTestFixtures.catalog("""{"id":"gms_core_extra_files"}""")),
         CatalogParser.parseAppSets(RegistryTestFixtures.appSets()), emptyMap(), null, null, false, 0L)

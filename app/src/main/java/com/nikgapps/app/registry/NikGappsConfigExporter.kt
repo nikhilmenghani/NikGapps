@@ -24,7 +24,11 @@ object NikGappsConfigExporter {
                 kept.getOrPut(set.name) { linkedSetOf() } +=
                     set.legacyPackageNames[pkg.catalogPackage.id] ?: pkg.catalogPackage.name
         }
-        return withInstallerSettings(render(template, project.androidVersion.displayName, selected, kept), project.installerSettings)
+        DebloaterConfig.validate(project.debloatTargets,
+            DebloaterConfig.conflicts(resolution.packages.map { it.catalogPackage }, project.keepAospCounterparts))
+        return DebloaterConfig.withEmbeddedTargets(
+            withInstallerSettings(render(template, project.androidVersion.displayName, selected, kept), project.installerSettings),
+            project.debloatTargets)
     }
 
     fun withInstallerSettings(config: String, settings: Map<String, String>): String {

@@ -9,11 +9,25 @@ fun NavController.navigateWithState(
     launchSingleTop: Boolean = true,
     restoreState: Boolean = true
 ) {
+    val home = this.graph.findStartDestination()
+    if (route == home.route) {
+        // Home is the existing root, not a tab whose saved child stack should
+        // be restored. Restoring it can resurrect projects/package screens.
+        if (currentDestination?.route == route) {
+            popBackStack(home.id, inclusive = false)
+            return
+        }
+        if (popBackStack(home.id, inclusive = false)) return
+        navigate(route) {
+            popUpTo(graph.id) { this.inclusive = false }
+            this.launchSingleTop = true
+            this.restoreState = false
+        }
+        return
+    }
     this.navigate(route) {
-        popUpTo(this@navigateWithState.graph.findStartDestination().id) {
+        popUpTo(home.id) {
             this.saveState = restoreState
-            // Set inclusive to true if we want to store the state on back stack
-            // this will go reverse in navigation upon clicking back as opposed to jumping to Home screen
             this.inclusive = inclusive
         }
         this.launchSingleTop = launchSingleTop

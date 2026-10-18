@@ -28,6 +28,7 @@ fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata, m
         selectedAppIds = selected,
         appSources = sources,
         keepAospCounterparts = project.keepAospCounterparts.intersect(selected),
-        installerSettings = project.installerSettings
+        installerSettings = project.installerSettings,
+        debloatTargets = project.debloatTargets
     ).withCurrentConfig(metadata)
 }

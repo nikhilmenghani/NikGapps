@@ -27,7 +27,8 @@ data class BuildProject(
     val dismissedReleaseId: String? = null,
     val packageDefinitions: Map<String, String> = emptyMap(),
     val configSnapshot: String? = null,
-    val installerSettings: Map<String, String> = emptyMap()
+    val installerSettings: Map<String, String> = emptyMap(),
+    val debloatTargets: List<String> = emptyList()
 )
 
 enum class AppSource(val displayName: String) {
@@ -130,6 +131,9 @@ class BuildProjectRepository(context: Context) {
                     installerSettings = project.optJSONObject("installerSettings")?.let { values ->
                         buildMap { values.keys().forEach { put(it, values.getString(it)) } }
                     }.orEmpty(),
+                    debloatTargets = project.optJSONArray("debloatTargets")?.let { entries ->
+                        List(entries.length()) { entries.getString(it) }
+                    }.orEmpty(),
                     packageDefinitions = project.optJSONObject("packageDefinitions")?.let { values ->
                         buildMap { values.keys().forEach { put(it, values.getString(it)) } }
                     }.orEmpty(),
@@ -179,6 +183,7 @@ class BuildProjectRepository(context: Context) {
                         .put("packageDefinitions", JSONObject(it.packageDefinitions))
                         .put("configSnapshot", it.configSnapshot)
                         .put("installerSettings", JSONObject(it.installerSettings))
+                        .put("debloatTargets", JSONArray(it.debloatTargets))
                         .put("selectedAppIds", JSONArray(it.selectedAppIds.toList()))
                         .put("keepAospCounterparts", JSONArray(it.keepAospCounterparts.toList()))
                         .put(

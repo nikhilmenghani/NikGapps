@@ -2,6 +2,7 @@ package com.nikgapps.app.presentation.navigation
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -256,6 +257,11 @@ fun NavigationHost(
         }
     ) {
         composable(route = Screens.Home.name) {
+            val activity = LocalActivity.current
+            val entry by navController.currentBackStackEntryAsState()
+            // Home is terminal even if an older saved stack contained history
+            // below it. Screen-local dialogs register later and consume Back first.
+            BackHandler(enabled = activity != null && entry?.destination?.route == Screens.Home.name) { activity?.finish() }
             NavigationTab(navController, Screens.Home.name) { HomeScreen(navController = navController) }
         }
         composable(route = Screens.Profile.name) {

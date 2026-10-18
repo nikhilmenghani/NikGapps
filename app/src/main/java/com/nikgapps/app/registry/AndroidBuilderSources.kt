@@ -14,7 +14,8 @@ import okhttp3.Request
 class AndroidBuilderAssetSource(private val context: Context,
     private val builderAssets: Map<String, BuilderAsset>) : BuilderAssetSource {
     override fun assets(): Map<String, ByteArray> = RegistryZipAssembler.REQUIRED_ASSETS
-        .associateWith(::registryAsset)
+        .associateWith(::registryAsset) + (RegistryZipAssembler.DEBLOATER_GUARD to
+            context.resources.openRawResource(com.nikgapps.R.raw.debloater_guard).use { it.readBytes() })
     fun registryAsset(name: String): ByteArray = RegistryCache.withReadLease { synchronized(ASSET_LOCK) { readAsset(name) } }
     private fun readAsset(name: String): ByteArray {
         val metadata = builderAssets[name] ?: error("Missing builder asset metadata for '$name'")

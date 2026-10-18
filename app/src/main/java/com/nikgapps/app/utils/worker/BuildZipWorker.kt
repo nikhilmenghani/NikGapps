@@ -95,6 +95,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val resolution = CatalogResolver(metadata.catalog, metadata.appSets, metadata.release).resolveAcrossAppSets(
                 selections, defaultChannel, overrides, project.androidVersion.apiLevel, project.architecture.value)
             val packageTotal = resolution.packages.size
+            DebloaterConfig.validate(project.debloatTargets,
+                DebloaterConfig.conflicts(resolution.packages.map { it.catalogPackage }, project.keepAospCounterparts))
             StoragePreflight.check(applicationContext.cacheDir, resolution.packages.map { it.version.artifact.size })
             var completed = 0
             val artifacts = mutableListOf<ValidatedArtifact>()
@@ -129,6 +131,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id, compressionLevel = compressionLevel,
                     keepAospCounterparts = project.keepAospCounterparts, installerSettings = project.installerSettings,
+                    debloatTargets = project.debloatTargets,
                     packageDefinitions = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.packageDefinitions.orEmpty().filterKeys { it in project.selectedAppIds },
                     filenameTimestamp = verifiedZipFilenameTimestamp()
                 ), artifacts)

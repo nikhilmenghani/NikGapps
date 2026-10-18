@@ -451,7 +451,7 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onOpen = {
                             AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
-                            navController.navigate(projectRoute(project.id))
+                            navController.navigate(projectRoute(project.id)) { launchSingleTop = true }
                         },
                         onBuild = {
                             if (isOnline && unavailableByProject[project.id]?.isEmpty() == true && updatesByProject[project.id]?.kind != ProjectUpdateKind.INCOMPATIBLE)
@@ -523,7 +523,7 @@ fun HomeScreen(navController: NavHostController) {
                     "architecture" to project.architecture.value
                 ))
                 showCreateProject = false
-                navController.navigate(projectRoute(project.id))
+                navController.navigate(projectRoute(project.id)) { launchSingleTop = true }
             }
         )
     }

@@ -16,7 +16,8 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val packageAppSets: Map<String, CatalogAppSet> = emptyMap(), val projectName: String? = null,
     val releaseId: String? = null, val compressionLevel: Int = 0,
     val keepAospCounterparts: Set<String> = emptySet(), val filenameTimestamp: Instant? = null,
-    val packageDefinitions: Map<String, String> = emptyMap(), val installerSettings: Map<String, String> = emptyMap())
+    val packageDefinitions: Map<String, String> = emptyMap(), val installerSettings: Map<String, String> = emptyMap(),
+    val debloatTargets: List<String> = emptyList())
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -26,6 +27,9 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     fun build(outputDirectory: File, request: BuildRequest, artifacts: List<ValidatedArtifact>): File {
         require(artifacts.isNotEmpty()) { "No resolved packages" }
         require(request.compressionLevel in 0..9) { "Invalid compression level" }
+        DebloaterConfig.validate(request.debloatTargets,
+            DebloaterConfig.conflicts(artifacts.map { it.resolved.catalogPackage }, request.keepAospCounterparts) +
+                artifacts.flatMap { listOfNotNull(it.descriptor.install?.packageTitle, it.descriptor.install?.title) })
         val expected = artifacts.map { it.resolved.catalogPackage.id }
         require(expected.distinct().size == expected.size) { "Duplicate resolved package" }
         val date = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC)
@@ -52,8 +56,18 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 if (request.compressionLevel > 0) finalZip.setLevel(request.compressionLevel)
                 val assets = assetSource.assets()
                 REQUIRED_ASSETS.forEach { require(assets.containsKey(it)) { "Missing builder asset '$it'" } }
-                assets.filterKeys { !it.startsWith("@template/") }.toSortedMap()
+                assets.filterKeys { !it.startsWith("@template/") && it !in setOf(
+                    "afzc/debloater.config", "common/debloater_guard.sh", "common/debloater_protected.txt") }.toSortedMap()
                     .forEach { (path, bytes) -> finalZip.bytes(path, bytes) }
+                finalZip.text("afzc/debloater.config", DebloaterConfig.render(request.debloatTargets))
+                assets[DEBLOATER_GUARD]?.let { finalZip.text("common/debloater_guard.sh", it.decodeToString().replace("\r\n", "\n")) }
+                finalZip.text("common/debloater_protected.txt", DebloaterConfig.conflicts(
+                    artifacts.map { it.resolved.catalogPackage }, request.keepAospCounterparts)
+                    .plus(artifacts.flatMap { listOfNotNull(it.descriptor.install?.packageTitle, it.descriptor.install?.title) })
+                    .filter { it.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,79}")) }.sorted().joinToString("\n", postfix = "\n"))
+                if (request.debloatTargets.isNotEmpty()) {
+                    require(assets.containsKey(DEBLOATER_GUARD)) { "Missing safe debloater installer asset" }
+                }
                 val packageSizes = StringBuilder()
                 val packageRows = linkedMapOf<String, MutableList<Triple<String, Long, String>>>()
                 artifacts.forEach { artifact ->
@@ -74,8 +88,18 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 finalZip.text("common/install.sh", finalInstaller(packageRows))
                 finalZip.text("afzc/nikgapps.config", config(
                     request, artifacts, assets.getValue(CONFIG_TEMPLATE).decodeToString()))
-                finalZip.text("customize.sh", "actual_file_name=${output.nameWithoutExtension}\n" +
-                    assets.getValue(CUSTOMIZE_TEMPLATE).decodeToString())
+                var customize = assets.getValue(CUSTOMIZE_TEMPLATE).decodeToString()
+                if (request.debloatTargets.isNotEmpty() && !customize.contains(". \"\$COMMONDIR/debloater_guard.sh\"")) {
+                    val call = Regex("(?m)^([ \\t]*)debloat[ \\t]*$")
+                    require(call.findAll(customize).count() == 1) { "Unsupported installer debloater entry point" }
+                    customize = call.replace(customize) {
+                        "${it.groupValues[1]}unpack \"common/debloater_guard.sh\" \"\$COMMONDIR/debloater_guard.sh\"\n" +
+                        "${it.groupValues[1]}unpack \"common/debloater_protected.txt\" \"\$COMMONDIR/debloater_protected.txt\"\n" +
+                        "${it.groupValues[1]}. \"\$COMMONDIR/debloater_guard.sh\" || abort \"Cannot load safe debloater\"\n" +
+                        "${it.groupValues[1]}[ \"\$NG_SAFE_DEBLOATER\" = 1 ] || abort \"Safe debloater unavailable\"\n${it.value}"
+                    }
+                }
+                finalZip.text("customize.sh", "actual_file_name=${output.nameWithoutExtension}\n" + customize)
                 finalZip.text("nikgapps/build-manifest.json", manifest(request, artifacts))
                 finalZip.text("zip_name.txt", output.nameWithoutExtension)
                 finalZip.text("creator.txt", "Created by Nikhil Menghani".padStart(32).padEnd(38))
@@ -124,11 +148,13 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 kept.getOrPut(set.name) { linkedSetOf() } +=
                     set.legacyPackageNames[artifact.resolved.catalogPackage.id] ?: artifact.resolved.catalogPackage.name
         }
-        return NikGappsConfigExporter.withInstallerSettings(NikGappsConfigExporter.render(template, r.androidVersion, selected, kept), r.installerSettings)
+        return DebloaterConfig.withEmbeddedTargets(NikGappsConfigExporter.withInstallerSettings(
+            NikGappsConfigExporter.render(template, r.androidVersion, selected, kept), r.installerSettings), r.debloatTargets)
     }
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
         put("compressionLevel", r.compressionLevel)
+        put("debloatTargets", buildJsonArray { r.debloatTargets.forEach { add(it) } })
         r.releaseId?.let { put("releaseId", it) }
         put("packageDefinitions", buildJsonObject { r.packageDefinitions.forEach { (id, digest) -> put(id, digest) } })
         put("androidVersion", r.androidVersion); put("androidApi", r.api); put("architecture", r.architecture)
@@ -147,6 +173,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     companion object {
         const val CONFIG_TEMPLATE = "@template/nikgapps.config"
         const val CUSTOMIZE_TEMPLATE = "@template/customize.sh"
+        const val DEBLOATER_GUARD = "@template/debloater_guard.sh"
         val REQUIRED_ASSETS = setOf(
             "META-INF/com/google/android/update-binary", "afzc/debloater.config", "changelog.yaml",
             "common/functions.sh", "common/nikgapps_functions.sh", "common/addon.sh", "common/header.sh",

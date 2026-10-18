@@ -12,7 +12,7 @@ object NikGappsConfigImporter {
         val entries = mutableListOf<Entry>()
         var packageSection = false
         var group: String? = null
-        text.removePrefix("\uFEFF").lineSequence().forEach { original ->
+        DebloaterConfig.configWithoutTargets(text.removePrefix("\uFEFF")).lineSequence().forEach { original ->
             val line = original.trim()
             if (line.startsWith("# Following are the packages")) packageSection = true
             if (line.isEmpty() || line.startsWith('#')) return@forEach
@@ -90,7 +90,10 @@ object NikGappsConfigImporter {
         require(owners.keys.all { id -> resolution.packages.any { it.catalogPackage.id == id } }) {
             "Config selects a dependency without its parent package"
         }
+        val debloat = DebloaterConfig.validate(DebloaterConfig.embeddedTargets(text),
+            DebloaterConfig.conflicts(resolution.packages.map { it.catalogPackage }, kept))
         return project.withCurrentConfig(metadata).copy(configVersion = version, configSnapshot = text, installerSettings = settings, selectedAppIds = selectedOwners.keys.toSet(), selectedPackageAppSets = selectedOwners,
-            keepAospCounterparts = kept, appSources = project.appSources.filterKeys { it in selectedOwners }).withCurrentConfig(metadata)
+            keepAospCounterparts = kept, debloatTargets = debloat,
+            appSources = project.appSources.filterKeys { it in selectedOwners }).withCurrentConfig(metadata)
     }
 }
