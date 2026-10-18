@@ -7,6 +7,12 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import com.nikgapps.app.utils.managers.prefMutableState
 
 object DisplayPrefs {
+    var useRadialProjectMenu by prefMutableState(
+        keyName = "useRadialProjectMenu",
+        defaultValue = true,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
     var theme by prefMutableState(
         keyName = "theme",
         defaultValue = ThemePreference.SYSTEM.ordinal,

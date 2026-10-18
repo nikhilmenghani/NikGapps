@@ -27,6 +27,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
 import kotlin.math.roundToInt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.layout.Spacer
@@ -70,8 +72,6 @@ import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -176,6 +176,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val isOnline = LocalInternetAvailable.current
+    var projectMenuId by remember { mutableStateOf<String?>(null) }
+    val projectMenuVisible = projectMenuId != null
     val context = LocalActivity.current as MainActivity
     val workManager = WorkManager.getInstance(context)
     val currentVersion = remember { getCurrentVersion(context) }
@@ -360,7 +362,12 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection)
+            .blur(if (projectMenuVisible) 6.dp else 0.dp)
+            .drawWithContent {
+                drawContent()
+                if (projectMenuVisible) drawRect(Color.Black.copy(alpha = .20f))
+            },
         topBar = {
             TopAppBar(
                 title = {
@@ -432,6 +439,10 @@ fun HomeScreen(navController: NavHostController) {
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
+                        onMenuVisibilityChanged = { visible ->
+                            if (visible) projectMenuId = project.id
+                            else if (projectMenuId == project.id) projectMenuId = null
+                        },
                         unavailable = unavailableByProject[project.id],
                         update = updatesByProject[project.id],
                         onDismissUpdate = { releaseId -> projects = projectRepository.mutateProject(project.id) { it.copy(
@@ -634,6 +645,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 @Composable
 private fun ProjectCard(
     project: BuildProject,
+    onMenuVisibilityChanged: (Boolean) -> Unit,
     unavailable: Set<String>?,
     update: ProjectUpdate?,
     onDismissUpdate: (String) -> Unit,
@@ -683,10 +695,16 @@ private fun ProjectCard(
         }
     }
     var showProjectMenu by remember { mutableStateOf(false) }
+    val useRadialMenu = com.nikgapps.app.data.DisplayPrefs.useRadialProjectMenu
+    LaunchedEffect(showProjectMenu, useRadialMenu) {
+        onMenuVisibilityChanged(showProjectMenu && useRadialMenu)
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { onMenuVisibilityChanged(false) }
+    }
     var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
     val canBuild = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated
-    val buildLabel = if (update?.kind == ProjectUpdateKind.AVAILABLE) "Build latest ZIP" else "Create ZIP"
     val hasBadge = outdated || update?.kind == ProjectUpdateKind.AVAILABLE
     var badgeHeight by remember { mutableStateOf(0) }
     val badgeInset = with(LocalDensity.current) { (badgeHeight / 2f).toDp() }
@@ -794,62 +812,32 @@ private fun ProjectCard(
             }
         }
         Box(Modifier.absoluteOffset { IntOffset(menuTouch.x.roundToInt(), menuTouch.y.roundToInt()) }.size(0.dp)) {
-        DropdownMenu(
-            expanded = showProjectMenu,
-            onDismissRequest = { showProjectMenu = false },
-            shape = RoundedCornerShape(12.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ) {
-            ProjectMenuItem(if (outdated) "Review project" else "Open project", Icons.Default.FolderOpen,
-                onClick = { showProjectMenu = false; onOpen() })
-            if (canBuild) ProjectMenuItem(buildLabel, Icons.Default.Inventory2,
-                onClick = { showProjectMenu = false; onBuild() })
+        if (showProjectMenu) ProjectContextMenu(project.name, buildList {
+            add(ProjectRadialAction(if (outdated) "Review project" else "Open project", Icons.Default.FolderOpen,
+                compactLabel = if (outdated) "Review" else "Open",
+                onClick = onOpen))
+            if (canBuild) add(ProjectRadialAction(if (update?.kind == ProjectUpdateKind.AVAILABLE) "Build latest ZIP" else "Create ZIP", Icons.Default.Inventory2,
+                compactLabel = "Build\nZIP",
+                onClick = onBuild))
             onShareZip?.let { share ->
-                ProjectMenuItem("Share ZIP", Icons.Default.Share, onClick = { showProjectMenu = false; share() })
+                add(ProjectRadialAction("Share ZIP", Icons.Default.Share, compactLabel = "Share\nZIP", onClick = share))
             }
-            if (outdated) ProjectMenuItem("Export config", Icons.Default.ContentCopy,
-                onClick = { showProjectMenu = false; onExport() })
+            if (outdated) add(ProjectRadialAction("Export config", Icons.Default.ContentCopy, compactLabel = "Export\nconfig",
+                onClick = onExport))
             if (update?.kind == ProjectUpdateKind.AVAILABLE) {
-                ProjectMenuItem("Dismiss this update", Icons.Default.Close,
-                    onClick = { showProjectMenu = false; dismissalReleaseId = update.releaseId; dismissUpdate = true })
+                add(ProjectRadialAction("Dismiss this update", Icons.Default.Close, compactLabel = "Dismiss\nupdate",
+                    onClick = { dismissalReleaseId = update.releaseId; dismissUpdate = true }))
             }
-            HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-            ProjectMenuItem(
-                label = "Copy project", icon = Icons.Default.ContentCopy,
-                enabled = !outdated,
-                onClick = {
-                    showProjectMenu = false
-                    onDuplicate()
-                }
-            )
-            ProjectMenuItem(
-                label = "Edit project", icon = Icons.Default.Edit,
-                enabled = unavailable?.isEmpty() == true && !outdated,
-                onClick = {
-                    showProjectMenu = false
-                    onEdit()
-                }
-            )
-            ProjectMenuItem("Delete project", Icons.Default.Delete, destructive = true,
-                onClick = { showProjectMenu = false; onDelete() })
-        }
+            add(ProjectRadialAction("Copy project", Icons.Default.ContentCopy, compactLabel = "Copy",
+                enabled = !outdated, onClick = onDuplicate))
+            add(ProjectRadialAction("Edit project", Icons.Default.Edit, compactLabel = "Edit",
+                enabled = unavailable?.isEmpty() == true && !outdated, onClick = onEdit))
+            add(ProjectRadialAction("Delete project", Icons.Default.Delete, destructive = true, compactLabel = "Delete",
+                onClick = onDelete))
+        }, useRadial = useRadialMenu,
+            onDismiss = { showProjectMenu = false })
         }
     }
-}
-
-@Composable
-private fun ProjectMenuItem(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    destructive: Boolean = false
-) {
-    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    DropdownMenuItem(text = { Text(label, color = if (enabled) color else color.copy(alpha = 0.38f)) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = if (enabled) color else color.copy(alpha = 0.38f)) },
-        onClick = onClick, enabled = enabled, contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp).clip(RoundedCornerShape(9.dp)))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1144,22 +1132,12 @@ private fun ProjectSheet(
                     Text("Package configuration · Optional", style = MaterialTheme.typography.labelLarge)
                     Text("Load a config to preselect packages, or create an empty project.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(onClick = { keyboard?.hide(); configImport.launch(arrayOf("*/*")) },
-                            enabled = !savingProject && !loadingConfig && !selectableVersions.isNullOrEmpty(),
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
-                            Icon(Icons.Default.FileUpload, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (loadingConfig) "Validating…" else if (configAttempted) "Replace config" else "Load config",
-                                style = MaterialTheme.typography.labelLarge)
-                        }
-                        if (configAttempted) OutlinedButton(onClick = {
+                    if (configAttempted) OutlinedButton(onClick = {
                             configAttempted = false; validatedConfig = null; importError = null
                         }, enabled = !loadingConfig && !savingProject, shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
-                    }
                     if (configAttempted || importError != null) Surface(shape = RoundedCornerShape(16.dp),
                         color = if (importError != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = if (importError != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface) {
@@ -1177,15 +1155,26 @@ private fun ProjectSheet(
                     }
                 }
             }
-            Button(
-                onClick = ::saveProject,
-                enabled = !savingProject && !loadingConfig && (!configAttempted || (validatedConfig != null && importError == null))
-                    && name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(if (savingProject) "Creating project…" else if (project == null) "Create project" else "Save changes",
-                    style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (project == null) FilledTonalButton(
+                    onClick = { keyboard?.hide(); configImport.launch(arrayOf("*/*")) },
+                    enabled = !savingProject && !loadingConfig && !selectableVersions.isNullOrEmpty(),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (loadingConfig) "Validating…" else if (configAttempted) "Replace config" else "Load config",
+                        style = MaterialTheme.typography.labelLarge)
+                }
+                Button(
+                    onClick = ::saveProject,
+                    enabled = !savingProject && !loadingConfig && (!configAttempted || (validatedConfig != null && importError == null))
+                        && name.isNotBlank() && !selectableVersions.isNullOrEmpty(),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (savingProject) "Creating project…" else if (project == null) "Create project" else "Save changes",
+                        style = MaterialTheme.typography.labelLarge)
+                }
             }
                     }
                 }

@@ -69,6 +69,14 @@ fun AppearancePreferences() {
             title = stringResource(R.string.settings_appearance),
             initiallyExpanded = true
         ) {
+            PreferenceSubtitle(text = "Project actions")
+            PreferenceItem(
+                label = "Radial project menu",
+                supportingText = "Use circular actions when holding a project. Turn off for the list menu.",
+                icon = Icons.Outlined.AppSettingsAlt,
+                switchState = preferences.useRadialProjectMenu,
+                onSwitchChange = { preferences.useRadialProjectMenu = it }
+            )
             PreferenceSubtitle(text = stringResource(R.string.settings_colors_and_theme))
             PreferenceItem(
                 label = stringResource(R.string.use_dynamic_color),
