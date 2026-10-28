@@ -106,6 +106,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import com.nikgapps.app.registry.initialProjectDisplayOrder
+import com.nikgapps.app.registry.projectsInDisplayOrder
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.nikgapps.app.presentation.navigation.CREATE_PROJECT_REQUEST
 import androidx.compose.runtime.LaunchedEffect
@@ -246,6 +248,7 @@ fun HomeScreen(navController: NavHostController) {
     var metadataByProject by remember { mutableStateOf<Map<String, RegistryMetadata>>(emptyMap()) }
     var updatesByProject by remember { mutableStateOf<Map<String, ProjectUpdate>>(emptyMap()) }
     var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+    var projectDisplayOrder by remember { mutableStateOf<List<String>?>(null) }
     var isElite by remember { mutableStateOf(false) }
     val projectScope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -286,6 +289,9 @@ fun HomeScreen(navController: NavHostController) {
             updatesByProject = updates.toMap()
             metadataByProject = checkedMetadata.toMap()
         }
+        fun initializeOrder() {
+            if (projectDisplayOrder == null) projectDisplayOrder = initialProjectDisplayOrder(projects, results, updates)
+        }
         val grouped = projects.groupBy { Triple(catalogAndroidVersion(it.androidVersion.displayName), it.defaultChannel, it.architecture.value) }
         // Show saved status even offline, before any network requests start.
         grouped.forEach { (target, savedProjects) ->
@@ -294,6 +300,8 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
         publish()
+        // Never expose the unsorted saved list while compatibility is still unknown.
+        if (checkedMetadata.size == projects.size || !isOnline) initializeOrder()
         if (!isOnline) return@LaunchedEffect
         grouped.forEach { (target, savedProjects) ->
             try {
@@ -304,6 +312,7 @@ fun HomeScreen(navController: NavHostController) {
             } catch (cancelled: CancellationException) { throw cancelled }
               catch (_: Exception) { /* Keep the last known status if refresh fails. */ }
         }
+        initializeOrder() // Also unblock missing-cache and failed-refresh cases.
     }
 
     LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
@@ -440,12 +449,14 @@ fun HomeScreen(navController: NavHostController) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
                 RegistryReleaseBanner(isOnline, projects)
                 ProjectsHeader()
-            LazyColumn(
+            if (projectDisplayOrder == null) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            } else LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(projects.sortedBy { unavailableByProject[it.id]?.isNotEmpty() == true }, key = { it.id }) { project ->
+                items(projectsInDisplayOrder(projects, projectDisplayOrder.orEmpty()), key = { it.id }) { project ->
                     val latestBuild = latestBuildRepository.get(project.id)
                     ProjectCard(
                         project = project,
@@ -589,7 +600,7 @@ fun HomeScreen(navController: NavHostController) {
 private fun ProjectsHeader() {
     Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween) {
+        horizontalArrangement = Arrangement.Center) {
         Text("Projects", style = MaterialTheme.typography.headlineLarge)
     }
 }
