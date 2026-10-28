@@ -1,10 +1,10 @@
 name: Android verification
 on:
   pull_request:
-    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', 'dev.txt', 'release.txt', '.github/workflows/android_checks.yml']
+    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', '.github/workflows/android_checks.yml']
   push:
     branches: [main]
-    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', 'dev.txt', 'release.txt', '.github/workflows/android_checks.yml']
+    paths: ['app/**', 'gradle/**', '*.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat', '.github/workflows/android_checks.yml']
   workflow_dispatch:
 permissions:
   contents: read
