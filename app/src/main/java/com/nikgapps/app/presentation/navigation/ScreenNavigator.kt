@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -76,7 +78,6 @@ data class NavItem(
 
 val listOfNavItems = buildList {
     add(NavItem("Home", Icons.Default.Home, Screens.Home.name))
-    add(NavItem("Logs", Icons.Default.Terminal, Screens.Logs.name))
 }
 
 enum class Screens {
@@ -184,7 +185,7 @@ fun ScreenNavigator(
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController, selectedRoute: String) {
+fun BottomNavigationBar(navController: NavHostController, selectedRoute: String, onShowInfo: () -> Unit) {
         Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Row(Modifier.fillMaxWidth().padding(4.dp)
                 .animateContentSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -193,6 +194,14 @@ fun BottomNavigationBar(navController: NavHostController, selectedRoute: String)
                     ExpressiveNavigationItem(navItem, selected, {
                         if (!selected) navController.navigateWithState(route = navItem.route)
                     }, if (selected) Modifier.weight(1f) else Modifier.width(56.dp))
+                }
+                Surface(onClick = onShowInfo,
+                    modifier = Modifier.width(56.dp).semantics { role = Role.Button },
+                    shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
+                    Box(Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Info, "Discover NikGapps features", Modifier.size(22.dp))
+                    }
                 }
             }
         }
@@ -222,14 +231,18 @@ private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable
 /** Keep each destination's insets stable while its entire screen transitions. */
 @Composable
 private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
+    var showFeatureGuide by rememberSaveable { mutableStateOf(false) }
     Scaffold(bottomBar = {
         ScreenBottomBar(onCreateProject = {
             if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
             navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
-        }) { BottomNavigationBar(navController, route) }
+        }) { BottomNavigationBar(navController, route, onShowInfo = { showFeatureGuide = true }) }
     },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) { content() }
+    }
+    if (showFeatureGuide) com.nikgapps.app.presentation.ui.component.AppFeatureGuideDialog {
+        showFeatureGuide = false
     }
 }
 
@@ -302,7 +315,7 @@ fun NavigationHost(
             SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(route = Screens.Logs.name) {
-            NavigationTab(navController, Screens.Logs.name) { LogsScreen() }
+            LogsScreen(onBack = { navController.popBackStack() })
         }
         composable(route = Screens.Requests.name) {
             NavigationTab(navController, Screens.Requests.name) { PullRequestsScreen() }

@@ -11,11 +11,13 @@ object EliteMembershipRepository {
         "https://raw.githubusercontent.com/nikgapps/tracker/refs/heads/main/folder_access.json"
 
     suspend fun isElite(username: String): Boolean {
+        if (com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled) return false
         if (username.isBlank()) return false
         val request = Request.Builder().url(MEMBERS_URL).header("Cache-Control", "no-cache").build()
         NetworkClient.executeRequest(request).use { response ->
             if (!response.isSuccessful) error("Unable to load Elite membership (${response.code})")
-            return username.trim().lowercase() in parseUsernames(response.body.string())
+            return username.trim().lowercase() in parseUsernames(response.body.string()) &&
+                !com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
         }
     }
 

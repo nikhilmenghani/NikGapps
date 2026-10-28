@@ -144,8 +144,12 @@ class BuildProjectRepository(context: Context) {
         }.getOrElse { preserveRecovery(json); emptyList() }
     }
 
-    fun addProject(project: BuildProject): List<BuildProject> {
-        return synchronized(WRITE_LOCK) { saveProjects(getProjects() + project) }
+    fun addProject(project: BuildProject, elite: Boolean = false): List<BuildProject> {
+        return synchronized(WRITE_LOCK) {
+            val existing = getProjects()
+            requireProjectCapacity(existing.size, elite)
+            saveProjects(existing + project)
+        }
     }
 
     fun updateProject(project: BuildProject): List<BuildProject> = mutateProject(project.id) { project }

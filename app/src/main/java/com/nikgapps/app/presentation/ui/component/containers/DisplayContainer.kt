@@ -125,6 +125,13 @@ fun AdvancedPreferences() {
             if (developerPreference.developerOptionsEnabled) {
                 PreferenceSubtitle(text = "Developer options")
                 PreferenceItem(
+                    label = "Preview non-Elite account",
+                    supportingText = "Hide the Elite badge and use regular-account limits on this device. Your membership and saved projects stay unchanged.",
+                    icon = Icons.Outlined.AccountCircle,
+                    switchState = developerPreference.previewNonElite,
+                    onSwitchChange = { developerPreference.previewNonElite = it }
+                )
+                PreferenceItem(
                     label = "Allow guest mode",
                     supportingText = "Show Continue as guest on the sign-in screen. Normal build limits apply.",
                     icon = Icons.Outlined.AccountCircle,
@@ -189,11 +196,10 @@ fun AdvancedPreferences() {
                 )
                 PreferenceItem(
                     label = "Hide developer options",
-                    supportingText = "Tap the app version fourteen times to enable them again",
+                    supportingText = "Restore developer settings to defaults. Tap the app version 28 times to enable them again.",
                     icon = Icons.Outlined.Android,
                     onClick = {
-                        developerPreference.allowUnsupportedAndroidVersions = false
-                        developerPreference.developerOptionsEnabled = false
+                        developerPreference.hideDeveloperOptions()
                     }
                 )
 

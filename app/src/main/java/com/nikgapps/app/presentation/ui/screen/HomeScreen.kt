@@ -69,6 +69,12 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.nikgapps.app.data.canCreateProject
+import com.nikgapps.app.data.ProjectLimitReachedException
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
@@ -195,7 +201,7 @@ fun HomeScreen(navController: NavHostController) {
     var isDownloading by remember { mutableStateOf(false) }
     var updateChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     var showUpdateChangelog by remember { mutableStateOf(false) }
-    var showFeatureGuide by remember { mutableStateOf(false) }
+    var showMoreOptions by remember { mutableStateOf(false) }
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -237,19 +243,24 @@ fun HomeScreen(navController: NavHostController) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val homeEntry = remember(navController, currentBackStackEntry) { navController.getBackStackEntry(Screens.Home.name) }
     val createRequested by homeEntry.savedStateHandle.getStateFlow(CREATE_PROJECT_REQUEST, false).collectAsState()
-    LaunchedEffect(createRequested) {
-        if (createRequested) {
-            showCreateProject = true
-            homeEntry.savedStateHandle[CREATE_PROJECT_REQUEST] = false
-        }
-    }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
     var metadataByProject by remember { mutableStateOf<Map<String, RegistryMetadata>>(emptyMap()) }
     var updatesByProject by remember { mutableStateOf<Map<String, ProjectUpdate>>(emptyMap()) }
     var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var projectDisplayOrder by remember { mutableStateOf<List<String>?>(null) }
-    var isElite by remember { mutableStateOf(false) }
+    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
+    var isElite by remember(previewNonElite) { mutableStateOf(false) }
+    var eliteMembershipResolved by remember(previewNonElite) { mutableStateOf(false) }
+    var showProjectLimit by remember { mutableStateOf(false) }
+    var showEliteFeatures by remember { mutableStateOf(false) }
+    LaunchedEffect(createRequested, eliteMembershipResolved) {
+        if (createRequested && eliteMembershipResolved) {
+            homeEntry.savedStateHandle[CREATE_PROJECT_REQUEST] = false
+            if (canCreateProject(projectRepository.getProjects().size, isElite)) showCreateProject = true
+            else showProjectLimit = true
+        }
+    }
     val projectScope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
     var pendingExport by remember { mutableStateOf<String?>(null) }
@@ -327,8 +338,10 @@ fun HomeScreen(navController: NavHostController) {
         }
     }
 
-    LaunchedEffect(GithubPrefs.username, isOnline) {
+    LaunchedEffect(GithubPrefs.username, isOnline, previewNonElite) {
         isElite = false
+        eliteMembershipResolved = false
+        try {
         if (isOnline && GithubPrefs.username.isNotBlank()) {
             try {
                 isElite = EliteMembershipRepository.isElite(GithubPrefs.username)
@@ -338,6 +351,7 @@ fun HomeScreen(navController: NavHostController) {
                 // Do not show an unverified badge when the tracker cannot be reached.
             }
         }
+        } finally { eliteMembershipResolved = true }
     }
 
     LaunchedEffect(Unit) {
@@ -422,15 +436,23 @@ fun HomeScreen(navController: NavHostController) {
                     IconButton(onClick = context::restartActivity) {
                         Icon(Icons.Default.Refresh, contentDescription = "Restart")
                     }
-                    IconButton(onClick = { showFeatureGuide = true }) {
-                        Icon(Icons.Default.Info, contentDescription = "Discover NikGapps features")
-                    }
-                    IconButton(
-                        onClick = {
-                            navController.navigateWithState(Screens.Settings.name)
+                    Box {
+                        IconButton(onClick = { showMoreOptions = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
                         }
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
+                            shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                            DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) },
+                                onClick = {
+                                    showMoreOptions = false
+                                    navController.navigate(Screens.Settings.name) { launchSingleTop = true }
+                                })
+                            DropdownMenuItem(text = { Text("Logs") }, leadingIcon = { Icon(Icons.Default.Terminal, null) },
+                                onClick = {
+                                    showMoreOptions = false
+                                    navController.navigate(Screens.Logs.name) { launchSingleTop = true }
+                                })
+                        }
                     }
                 },
                 scrollBehavior = topBarScrollBehavior
@@ -496,19 +518,26 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onShareZip = latestBuild?.let { saved -> { context.sharePublishedZip(saved) } },
                         onDuplicate = {
+                            if (!eliteMembershipResolved || !canCreateProject(projectRepository.getProjects().size, isElite)) {
+                                if (eliteMembershipResolved) showProjectLimit = true
+                                else Toast.makeText(context, "Checking Elite membership; try again shortly", Toast.LENGTH_SHORT).show()
+                                return@ProjectCard
+                            }
                             if (updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) {
                                 Toast.makeText(context, "Export this config and recreate the project using Import config.", Toast.LENGTH_LONG).show()
                                 return@ProjectCard
                             }
                             projectScope.launch {
                                 runCatching {
-                                    catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
+                                    val metadata = catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
                                         project.defaultChannel, project.architecture.value)
-                                }.onSuccess { metadata ->
-                                    projects = projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)))
+                                    projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)), isElite)
+                                }.onSuccess { savedProjects ->
+                                    projects = savedProjects
                                     AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
                                 }.onFailure {
-                                    Toast.makeText(context, "Cannot check the latest package list; try again online",
+                                    if (it is ProjectLimitReachedException) showProjectLimit = true
+                                    else Toast.makeText(context, "Cannot check the latest package list; try again online",
                                         Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -536,15 +565,38 @@ fun HomeScreen(navController: NavHostController) {
             onUpdate = ::downloadUpdate
         )
     }
-    if (showFeatureGuide) com.nikgapps.app.presentation.ui.component.AppFeatureGuideDialog {
-        showFeatureGuide = false
+
+    if (showProjectLimit) Dialog(onDismissRequest = { showProjectLimit = false }) {
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+            Column {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Project limit reached", style = MaterialTheme.typography.titleLarge)
+                    Text("Regular accounts can keep up to 5 projects, including copies and outdated projects. Delete a project or upgrade to Elite to create more. Your existing projects are kept.",
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { showProjectLimit = false },
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("Close") }
+                    FilledTonalButton(onClick = { showProjectLimit = false; showEliteFeatures = true },
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("Elite features") }
+                }
+            }
+        }
+    }
+    if (showEliteFeatures) com.nikgapps.app.presentation.ui.component.EliteFeaturesDialog(isElite) {
+        showEliteFeatures = false
     }
 
     if (showCreateProject) {
         ProjectSheet(
             onDismiss = { showCreateProject = false },
             onSave = { project ->
-                projects = projectRepository.addProject(project)
+                try { projects = projectRepository.addProject(project, isElite) }
+                catch (_: ProjectLimitReachedException) {
+                    showProjectLimit = true
+                    return@ProjectSheet
+                }
                 AppDiagnostics.info("project", "created", mapOf(
                     "project" to project.id.take(8),
                     "android" to project.androidVersion.displayName,
@@ -888,8 +940,9 @@ private fun ProjectSheet(
     val keyboard = LocalSoftwareKeyboardController.current
     var sheetVisible by remember { mutableStateOf(false) }
     var name by remember(project) { mutableStateOf(project?.name.orEmpty()) }
-    var eliteNameLimit by remember(GithubPrefs.username) { mutableStateOf(false) }
-    LaunchedEffect(GithubPrefs.username) {
+    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
+    var eliteNameLimit by remember(GithubPrefs.username, previewNonElite) { mutableStateOf(false) }
+    LaunchedEffect(GithubPrefs.username, previewNonElite) {
         eliteNameLimit = try { EliteMembershipRepository.isElite(GithubPrefs.username) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { false }

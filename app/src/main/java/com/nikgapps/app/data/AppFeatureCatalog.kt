@@ -6,6 +6,7 @@ data class AppFeaturePage(val title: String, val description: String, val featur
 /** Add features and pages here; the guide renders them without UI changes. */
 object AppFeatureCatalog {
     val eliteFeatures = listOf(
+        AppFeature("Unlimited projects", "Create more than five projects", "Regular accounts can keep up to five projects, including copies and outdated projects. Elite accounts have no project-count limit. Existing projects are preserved if membership changes.", true),
         AppFeature("Elite badge", "Recognition on your dashboard", "Sign in with an eligible GitHub account to see your Elite badge.", true),
         AppFeature("Extra builds", "Add six builds to your remaining allowance", "Use Reset build window on the project screen. Your remaining allowance plus six starts a new six-hour window. Available once per six-hour window.", true),
         AppFeature("Compression control", "Choose ZIP compression levels 1–9", "Enable compressed builds in Settings → System, then choose a compression level. Higher levels prioritize smaller files over build speed.", true),

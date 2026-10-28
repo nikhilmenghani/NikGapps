@@ -39,28 +39,64 @@ object DisplayPrefs {
 
     val guestAccessEnabled: Boolean get() = developerOptionsEnabled && allowGuestAccess
 
-    var allowUnsupportedAndroidVersions by prefMutableState(
+    var previewNonElite by prefMutableState(
+        keyName = "previewNonElite",
+        defaultValue = false,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
+    val nonElitePreviewEnabled: Boolean
+        get() = nonElitePreviewEnabled(developerOptionsEnabled, previewNonElite)
+
+    private var storedAllowUnsupportedAndroidVersions by prefMutableState(
         keyName = "allowUnsupportedAndroidVersions",
         defaultValue = false,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var biometricLockEnabled by prefMutableState(
+    private var storedBiometricLockEnabled by prefMutableState(
         keyName = "biometricLockEnabled",
         defaultValue = false,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var requireInternetAccess by prefMutableState(
+    private var storedRequireInternetAccess by prefMutableState(
         keyName = "requireInternetAccess",
         defaultValue = true,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var enforceAppUpdates by prefMutableState(
+    private var storedEnforceAppUpdates by prefMutableState(
         keyName = "enforceAppUpdates",
         defaultValue = true,
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
+    var allowUnsupportedAndroidVersions: Boolean
+        get() = developerOptionValue(developerOptionsEnabled, storedAllowUnsupportedAndroidVersions, false)
+        set(value) { storedAllowUnsupportedAndroidVersions = value }
+
+    var biometricLockEnabled: Boolean
+        get() = developerOptionValue(developerOptionsEnabled, storedBiometricLockEnabled, false)
+        set(value) { storedBiometricLockEnabled = value }
+
+    var requireInternetAccess: Boolean
+        get() = developerOptionValue(developerOptionsEnabled, storedRequireInternetAccess, true)
+        set(value) { storedRequireInternetAccess = value }
+
+    var enforceAppUpdates: Boolean
+        get() = developerOptionValue(developerOptionsEnabled, storedEnforceAppUpdates, true)
+        set(value) { storedEnforceAppUpdates = value }
+
+    fun hideDeveloperOptions() {
+        // Disable first so no hidden override remains effective while preferences persist.
+        developerOptionsEnabled = false
+        previewNonElite = false
+        allowGuestAccess = false
+        GithubPrefs.guestMode = false
+        allowUnsupportedAndroidVersions = false
+        biometricLockEnabled = false
+        requireInternetAccess = true
+        enforceAppUpdates = true
+    }
 }

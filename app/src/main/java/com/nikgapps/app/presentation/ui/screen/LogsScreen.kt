@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,7 +42,7 @@ internal data class LogcatEntry(val raw: String, val date: String, val time: Str
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogsScreen() {
+fun LogsScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -136,7 +137,9 @@ fun LogsScreen() {
         Text("App logs")
         Text("NikGapps process · PID ${Process.myPid()}", style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-    } }, actions = {
+    } }, navigationIcon = {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+    }, actions = {
         IconButton(onClick = { paused = !paused }) {
             Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 if (paused) "Resume Logcat" else "Pause Logcat")

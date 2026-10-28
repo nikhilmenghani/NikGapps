@@ -125,7 +125,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val searchQuery = searchInput.text
     var searchVisible by rememberSaveable(projectId) { mutableStateOf(false) }
     var quotaClock by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var eliteMember by remember { mutableStateOf(false) }
+    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
+    var eliteMember by remember(previewNonElite) { mutableStateOf(false) }
     var resettingEliteQuota by remember { mutableStateOf(false) }
     var confirmEliteResetRemaining by remember { mutableStateOf<Int?>(null) }
     var autoBuildConsumed by rememberSaveable(projectId, autoBuild) { mutableStateOf(false) }
@@ -172,7 +173,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             delay(30_000L)
         }
     }
-    LaunchedEffect(notificationsExpanded, GithubPrefs.username, isOnline) {
+    LaunchedEffect(notificationsExpanded, GithubPrefs.username, isOnline, previewNonElite) {
         eliteMember = false
         if (notificationsExpanded && isOnline && GithubPrefs.username.isNotBlank()) {
             try {

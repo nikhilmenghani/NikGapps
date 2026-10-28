@@ -29,10 +29,11 @@ import kotlinx.coroutines.CancellationException
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EliteBuildOptions() {
-    var elite by remember(GithubPrefs.username) { mutableStateOf(false) }
+    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
+    var elite by remember(GithubPrefs.username, previewNonElite) { mutableStateOf(false) }
     var showDates by remember { mutableStateOf(false) }
     var showFeatures by remember { mutableStateOf(false) }
-    LaunchedEffect(GithubPrefs.username) {
+    LaunchedEffect(GithubPrefs.username, previewNonElite) {
         elite = try { EliteMembershipRepository.isElite(GithubPrefs.username) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { false }
@@ -60,7 +61,7 @@ fun EliteBuildOptions() {
 }
 
 @Composable
-private fun EliteFeaturesDialog(elite: Boolean, onDismiss: () -> Unit) {
+fun EliteFeaturesDialog(elite: Boolean, onDismiss: () -> Unit) {
     val features = com.nikgapps.app.data.AppFeatureCatalog.eliteFeatures.map { it.title to it.details }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxWidth(.94f).heightIn(max = (LocalConfiguration.current.screenHeightDp * .85f).dp),

@@ -29,9 +29,10 @@ fun BuildCompressionOptions(
     onLevelChange: (Int) -> Unit = { BuildCompressionPrefs.level = it },
     roundedCards: Boolean = false
 ) {
-    var elite by remember(GithubPrefs.username) { mutableStateOf(false) }
+    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
+    var elite by remember(GithubPrefs.username, previewNonElite) { mutableStateOf(false) }
     var showLevels by remember { mutableStateOf(false) }
-    LaunchedEffect(GithubPrefs.username) {
+    LaunchedEffect(GithubPrefs.username, previewNonElite) {
         try {
             elite = EliteMembershipRepository.isElite(GithubPrefs.username)
         } catch (cancelled: CancellationException) {
