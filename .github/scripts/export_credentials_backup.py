@@ -90,8 +90,8 @@ def main():
     if not re.fullmatch(r"[0-9]+", run_id) or not re.fullmatch(r"[0-9]+", attempt):
         raise ValueError("Invalid workflow run identity")
     password = os.environ.get("CREDENTIAL_BACKUP_PASSWORD", "")
-    if len(password) < 24 or password.lower() == OWNER.lower():
-        raise ValueError("Set CREDENTIAL_BACKUP_PASSWORD to the generated strong password (at least 24 characters)")
+    if len(password) < 8 or password.lower() == OWNER.lower():
+        raise ValueError("Set CREDENTIAL_BACKUP_PASSWORD to at least 8 characters; do not use the GitHub username")
     executable = shutil.which("7z") or shutil.which("7zz")
     if not executable:
         raise RuntimeError("7-Zip is required on this runner")

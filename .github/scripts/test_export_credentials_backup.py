@@ -1,4 +1,7 @@
 import tempfile
+import os
+import contextlib
+import io
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -7,6 +10,23 @@ import export_credentials_backup as backup
 
 
 class ExportBackupTest(unittest.TestCase):
+    def test_eight_character_password_can_complete_export(self):
+        env = {name: "fixture" for name in backup.NAMES}
+        env.update(GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1", CREDENTIAL_BACKUP_PASSWORD="eight123")
+        with patch.dict(os.environ, env, clear=True), patch.object(backup.shutil, "which", return_value="7z"), patch.object(backup, "encrypt_zip", return_value=b"encrypted-fixture") as encrypt, patch.object(backup, "ensure_private_repository", return_value={"default_branch": "main"}), patch.object(backup, "api", return_value={"commit": {"sha": "fixture"}}), contextlib.redirect_stdout(io.StringIO()):
+            backup.main()
+        self.assertEqual("eight123", encrypt.call_args.args[1])
+
+    def test_passwords_below_eight_characters_fail_before_export(self):
+        for password in ("", "seven12"):
+            env = {name: "fixture" for name in backup.NAMES}
+            env.update(GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1", CREDENTIAL_BACKUP_PASSWORD=password)
+            with patch.dict(os.environ, env, clear=True), patch.object(backup, "encrypt_zip") as encrypt, patch.object(backup, "api") as api:
+                with self.assertRaisesRegex(ValueError, "at least 8 characters"):
+                    backup.main()
+                encrypt.assert_not_called()
+                api.assert_not_called()
+
     def test_text_contains_readable_names_and_exact_multiline_values(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
