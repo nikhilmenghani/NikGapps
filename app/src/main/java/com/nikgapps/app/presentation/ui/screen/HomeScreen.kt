@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FolderOpen
@@ -115,6 +116,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -853,6 +855,7 @@ private fun ProjectSheet(
     var configAttempted by remember { mutableStateOf(false) }
     var loadingConfig by remember { mutableStateOf(false) }
     var validatedConfig by remember { mutableStateOf<BuildProject?>(null) }
+    var configFileName by remember { mutableStateOf<String?>(null) }
     var savingProject by remember { mutableStateOf(false) }
     val nameFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -873,14 +876,18 @@ private fun ProjectSheet(
             loadingConfig = true
             validatedConfig = null
             importError = null
+            configFileName = null
             val targetAndroid = androidVersion
             try {
-                val validated = withContext(Dispatchers.IO) {
-                    val filename = context.contentResolver.query(uri,
+                val filename = withContext(Dispatchers.IO) {
+                    context.contentResolver.query(uri,
                         arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
                         val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                         if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
                     }
+                }
+                configFileName = filename
+                val validated = withContext(Dispatchers.IO) {
                     require(filename?.endsWith(".config", ignoreCase = true) == true) { "Select a .config file" }
                     val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
                         val output = java.io.ByteArrayOutputStream()
@@ -1132,25 +1139,41 @@ private fun ProjectSheet(
                     Text("Package configuration · Optional", style = MaterialTheme.typography.labelLarge)
                     Text("Load a config to preselect packages, or create an empty project.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (configAttempted) OutlinedButton(onClick = {
-                            configAttempted = false; validatedConfig = null; importError = null
-                        }, enabled = !loadingConfig && !savingProject, shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                            modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
                     if (configAttempted || importError != null) Surface(shape = RoundedCornerShape(16.dp),
-                        color = if (importError != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = if (importError != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
                             if (loadingConfig) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            else Icon(if (importError != null) Icons.Default.ErrorOutline else Icons.Default.Info, null, Modifier.size(20.dp))
+                            else Icon(
+                                when {
+                                    importError != null -> Icons.Default.ErrorOutline
+                                    validatedConfig != null -> Icons.Default.CheckCircle
+                                    else -> Icons.Default.Info
+                                },
+                                contentDescription = if (validatedConfig != null && importError == null) "Config loaded successfully" else null,
+                                modifier = Modifier.size(20.dp),
+                                tint = when {
+                                    importError != null -> MaterialTheme.colorScheme.error
+                                    validatedConfig != null -> if (MaterialTheme.colorScheme.surfaceContainerHigh.luminance() < .5f)
+                                        Color(0xFF81C995) else Color(0xFF1B6E32)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                })
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(when { loadingConfig -> "Validating config"; importError != null -> "Config needs attention"; else -> "Config ready" },
-                                    style = MaterialTheme.typography.titleSmall)
+                                Text(configFileName ?: "Selected config", style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                 Text(importError ?: if (loadingConfig) "Checking the latest package definitions…"
-                                    else "${validatedConfig?.selectedAppIds?.size ?: 0} packages preselected. Ready to create.",
-                                    style = MaterialTheme.typography.bodySmall)
+                                    else "${validatedConfig?.selectedAppIds?.size ?: 0} packages preselected",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (importError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            if (configAttempted) Button(onClick = {
+                                configAttempted = false; validatedConfig = null; importError = null; configFileName = null
+                            }, enabled = !loadingConfig && !savingProject, shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
                         }
                     }
                 }
