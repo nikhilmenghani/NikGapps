@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +84,7 @@ enum class Screens {
 }
 
 const val PROJECT_ROUTE = "Project/{projectId}?build={build}"
+const val CREATE_PROJECT_REQUEST = "create_project_requested"
 const val APP_CONFIG_ROUTE = "Project/{projectId}/app/{packageId}"
 const val BUILD_ZIP_ROUTE = "Project/{projectId}/build?operation={operation}"
 const val BUILD_LATEST_ZIP_ROUTE = "Project/{projectId}/build-latest?operation={operation}"
@@ -183,8 +185,8 @@ fun ScreenNavigator(
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController, selectedRoute: String) {
-        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp)
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Row(Modifier.fillMaxWidth().padding(4.dp)
                 .animateContentSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOfNavItems.forEach { navItem ->
                     val selected = selectedRoute == navItem.route
@@ -196,10 +198,36 @@ fun BottomNavigationBar(navController: NavHostController, selectedRoute: String)
         }
 }
 
+/** Navigation and the screen action are independent siblings, not mixed nav items. */
+@Composable
+private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.weight(1f)) { navigation() }
+            Surface(onClick = onCreateProject,
+                modifier = Modifier.size(56.dp).semantics { role = Role.Button },
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, "Create project", Modifier.size(24.dp))
+                }
+            }
+        }
+    }
+}
+
 /** Keep each destination's insets stable while its entire screen transitions. */
 @Composable
 private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
-    Scaffold(bottomBar = { BottomNavigationBar(navController, route) },
+    Scaffold(bottomBar = {
+        ScreenBottomBar(onCreateProject = {
+            if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
+            navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
+        }) { BottomNavigationBar(navController, route) }
+    },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) { content() }
     }

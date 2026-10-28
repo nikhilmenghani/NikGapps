@@ -25,6 +25,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import kotlin.math.roundToInt
@@ -73,7 +76,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -103,6 +105,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.nikgapps.app.presentation.navigation.CREATE_PROJECT_REQUEST
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -227,6 +232,15 @@ fun HomeScreen(navController: NavHostController) {
         }
     }
     var showCreateProject by remember { mutableStateOf(false) }
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val homeEntry = remember(navController, currentBackStackEntry) { navController.getBackStackEntry(Screens.Home.name) }
+    val createRequested by homeEntry.savedStateHandle.getStateFlow(CREATE_PROJECT_REQUEST, false).collectAsState()
+    LaunchedEffect(createRequested) {
+        if (createRequested) {
+            showCreateProject = true
+            homeEntry.savedStateHandle[CREATE_PROJECT_REQUEST] = false
+        }
+    }
     var projectToEdit by remember { mutableStateOf<BuildProject?>(null) }
     var projectToDelete by remember { mutableStateOf<BuildProject?>(null) }
     var metadataByProject by remember { mutableStateOf<Map<String, RegistryMetadata>>(emptyMap()) }
@@ -412,29 +426,23 @@ fun HomeScreen(navController: NavHostController) {
                 },
                 scrollBehavior = topBarScrollBehavior
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateProject = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Create project")
-            }
         }
     ) { paddingValues ->
         if (projects.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                 WelcomeCard(GithubPrefs.username, isElite)
                 RegistryReleaseBanner(isOnline, projects)
+                ProjectsHeader()
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
                 RegistryReleaseBanner(isOnline, projects)
-                Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
-                    Text("Projects", style = MaterialTheme.typography.headlineLarge)
-                }
+                ProjectsHeader()
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 88.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(projects.sortedBy { unavailableByProject[it.id]?.isNotEmpty() == true }, key = { it.id }) { project ->
@@ -578,9 +586,22 @@ fun HomeScreen(navController: NavHostController) {
 }
 
 @Composable
+private fun ProjectsHeader() {
+    Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Projects", style = MaterialTheme.typography.headlineLarge)
+    }
+}
+
+@Composable
 private fun WelcomeCard(username: String, isElite: Boolean) {
     val guest = com.nikgapps.app.data.DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode &&
         (GithubPrefs.token.isBlank() || username.isBlank())
+    val textHeight = with(LocalDensity.current) {
+        MaterialTheme.typography.titleMedium.lineHeight.toDp() * 2 +
+            MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    } + 2.dp
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -592,7 +613,7 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally,
+            Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (guest || GithubPrefs.avatarUrl.isBlank()) {
                     Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
@@ -606,7 +627,9 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                         error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
                     )
                 }
-                if (isElite && !guest) Surface(
+                // Reserve the same badge slot before membership is resolved.
+                Surface(
+                    modifier = if (isElite && !guest) Modifier else Modifier.alpha(0f).clearAndSetSemantics {},
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -615,15 +638,18 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Text("ELITE", style = MaterialTheme.typography.labelSmall)
+                        Text("ELITE", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     }
                 }
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(if (guest) "Welcome, Guest" else "Welcome, $username",
-                    style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.weight(1f).height(textHeight),
+                verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
+                Text(if (guest) "Welcome, Guest" else if (username.isBlank()) "Loading account…" else "Welcome, $username",
+                    style = MaterialTheme.typography.titleMedium, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(if (guest) "Guest mode · Sign in from Settings" else "Signed in with GitHub",
-                    style = MaterialTheme.typography.labelSmall)
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
     }
