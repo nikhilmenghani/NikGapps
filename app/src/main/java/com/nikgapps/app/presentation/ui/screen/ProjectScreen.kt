@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
@@ -1273,24 +1275,34 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
         .semantics { role = Role.Checkbox; toggleableState = if (selected) ToggleableState.On else ToggleableState.Off }
         .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(56.dp).height(44.dp)) {
+        PackageRowContents(pkg.name, version?.packageName ?: pkg.id, device.installed, selected)
+    }
+}
+
+/** Shared by the real package list and density/font-scale previews. */
+@Composable
+internal fun RowScope.PackageRowContents(name: String, packageName: String, installed: Boolean, selected: Boolean) {
+        val badgeStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp)
+        val badgeLayout = rememberTextMeasurer().measure("Installed", style = badgeStyle, maxLines = 1, softWrap = false)
+        val density = LocalDensity.current
+        val iconHeight = with(density) { (32.dp + badgeLayout.size.height.toDp()).coerceAtLeast(44.dp) }
+        Box(Modifier.width(IntrinsicSize.Max).widthIn(min = 56.dp).height(if (installed) iconHeight else 44.dp)) {
         Surface(Modifier.size(32.dp).align(Alignment.TopCenter), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(20.dp)) }
         }
-        if (device.installed) Surface(Modifier.align(Alignment.BottomCenter), shape = RoundedCornerShape(4.dp),
+        if (installed) Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), shape = RoundedCornerShape(4.dp),
             color = MaterialTheme.colorScheme.tertiaryContainer,
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer) {
             Text("Installed", Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp))
+                style = badgeStyle, maxLines = 1, softWrap = false, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
         }
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(pkg.name, style = MaterialTheme.typography.titleSmall,
+            Text(name, style = MaterialTheme.typography.titleSmall,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(version?.packageName ?: pkg.id, style = MaterialTheme.typography.bodySmall,
+            Text(packageName, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-    }
 }

@@ -6,6 +6,10 @@
 - Use standalone build, export and debloater buttons with a configured badge.
 - Place Load config and Create project side by side.
 - Fix Back navigation so returning Home clears screen history.
+- Keep project ordering and welcome-card layout stable while loading.
+- Show project status through icon colors and improve loaded-config feedback.
+- Move Settings and Logs into the menu, with a separate create-project button.
+- Fix clipped Settings tabs and align the welcome icon for regular accounts.
 
 ## 0.80.20
 - Discover app features in a paged guide; About now has its own Settings tab.

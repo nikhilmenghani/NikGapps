@@ -31,18 +31,23 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>) {
+fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>, updates: Map<String, ProjectUpdate>) {
     val context = LocalContext.current
     val preferences = remember { ReleaseNoticeRepository(context) }
     var release by remember { mutableStateOf<ReleaseSummary?>(null) }
     var dismissTarget by remember { mutableStateOf<ReleaseSummary?>(null) }
-    LaunchedEffect(online, projects) {
+    LaunchedEffect(online, projects, updates) {
+        if (projects.isEmpty()) {
+            release = null
+            return@LaunchedEffect
+        }
         val repository = CatalogRepository(context.cacheDir)
         fun display(metadata: RegistryMetadata) {
             val latest = metadata.releaseIndex?.latest?.values?.flatMap { it.values.flatMap { architectures -> architectures.values } }.orEmpty().toSet()
             metadata.releaseIndex?.releases?.filter { it.id in latest && releaseKnownToProjects(it, projects) }
                 ?.forEach { preferences.acknowledge(it.id) }
-            release = metadata.releaseIndex?.releases?.filter { it.id in latest && it.channel == "stable" }
+            release = metadata.releaseIndex?.releases?.filter { it.id in latest && it.channel == "stable" &&
+                releaseAvailableToProjects(it, projects, updates) }
                 ?.maxByOrNull { it.createdAt }?.takeUnless { preferences.dismissed(it.id) }
         }
         repository.cached()?.let(::display)
@@ -50,7 +55,7 @@ fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>) {
             display(repository.load())
         } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
     }
-    release?.let { published ->
+    release?.takeIf { releaseAvailableToProjects(it, projects, updates) }?.let { published ->
         var expanded by rememberSaveable(published.id) { mutableStateOf(false) }
         val releaseDate = remember(published.createdAt) {
             runCatching { DateTimeFormatter.ofPattern("MMM d, yyyy 'UTC'", Locale.getDefault())

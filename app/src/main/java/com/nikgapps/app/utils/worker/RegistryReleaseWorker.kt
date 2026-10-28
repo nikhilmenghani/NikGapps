@@ -14,22 +14,33 @@ import androidx.work.*
 import com.nikgapps.MainActivity
 import com.nikgapps.R
 import com.nikgapps.app.data.ReleaseNoticeRepository
-import com.nikgapps.app.registry.CatalogRepository
-import com.nikgapps.app.registry.releaseKnownToProjects
+import com.nikgapps.app.registry.*
 import com.nikgapps.app.data.BuildProjectRepository
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 class RegistryReleaseWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = try {
-        val metadata = CatalogRepository(applicationContext.cacheDir).load(forceRefresh = true)
+        val projects = BuildProjectRepository(applicationContext).getProjects()
+        if (projects.isEmpty()) return Result.success()
+        val repository = CatalogRepository(applicationContext.cacheDir)
+        val metadata = repository.load(forceRefresh = true)
         if (metadata.fromCache) return Result.retry()
         val index = metadata.releaseIndex ?: return Result.success()
         val latest = index.latest.values.flatMap { it.values.flatMap { architecture -> architecture.values } }.toSet()
         val releases = index.releases.filter { it.id in latest && it.channel == "stable" }
         val notices = ReleaseNoticeRepository(applicationContext)
-        val projects = BuildProjectRepository(applicationContext).getProjects()
         releases.filter { releaseKnownToProjects(it, projects) }.forEach { notices.acknowledge(it.id) }
+        val updates = mutableMapOf<String, ProjectUpdate>()
+        projects.groupBy { Triple(catalogAndroidVersion(it.androidVersion.displayName), it.defaultChannel, it.architecture.value) }
+            .forEach { (target, group) ->
+                if (releases.any { it.androidVersion == target.first && it.channel == target.second && it.architecture == target.third }) {
+                    val current = repository.load(target.first, target.second, target.third)
+                    if (current.fromCache) return Result.retry()
+                    group.forEach { updates[it.id] = projectUpdate(it, current) }
+                }
+            }
+        val applicable = releases.filter { releaseAvailableToProjects(it, projects, updates) }
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(NotificationChannel(
             CHANNEL, "NikGapps releases", NotificationManager.IMPORTANCE_DEFAULT))
@@ -37,7 +48,7 @@ class RegistryReleaseWorker(context: Context, params: WorkerParameters) : Corout
             Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         if (!permitted || !manager.areNotificationsEnabled()) return Result.success()
         val firstCheck = !notices.notificationBaselineEstablished()
-        val candidates = if (firstCheck) listOfNotNull(releases.maxByOrNull { it.createdAt }) else releases
+        val candidates = if (firstCheck) listOfNotNull(applicable.maxByOrNull { it.createdAt }) else applicable
         candidates.filter { !notices.notified(it.id) && !notices.dismissed(it.id) }.forEach { release ->
             val open = PendingIntent.getActivity(applicationContext, release.id.hashCode(),
                 Intent(applicationContext, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

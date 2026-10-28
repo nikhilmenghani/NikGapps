@@ -61,17 +61,11 @@ object Permissions {
         val permissions = permissionMap[permissionName]?.permission ?: return false
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Check if this permission has been requested before
-        val permissionRequested = sharedPreferences.getBoolean(KEY_PERMISSION_REQUESTED + permissionName, false)
-
         return if (context is Activity) {
-            permissions.any { permission ->
-                val isDenied = ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
-                val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
-
-                // If this permission has been requested and rationale shouldn't show, consider it permanently denied
-                isDenied && permissionRequested && !shouldShowRationale
-            }
+            permanentlyDeniedPermissions(permissions.toList(),
+                wasRequested = { sharedPreferences.getBoolean(KEY_PERMISSION_REQUESTED + it, false) },
+                isGranted = { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED },
+                shouldShowRationale = { ActivityCompat.shouldShowRequestPermissionRationale(context, it) })
         } else {
             false
         }
@@ -79,7 +73,11 @@ object Permissions {
 
     fun markPermissionAsRequested(context: Context, permissionName: String) {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        sharedPreferences.edit().putBoolean(KEY_PERMISSION_REQUESTED + permissionName, true).apply()
+        sharedPreferences.edit().apply {
+            permissionMap[permissionName]?.permission?.forEach { permission ->
+                putBoolean(KEY_PERMISSION_REQUESTED + permission, true)
+            }
+        }.apply()
     }
 
     @Composable
@@ -87,15 +85,14 @@ object Permissions {
         context: Context,
         permissionName: String,
         onPermissionResult: (Boolean, Boolean) -> Unit
-    ): ActivityResultLauncher<String>? {
-        val permissionInfo = permissionMap[permissionName] ?: return null
+    ): ActivityResultLauncher<Array<String>>? {
+        permissionMap[permissionName] ?: return null
         return rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-            val permissions = permissionInfo.permission
-            val permanentlyDenied = permissions.any { permission ->
-                isPermissionPermanentlyDenied(context, permission)
-            }
+            contract = ActivityResultContracts.RequestMultiplePermissions()
+        ) {
+            // Re-read the entire group: one grant must not hide another denied permission.
+            val isGranted = isPermissionGranted(context, permissionName)
+            val permanentlyDenied = isPermissionPermanentlyDenied(context, permissionName)
             onPermissionResult(isGranted, permanentlyDenied)
             val message = when {
                 isGranted -> "$permissionName Permission Granted"

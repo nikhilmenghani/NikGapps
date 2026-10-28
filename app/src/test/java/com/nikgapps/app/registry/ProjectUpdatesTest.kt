@@ -5,6 +5,29 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ProjectUpdatesTest {
+    @Test fun releaseBannerRequiresAnExistingCompatibleProjectWithAnUpdate() {
+        val project = project()
+        val update = projectUpdate(project, metadata())
+        val updates = mapOf(project.id to update)
+        assertTrue(releaseAvailableToProjects(summary(), listOf(project), updates))
+        assertFalse(releaseAvailableToProjects(summary(), emptyList(), updates))
+        assertFalse(releaseAvailableToProjects(summary(), listOf(project), emptyMap()))
+        assertFalse(releaseAvailableToProjects(summary("other"), listOf(project), updates))
+        assertFalse(releaseAvailableToProjects(summary(), listOf(project.copy(androidVersion = AndroidVersion.ANDROID_16)), updates))
+        assertFalse(releaseAvailableToProjects(summary(), listOf(project.copy(defaultChannel = "beta")), updates))
+        assertFalse(releaseAvailableToProjects(summary().copy(architecture = "other"), listOf(project), updates))
+    }
+
+    @Test fun releaseBannerHidesCurrentDismissedAndIncompatibleProjects() {
+        val metadata = metadata()
+        val cases = listOf(
+            project().afterSuccessfulBuild(metadata),
+            project().copy(dismissedReleaseId = "new"),
+            project().copy(selectedAppIds = setOf("retired")))
+        cases.forEach { project ->
+            assertFalse(releaseAvailableToProjects(summary(), listOf(project), mapOf(project.id to projectUpdate(project, metadata))))
+        }
+    }
     private fun metadata(id: String = "new", android: String = "17", version: String = "41", digest: String = "same"): RegistryMetadata {
         val catalog = CatalogParser.parseCatalog(RegistryTestFixtures.catalog())
         val sets = CatalogParser.parseAppSets(RegistryTestFixtures.appSets())

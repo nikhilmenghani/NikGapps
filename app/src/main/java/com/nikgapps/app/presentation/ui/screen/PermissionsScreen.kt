@@ -184,11 +184,10 @@ fun PermissionsManagerCard(
                             Settings.openSettings(context, permissionMap[permissionName]?.action ?: "")
                         } else {
                             val permissions =
-                                permissionMap[permissionName]?.permission ?: arrayOf("")
-                            permissions.forEach { permission ->
-                                // Mark the permission as requested
+                                permissionMap[permissionName]?.permission.orEmpty()
+                            if (permissions.isNotEmpty()) {
                                 Permissions.markPermissionAsRequested(context, permissionName)
-                                requestPermissionLauncher?.launch(permission)
+                                requestPermissionLauncher?.launch(permissions.map { it }.toTypedArray())
                             }
                         }
                     }

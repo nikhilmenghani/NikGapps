@@ -5,6 +5,14 @@ import com.nikgapps.app.data.BuildProject
 enum class ProjectUpdateKind { CURRENT, AVAILABLE, INCOMPATIBLE }
 data class ProjectUpdate(val kind: ProjectUpdateKind, val releaseId: String?, val message: String)
 
+/** Announce an update only when a saved, compatible project can actually use it. */
+fun releaseAvailableToProjects(release: ReleaseSummary, projects: List<BuildProject>,
+    updates: Map<String, ProjectUpdate>): Boolean = projects.any { project ->
+    catalogAndroidVersion(project.androidVersion.displayName) == release.androidVersion &&
+        project.defaultChannel == release.channel && project.architecture.value == release.architecture &&
+        updates[project.id]?.let { it.kind == ProjectUpdateKind.AVAILABLE && it.releaseId == release.id } == true
+}
+
 fun releaseKnownToProjects(release: ReleaseSummary, projects: List<BuildProject>): Boolean = projects.any {
     catalogAndroidVersion(it.androidVersion.displayName) == release.androidVersion &&
         it.defaultChannel == release.channel && it.architecture.value == release.architecture &&

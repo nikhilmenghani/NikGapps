@@ -462,14 +462,14 @@ fun HomeScreen(navController: NavHostController) {
         if (projects.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
                 WelcomeCard(GithubPrefs.username, isElite)
-                RegistryReleaseBanner(isOnline, projects)
+                RegistryReleaseBanner(isOnline, projects, updatesByProject)
                 ProjectsHeader()
                 EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
             }
         } else {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
-                RegistryReleaseBanner(isOnline, projects)
+                RegistryReleaseBanner(isOnline, projects, updatesByProject)
                 ProjectsHeader()
             if (projectDisplayOrder == null) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
