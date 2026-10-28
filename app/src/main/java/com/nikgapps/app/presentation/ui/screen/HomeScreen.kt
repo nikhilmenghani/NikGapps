@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.absoluteOffset
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
@@ -116,6 +114,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -707,14 +707,18 @@ private fun ProjectCard(
     var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
     val canBuild = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated
-    val hasBadge = outdated || update?.kind == ProjectUpdateKind.AVAILABLE
-    var badgeHeight by remember { mutableStateOf(0) }
-    val badgeInset = with(LocalDensity.current) { (badgeHeight / 2f).toDp() }
     var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
-    Box(Modifier.padding(top = if (hasBadge) badgeInset else 0.dp)) {
+    Box {
         Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .semantics {
+                stateDescription = when {
+                    outdated -> "Outdated project"
+                    update?.kind == ProjectUpdateKind.AVAILABLE -> "Update available"
+                    else -> "Up to date"
+                }
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     menuTouch = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
@@ -728,14 +732,11 @@ private fun ProjectCard(
                 onLongClick = { showProjectMenu = true }
             ),
         shape = RoundedCornerShape(18.dp),
-        color = if (outdated) androidx.compose.ui.graphics.lerp(
-            MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp), MaterialTheme.colorScheme.errorContainer, 0.35f)
-            else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+        color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 2.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, if (outdated)
-            MaterialTheme.colorScheme.error.copy(alpha = 0.45f) else if (update?.kind == ProjectUpdateKind.AVAILABLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.animateContentSize().padding(12.dp),
@@ -750,13 +751,21 @@ private fun ProjectCard(
                 Surface(
                     modifier = Modifier.size(44.dp),
                     shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = when {
+                        outdated -> MaterialTheme.colorScheme.errorContainer
+                        update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                    }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Outlined.FolderSpecial,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            tint = when {
+                                outdated -> MaterialTheme.colorScheme.onErrorContainer
+                                update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.onPrimary
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
                         )
                     }
                 }
@@ -784,12 +793,9 @@ private fun ProjectCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        "API ${project.androidVersion.apiLevel} · ${project.architecture.displayName} build",
-                        modifier = Modifier.alignByBaseline(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("API ${project.androidVersion.apiLevel} · ${project.architecture.displayName} build",
+                        Modifier.alignByBaseline(), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -797,22 +803,6 @@ private fun ProjectCard(
 
         }
     }
-        if (hasBadge) {
-            Surface(
-                modifier = Modifier.align(Alignment.TopEnd).padding(end = 12.dp)
-                    .absoluteOffset { IntOffset(0, -badgeHeight / 2) }
-                    .onSizeChanged { badgeHeight = it.height },
-                shape = RoundedCornerShape(8.dp),
-                color = if (outdated) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                contentColor = if (outdated) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                border = BorderStroke(1.dp, if (outdated) MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
-                    else MaterialTheme.colorScheme.primary)
-            ) {
-                Text(if (outdated) "Outdated" else "Update available",
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    style = MaterialTheme.typography.labelSmall)
-            }
-        }
         Box(Modifier.absoluteOffset { IntOffset(menuTouch.x.roundToInt(), menuTouch.y.roundToInt()) }.size(0.dp)) {
         if (showProjectMenu) ProjectContextMenu(project.name, buildList {
             add(ProjectRadialAction(if (outdated) "Review project" else "Open project", Icons.Default.FolderOpen,
