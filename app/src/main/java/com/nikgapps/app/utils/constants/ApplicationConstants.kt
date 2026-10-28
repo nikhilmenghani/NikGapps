@@ -38,11 +38,7 @@ object ApplicationConstants {
     }
 
     fun getNikGappsAppDownloadUrl(latestVersion: String): String {
-        return if (BuildConfig.DEBUG) {
-            "https://github.com/nikhilmenghani/nikgapps/releases/download/dev-v$latestVersion/NikGapps-debug-dev-v$latestVersion.apk"
-        } else {
-            "https://github.com/nikhilmenghani/nikgapps/releases/download/v$latestVersion/NikGapps-v$latestVersion.apk"
-        }
+        return com.nikgapps.app.utils.network.VersionFetcher.downloadUrl(latestVersion)
     }
 
     fun getExternalStorageDir(): String {

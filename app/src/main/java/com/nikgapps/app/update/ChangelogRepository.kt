@@ -101,5 +101,5 @@ object ChangelogRepository {
     // Optional release date: ## 0.80.18 — 2026-10-10.
     private val VERSION_PATTERN = Regex("^v?(\\d+(?:\\.\\d+)+)(?:\\s+[—|]\\s+(\\d{4}-\\d{2}-\\d{2}))?$", RegexOption.IGNORE_CASE)
     private const val CHANGELOG_URL =
-        "https://raw.githubusercontent.com/nikhilmenghani/nikgapps/main/CHANGELOG.md"
+        "https://raw.githubusercontent.com/nikhilmenghani/NikGappsReleases/main/CHANGELOG.md"
 }
