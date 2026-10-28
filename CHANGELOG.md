@@ -10,6 +10,9 @@
 - Show project status through icon colors and improve loaded-config feedback.
 - Move Settings and Logs into the menu, with a separate create-project button.
 - Fix clipped Settings tabs and align the welcome icon for regular accounts.
+- Keep Installed badges on one line across display and text sizes.
+- Fix storage permission requests on older Android versions.
+- Show release announcements only for compatible projects with available updates.
 
 ## 0.80.20
 - Discover app features in a paged guide; About now has its own Settings tab.
