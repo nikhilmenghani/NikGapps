@@ -225,12 +225,6 @@ private fun SettingsBottomNavigation(
     currentCategory: SettingsCategory,
     onCategorySelected: (SettingsCategory) -> Unit
 ) {
-    val scrollState = rememberScrollState()
-    LaunchedEffect(currentCategory, categories.size) {
-        scrollState.animateScrollTo(
-            if (currentCategory == categories.last()) scrollState.maxValue else 0
-        )
-    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -240,9 +234,8 @@ private fun SettingsBottomNavigation(
         Row(
             modifier = Modifier
                 .widthIn(max = 448.dp)
-                .horizontalScroll(scrollState)
-                .padding(horizontal = 12.dp, vertical = 12.dp)
-                .animateContentSize(),
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             categories.forEach { category ->
@@ -250,7 +243,7 @@ private fun SettingsBottomNavigation(
                     category = category,
                     selected = currentCategory == category,
                     onClick = { onCategorySelected(category) },
-                    modifier = Modifier.width(if (currentCategory == category) 144.dp else 56.dp)
+                    modifier = if (currentCategory == category) Modifier.weight(1f) else Modifier.width(48.dp)
                 )
             }
         }
@@ -314,7 +307,7 @@ private fun SettingsNavigationItem(
         tonalElevation = if (selected) 2.dp else 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -676,8 +676,9 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.width(76.dp).height(textHeight.coerceAtLeast(68.dp)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)) {
                 if (guest || GithubPrefs.avatarUrl.isBlank()) {
                     Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
                 } else {
@@ -690,9 +691,8 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                         error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
                     )
                 }
-                // Reserve the same badge slot before membership is resolved.
-                Surface(
-                    modifier = if (isElite && !guest) Modifier else Modifier.alpha(0f).clearAndSetSemantics {},
+                // The fixed column height prevents membership updates from moving the card.
+                if (isElite && !guest) Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
