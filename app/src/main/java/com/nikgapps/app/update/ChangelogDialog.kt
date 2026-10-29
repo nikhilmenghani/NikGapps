@@ -14,6 +14,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import com.nikgapps.app.utils.network.VersionFetcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import android.widget.Toast
@@ -54,6 +59,11 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
     }
     var cachedEntries by remember { mutableStateOf<List<ChangelogEntry>?>(null) }
     var refreshing by remember { mutableStateOf(false) }
+    var publishedVersion by remember { mutableStateOf<String?>(null) }
+    var publicationRefresh by remember { mutableIntStateOf(0) }
+    LaunchedEffect(publicationRefresh) {
+        publishedVersion = VersionFetcher.fetchLatestVersion(preferSourceUpdate = false).takeUnless { it == "Unknown" }
+    }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { cachedEntries = ChangelogRepository.fetch(context, forceRefresh = true) }
     val source = cachedEntries ?: entries
@@ -100,7 +110,7 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
                         releases.isEmpty() -> item { Text("No changelog entries are available.") }
                         else -> itemsIndexed(releases, key = { _, release -> release.version }) { index, release ->
                             ReleaseTimelineItem(release, index == releases.lastIndex,
-                                release.version.removePrefix("v") == installedVersion.removePrefix("v").substringBefore('-'),
+                                changelogStatus(release.version, installedVersion, publishedVersion),
                                 expanded = release.version in expandedVersions,
                                 onToggle = { expandedVersions = if (release.version in expandedVersions)
                                     expandedVersions - release.version else expandedVersions + release.version })
@@ -115,6 +125,7 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
                         enabled = !refreshing, onClick = {
                         scope.launch {
                             refreshing = true
+                            publicationRefresh++
                             try { cachedEntries = ChangelogRepository.fetch(context, forceRefresh = true, reportErrors = true) }
                             catch (cancelled: CancellationException) { throw cancelled }
                             catch (error: Exception) { Toast.makeText(context, "Unable to refresh changelog. Cached entries kept.", Toast.LENGTH_LONG).show() }
@@ -146,8 +157,9 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
 }
 
 @Composable
-private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, installed: Boolean,
+private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, status: ChangelogStatus,
     expanded: Boolean, onToggle: () -> Unit) {
+    val installed = status == ChangelogStatus.INSTALLED
     var showAll by rememberSaveable(entry.version) { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f,
         animationSpec = tween(280, easing = FastOutSlowInEasing), label = "releaseChevron")
@@ -167,12 +179,9 @@ private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, installed:
             Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null, onClick = onToggle)
                 .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("v${entry.version}", style = MaterialTheme.typography.titleMedium)
-                        if (installed) Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                            Text("Installed", Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
+                        if (installed || status == ChangelogStatus.UPCOMING) ChangelogStatusBadge(status)
                     }
                     val date = entry.date?.let { LocalDate.parse(it).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
                     Text(listOfNotNull(date, "${entry.changes.size} ${if (entry.changes.size == 1) "change" else "changes"}").joinToString(" · "),
@@ -200,6 +209,24 @@ private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, installed:
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ChangelogStatusBadge(status: ChangelogStatus) {
+    val upcoming = status == ChangelogStatus.UPCOMING
+    val dark = MaterialTheme.colorScheme.surface.luminance() < .5f
+    val background = if (upcoming) { if (dark) Color(0xFF173E37) else Color(0xFFCDF5E9) }
+        else MaterialTheme.colorScheme.primaryContainer
+    val foreground = if (upcoming) { if (dark) Color(0xFFA7EFDC) else Color(0xFF075142) }
+        else MaterialTheme.colorScheme.onPrimaryContainer
+    Surface(shape = RoundedCornerShape(6.dp), color = background, contentColor = foreground) {
+        Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (upcoming) Icons.Default.AutoAwesome else Icons.Outlined.CheckCircle,
+                contentDescription = null, modifier = Modifier.size(14.dp))
+            Text(if (upcoming) "Upcoming" else "Installed", style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }
 }

@@ -25,7 +25,7 @@ object VersionFetcher {
         return "https://github.com/$repository/releases/download/$tag/$file"
     }
 
-    internal suspend fun resolveRelease(installed: String, development: Boolean,
+    internal suspend fun resolveRelease(installed: String, development: Boolean, preferSourceUpdate: Boolean = true,
         fetch: suspend (String) -> String?): AppRelease? {
         suspend fun from(repository: String): AppRelease? = try {
             val body = fetch(repository)
@@ -37,7 +37,7 @@ object VersionFetcher {
         } catch (cancelled: CancellationException) { throw cancelled }
           catch (_: Exception) { null }
         val primary = from(SOURCE_REPOSITORY)
-        if (primary != null && isNewer(primary.version, installed)) return primary
+        if (preferSourceUpdate && primary != null && isNewer(primary.version, installed)) return primary
         val fallback = from(RELEASE_REPOSITORY)
         return if (fallback != null && (primary == null || isNewer(fallback.version, primary.version))) fallback else primary
     }
@@ -51,8 +51,8 @@ object VersionFetcher {
         return false
     }
 
-    suspend fun fetchLatestVersion(): String {
-        val release = resolveRelease(BuildConfig.VERSION_NAME, BuildConfig.DEBUG) { repository ->
+    suspend fun fetchLatestVersion(preferSourceUpdate: Boolean = true): String {
+        val release = resolveRelease(BuildConfig.VERSION_NAME, BuildConfig.DEBUG, preferSourceUpdate) { repository ->
             val request = Request.Builder()
                 .url("https://api.github.com/repos/$repository/releases" + if (BuildConfig.DEBUG) "?per_page=100" else "/latest")
                 .header("Accept", "application/vnd.github+json")
