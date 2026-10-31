@@ -184,7 +184,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
             enabled = stage != BuildStage.RUNNING || !compressionConfirmed) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
         }
-    }) }, bottomBar = {
+    }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }, bottomBar = {
         Surface(tonalElevation = 3.dp) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -346,54 +346,65 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
             Text("$existingName already exists in Downloads/NikGapps. Do you want to replace it? Back leaves this build ready to save without using a build slot.")
             saveFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         } },
-        dismissButton = { TextButton(enabled = !publishing, onClick = {
-            val source = pendingSource ?: return@TextButton
-            if (publishing) return@TextButton
-            publishing = true
-            scope.launch {
-                runCatching { withContext(Dispatchers.IO) {
-                    ZipPublisher(context).publish(
-                        File(source), project?.selectedAppIds?.size ?: total,
-                        ZipPublisher.ConflictResolution.RENAME, operationId = workInfo?.id?.toString() ?: operationKey
-                    )
-                } }.onSuccess { saved ->
-                    operationPreferences.edit().putString("published:$operationKey", saved).apply()
-                    BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
-                    location = saved; LatestBuildRepository(context).save(projectId, saved)
-                    project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
-                    File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
-                }.onFailure { error ->
-                    publishing = false
-                    if (error is kotlinx.coroutines.CancellationException) throw error
-                    logs += "Unable to save ZIP: ${error.message}"
-                    saveFailure = "Unable to save ZIP: ${error.message}. Your previous ZIP is preserved."
-                }
+        confirmButton = {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(enabled = !publishing,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp), onClick = {
+                    val source = pendingSource ?: return@FilledTonalButton
+                    if (publishing) return@FilledTonalButton
+                    publishing = true
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.IO) {
+                            ZipPublisher(context).publish(
+                                File(source), project?.selectedAppIds?.size ?: total,
+                                ZipPublisher.ConflictResolution.RENAME, operationId = workInfo?.id?.toString() ?: operationKey
+                            )
+                        } }.onSuccess { saved ->
+                            operationPreferences.edit().putString("published:$operationKey", saved).apply()
+                            BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
+                            location = saved; LatestBuildRepository(context).save(projectId, saved)
+                            project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
+                            File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
+                        }.onFailure { error ->
+                            publishing = false
+                            if (error is kotlinx.coroutines.CancellationException) throw error
+                            logs += "Unable to save ZIP: ${error.message}"
+                            saveFailure = "Unable to save ZIP: ${error.message}. Your previous ZIP is preserved."
+                        }
+                    }
+                }) { Text("Keep both", style = MaterialTheme.typography.labelLarge) }
+                Button(enabled = !publishing,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp), onClick = {
+                    val source = pendingSource ?: return@Button
+                    if (publishing) return@Button
+                    publishing = true
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.IO) {
+                            ZipPublisher(context).publish(
+                                File(source), project?.selectedAppIds?.size ?: total,
+                                ZipPublisher.ConflictResolution.REPLACE, operationId = workInfo?.id?.toString() ?: operationKey
+                            )
+                        } }.onSuccess { saved ->
+                            operationPreferences.edit().putString("published:$operationKey", saved).apply()
+                            BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
+                            location = saved; LatestBuildRepository(context).save(projectId, saved)
+                            project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
+                            File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
+                        }.onFailure { error ->
+                            publishing = false
+                            if (error is kotlinx.coroutines.CancellationException) throw error
+                            logs += "Unable to replace ZIP: ${error.message}"
+                            saveFailure = "Unable to replace ZIP: ${error.message}. Your previous ZIP is preserved."
+                        }
+                    }
+                }) { Text("Replace", style = MaterialTheme.typography.labelLarge) }
             }
-        }) { Text("Keep both") } },
-        confirmButton = { TextButton(enabled = !publishing, onClick = {
-            val source = pendingSource ?: return@TextButton
-            if (publishing) return@TextButton
-            publishing = true
-            scope.launch {
-                runCatching { withContext(Dispatchers.IO) {
-                    ZipPublisher(context).publish(
-                        File(source), project?.selectedAppIds?.size ?: total,
-                        ZipPublisher.ConflictResolution.REPLACE, operationId = workInfo?.id?.toString() ?: operationKey
-                    )
-                } }.onSuccess { saved ->
-                    operationPreferences.edit().putString("published:$operationKey", saved).apply()
-                    BuildQuotaRepository(context).recordSuccess(operationId = workInfo?.id?.toString() ?: operationKey)
-                    location = saved; LatestBuildRepository(context).save(projectId, saved)
-                    project?.let { recordSuccessfulProjectZip(context, it, File(source)) }
-                    File(source).delete(); pendingSource = null; stage = BuildStage.COMPLETE
-                }.onFailure { error ->
-                    publishing = false
-                    if (error is kotlinx.coroutines.CancellationException) throw error
-                    logs += "Unable to replace ZIP: ${error.message}"
-                    saveFailure = "Unable to replace ZIP: ${error.message}. Your previous ZIP is preserved."
-                }
             }
-        }) { Text("Replace") } }
+        }
     )
 }
 

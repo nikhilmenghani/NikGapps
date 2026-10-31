@@ -32,7 +32,7 @@ fun ProfileScreen() {
     val scope = rememberCoroutineScope()
     var isSheetVisible by remember { mutableStateOf(false) }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Profile Screen") }) }
+        topBar = { TopAppBar(title = { Text("Profile Screen") }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),

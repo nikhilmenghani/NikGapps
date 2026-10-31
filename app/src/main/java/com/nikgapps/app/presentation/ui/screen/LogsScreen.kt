@@ -148,6 +148,7 @@ fun LogsScreen(onBack: () -> Unit = {}) {
             clearGeneration.incrementAndGet()
             lines = emptyList()
         }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
+        com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
         IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Default.IosShare, "Export diagnostics") }
     }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp)) {

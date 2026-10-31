@@ -60,14 +60,15 @@ fun DebloaterSettings(projectId: String, projectName: String, targets: List<Stri
         if (noticeVisible && noticeType == type) noticeVisible = false
         else { noticeType = type; noticeVisible = true }
     }
+    val hasUnsavedChanges = entries != targets || input.isNotBlank()
     if (visible) ModalBottomSheet(
-        onDismissRequest = {}, // Drafts close only through Cancel or Apply.
+        onDismissRequest = { if (!hasUnsavedChanges) onDismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
-            confirmValueChange = { it != SheetValue.Hidden }),
+            confirmValueChange = { it != SheetValue.Hidden || !hasUnsavedChanges }),
         sheetGesturesEnabled = false,
         dragHandle = null,
         properties = ModalBottomSheetProperties(
-            shouldDismissOnBackPress = false,
+            shouldDismissOnBackPress = !hasUnsavedChanges,
             shouldDismissOnClickOutside = false)) {
         // Wrap short lists and grow upward from the bottom-anchored composer.
         // Long lists scroll within the available height rather than filling

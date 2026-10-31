@@ -57,7 +57,7 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
 
     Scaffold(topBar = { TopAppBar(title = { Text(pkg?.name ?: "Package") }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }) }) { padding ->
+    }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {

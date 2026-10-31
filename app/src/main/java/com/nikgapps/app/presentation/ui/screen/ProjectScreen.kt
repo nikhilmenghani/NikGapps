@@ -412,7 +412,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             title = { Text(current.name) },
             navigationIcon = { IconButton(onClick = navController::navigateUp) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-            } }
+            } },
+            actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }
         ) }) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -566,6 +567,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }) {
             Icon(Icons.AutoMirrored.Filled.Sort, if (sortExpanded) "Close sort options" else "Sort apps")
         }
+        com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
         IconButton(onClick = {
             filterExpanded = !filterExpanded
             sortExpanded = false
@@ -622,6 +624,18 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream",
                                     "application/x-config", "text/x-config")) }))
                         } else {
+                            add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
+                                configured = current.debloatTargets.isNotEmpty(),
+                                onClick = { debloaterOpen = true }))
+                            add(ProjectDockAction(if (exportingConfig) "Exporting…" else "Export config",
+                                Icons.Default.FileDownload, enabled = !exportingConfig && !importingConfig,
+                                onClick = ::exportConfig))
+                        }
+                        if (current.selectedAppIds.isEmpty()) {
+                            add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
+                                configured = current.debloatTargets.isNotEmpty(),
+                                onClick = { debloaterOpen = true }))
+                        } else {
                             add(ProjectDockAction("Build ZIP", Icons.Default.Inventory2,
                                 onClick = {
                                     if (!isOnline) Toast.makeText(context,
@@ -632,13 +646,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         startBuild()
                                     }
                                 }))
-                            add(ProjectDockAction(if (exportingConfig) "Exporting…" else "Export config",
-                                Icons.Default.FileDownload, enabled = !exportingConfig && !importingConfig,
-                                onClick = ::exportConfig))
                         }
-                        add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
-                            configured = current.debloatTargets.isNotEmpty(),
-                            onClick = { debloaterOpen = true }))
                     },
                     modifier = Modifier.widthIn(max = 448.dp).fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -1287,7 +1295,7 @@ internal fun RowScope.PackageRowContents(name: String, packageName: String, inst
         val density = LocalDensity.current
         val iconHeight = with(density) { (32.dp + badgeLayout.size.height.toDp()).coerceAtLeast(44.dp) }
         Box(Modifier.width(IntrinsicSize.Max).widthIn(min = 56.dp).height(if (installed) iconHeight else 44.dp)) {
-        Surface(Modifier.size(32.dp).align(Alignment.TopCenter), shape = RoundedCornerShape(10.dp),
+        Surface(Modifier.size(32.dp).align(if (installed) Alignment.TopCenter else Alignment.Center), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(20.dp)) }
         }

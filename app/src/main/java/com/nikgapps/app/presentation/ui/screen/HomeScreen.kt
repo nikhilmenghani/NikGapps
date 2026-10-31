@@ -74,6 +74,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import com.nikgapps.app.data.canCreateProject
+import com.nikgapps.app.data.REGULAR_PROJECT_LIMIT
 import com.nikgapps.app.data.ProjectLimitReachedException
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FolderSpecial
@@ -433,9 +434,7 @@ fun HomeScreen(navController: NavHostController) {
                             onClick = { showUpdateChangelog = true }
                         )
                     }
-                    IconButton(onClick = context::restartActivity) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Restart")
-                    }
+                    com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
                     Box {
                         IconButton(onClick = { showMoreOptions = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More options")
@@ -571,7 +570,7 @@ fun HomeScreen(navController: NavHostController) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Project limit reached", style = MaterialTheme.typography.titleLarge)
-                    Text("Regular accounts can keep up to 5 projects, including copies and outdated projects. Delete a project or upgrade to Elite to create more. Your existing projects are kept.",
+                    Text("Regular accounts can keep up to $REGULAR_PROJECT_LIMIT projects, including copies and outdated projects. Delete a project or upgrade to Elite to create more. Your existing projects are kept.",
                         style = MaterialTheme.typography.bodyMedium)
                 }
                 HorizontalDivider()

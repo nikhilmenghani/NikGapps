@@ -76,6 +76,7 @@ fun PullRequestsScreen() {
         TopAppBar(
             title = { Text("Build requests") },
             actions = {
+                com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
                 IconButton(onClick = { refreshKey++ }, enabled = !loading) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 fun AppTopBar(title: String) {
     TopAppBar(
         title = { Text(text = title) },
+        actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() },
         modifier = Modifier.statusBarsPadding()
     )
 }

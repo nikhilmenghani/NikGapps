@@ -23,7 +23,7 @@ class ElitePreviewPolicyTest {
     }
     @Test fun previewUsesRegularProjectAndNameLimitsWithoutChangingProjects() {
         val effectiveElite = !nonElitePreviewEnabled(true, true)
-        assertFalse(canCreateProject(5, effectiveElite))
+        assertFalse(canCreateProject(6, effectiveElite))
         assertEquals(20, projectNameLimit(effectiveElite))
         val saved = BuildProject(name = "Existing long Elite name", androidVersion = AndroidVersion.ANDROID_17,
             architecture = Architecture.ARM64)

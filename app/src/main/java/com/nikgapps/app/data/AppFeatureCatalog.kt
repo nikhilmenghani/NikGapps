@@ -6,7 +6,7 @@ data class AppFeaturePage(val title: String, val description: String, val featur
 /** Add features and pages here; the guide renders them without UI changes. */
 object AppFeatureCatalog {
     val eliteFeatures = listOf(
-        AppFeature("Unlimited projects", "Create more than five projects", "Regular accounts can keep up to five projects, including copies and outdated projects. Elite accounts have no project-count limit. Existing projects are preserved if membership changes.", true),
+        AppFeature("Unlimited projects", "Create more than $REGULAR_PROJECT_LIMIT projects", "Regular accounts can keep up to $REGULAR_PROJECT_LIMIT projects, including copies and outdated projects. Elite accounts have no project-count limit. Existing projects are preserved if membership changes.", true),
         AppFeature("Elite badge", "Recognition on your dashboard", "Sign in with an eligible GitHub account to see your Elite badge.", true),
         AppFeature("Extra builds", "Add six builds to your remaining allowance", "Use Reset build window on the project screen. Your remaining allowance plus six starts a new six-hour window. Available once per six-hour window.", true),
         AppFeature("Compression control", "Choose ZIP compression levels 1–9", "Enable compressed builds in Settings → System, then choose a compression level. Higher levels prioritize smaller files over build speed.", true),
@@ -43,4 +43,31 @@ object AppFeatureCatalog {
         )),
         AppFeaturePage("Elite features", "Extra options for eligible GitHub accounts", eliteFeatures)
     )
+    fun relevantPages(screen: String): List<AppFeaturePage> {
+        fun page(title: String) = pages.first { it.title == title }
+        fun selected(title: String, vararg features: String) = page(title).let {
+            it.copy(features = it.features.filter { feature -> feature.title in features })
+        }
+        return when (screen) {
+            "Home" -> listOf(page("Projects"), selected("Configs", "Load a config"),
+                selected("Settings", "Updates and changelog"))
+            "Choose your apps" -> listOf(page("Packages"),
+                selected("Configs", "Project debloater", "Export a config", "Stock-app preferences"),
+                selected("ZIP builds", "Build your ZIP"))
+            "Package options" -> listOf(selected("Packages", "Package info", "Keep Stock app"),
+                selected("Configs", "Stock-app preferences"))
+            "Build ZIP" -> listOf(page("ZIP builds"), AppFeaturePage("Save your ZIP", "Handle an existing file", listOf(
+                AppFeature("Replace or keep both", "Choose how to save a duplicate filename",
+                    "Replace updates the existing ZIP. Keep both saves another copy. Back leaves this build ready to save without using a build slot."))))
+            "Logs" -> listOf(AppFeaturePage("Logs", "Inspect and share diagnostics", listOf(
+                AppFeature("Pause and resume", "Read logs at your own pace", "Use Pause in the toolbar to stop the live display, then Resume to continue."),
+                AppFeature("Clear or export", "Manage captured diagnostics", "Clear removes captured log lines from the view. Export diagnostics shares the captured logs for troubleshooting."))))
+            "Installed apps" -> listOf(AppFeaturePage("Installed apps", "Review apps on this device", listOf(
+                AppFeature("Device apps", "Browse installed packages", "This screen lists apps installed on your device. To choose packages for a ZIP, open a project from Home and use AppSets or Packages."))))
+            "Build requests" -> listOf(AppFeaturePage("Build requests", "Review submitted requests", listOf(
+                AppFeature("Refresh requests", "Check for the latest status", "Use Refresh in the toolbar to reload build requests. An internet connection is required."))))
+            else -> listOf(page("Projects"))
+        }
+    }
+
 }

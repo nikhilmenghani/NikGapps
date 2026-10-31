@@ -25,6 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +72,17 @@ import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.presentation.ui.screen.AccountGate
 
+
+private val LocalShowFeatureGuide = staticCompositionLocalOf<() -> Unit> { {} }
+
+@Composable
+fun HelpIconButton(reserveTrailingSlot: Boolean = true) {
+    val onShowHelp = LocalShowFeatureGuide.current
+    androidx.compose.material3.IconButton(onClick = onShowHelp) {
+        Icon(Icons.Default.Info, "Discover NikGapps features")
+    }
+    if (reserveTrailingSlot) Spacer(Modifier.width(48.dp))
+}
 
 data class NavItem(
     val label: String,
@@ -149,6 +163,8 @@ fun ScreenNavigator(
         }
         return
     }
+    var showFeatureGuide by rememberSaveable { mutableStateOf(false) }
+    val guideState = rememberSaveableStateHolder()
     val navController: NavHostController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(currentEntry) {
@@ -174,18 +190,36 @@ fun ScreenNavigator(
             onOpenSettings = { navController.navigateWithState(Screens.Settings.name) }
         ) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                NavigationHost(
-                    navController = navController,
-                    progressLogViewModel,
-                    modifier = Modifier.fillMaxSize().clipToBounds()
-                )
+                CompositionLocalProvider(LocalShowFeatureGuide provides { showFeatureGuide = true }) {
+                    NavigationHost(
+                        navController = navController,
+                        progressLogViewModel,
+                        modifier = Modifier.fillMaxSize().clipToBounds()
+                    )
+                    if (showFeatureGuide) guideState.SaveableStateProvider("feature-guide") {
+                        com.nikgapps.app.presentation.ui.component.AppFeatureGuideDialog(
+                            screen = when (currentEntry?.destination?.route) {
+                                Screens.Home.name -> "Home"
+                                PROJECT_ROUTE -> "Choose your apps"
+                                APP_CONFIG_ROUTE -> "Package options"
+                                BUILD_ZIP_ROUTE, BUILD_LATEST_ZIP_ROUTE -> "Build ZIP"
+                                Screens.Logs.name -> "Logs"
+                                Screens.Requests.name -> "Build requests"
+                                Screens.Apps.name -> "Installed apps"
+                                else -> "NikGapps"
+                            }
+                        ) {
+                            showFeatureGuide = false
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController, selectedRoute: String, onShowInfo: () -> Unit) {
+fun BottomNavigationBar(navController: NavHostController, selectedRoute: String) {
         Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Row(Modifier.fillMaxWidth().padding(4.dp)
                 .animateContentSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,14 +229,7 @@ fun BottomNavigationBar(navController: NavHostController, selectedRoute: String,
                         if (!selected) navController.navigateWithState(route = navItem.route)
                     }, if (selected) Modifier.weight(1f) else Modifier.width(56.dp))
                 }
-                Surface(onClick = onShowInfo,
-                    modifier = Modifier.width(56.dp).semantics { role = Role.Button },
-                    shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
-                    Box(Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Info, "Discover NikGapps features", Modifier.size(22.dp))
-                    }
-                }
+
             }
         }
 }
@@ -231,18 +258,14 @@ private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable
 /** Keep each destination's insets stable while its entire screen transitions. */
 @Composable
 private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
-    var showFeatureGuide by rememberSaveable { mutableStateOf(false) }
     Scaffold(bottomBar = {
         ScreenBottomBar(onCreateProject = {
             if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
             navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
-        }) { BottomNavigationBar(navController, route, onShowInfo = { showFeatureGuide = true }) }
+        }) { BottomNavigationBar(navController, route) }
     },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) { content() }
-    }
-    if (showFeatureGuide) com.nikgapps.app.presentation.ui.component.AppFeatureGuideDialog {
-        showFeatureGuide = false
     }
 }
 
