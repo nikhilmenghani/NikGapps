@@ -533,7 +533,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         .padding(horizontal = 12.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Icon(Icons.Default.ViewModule, null, Modifier.size(20.dp),
+                                        Icon(Icons.Default.GridView, null, Modifier.size(22.dp),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer)
                                         Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer)
