@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun AppSetHeader(name: String, packageCount: Int, selectedCount: Int,
-    expanded: Boolean, enabled: Boolean, onToggleExpanded: () -> Unit, onToggleSelection: () -> Unit) {
+    expanded: Boolean, enabled: Boolean, onToggleExpanded: () -> Unit, onToggleSelection: (() -> Unit)?, showSelectionIndicators: Boolean = true) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "AppSet expand")
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -41,10 +41,10 @@ internal fun AppSetHeader(name: String, packageCount: Int, selectedCount: Int,
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = MaterialTheme.typography.titleSmall,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("$selectedCount of $packageCount selected", style = MaterialTheme.typography.bodySmall,
+                Text(if (showSelectionIndicators) "$selectedCount of $packageCount selected" else "$selectedCount packages", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            TriStateCheckbox(state = when {
+            if (showSelectionIndicators) TriStateCheckbox(state = when {
                 selectedCount == 0 -> ToggleableState.Off
                 selectedCount == packageCount -> ToggleableState.On
                 else -> ToggleableState.Indeterminate
@@ -54,7 +54,7 @@ internal fun AppSetHeader(name: String, packageCount: Int, selectedCount: Int,
                     Modifier.rotate(rotation))
             }
         }
-        if (selectedCount > 0) Box(Modifier.matchParentSize()) {
+        if (showSelectionIndicators && selectedCount > 0) Box(Modifier.matchParentSize()) {
             Box(Modifier.align(Alignment.CenterStart).width(3.dp).fillMaxHeight(.65f)
                 .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
         }

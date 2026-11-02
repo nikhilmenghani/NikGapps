@@ -493,11 +493,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     if (showBuildSummary) androidx.compose.ui.window.Dialog(
         onDismissRequest = { showBuildSummary = false },
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
-        val maxHeight = with(LocalDensity.current) {
-            androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height.toDp() * .88f
-        }
+        var expandedReviewAppSets by remember { mutableStateOf(emptySet<String>()) }
         val groups = displayedPackages.filter { it.id in current.selectedAppIds }.groupBy { pkg ->
             packageAppSets[pkg.id].orEmpty().firstOrNull {
                 isSelectedInAppSet(current, pkg.id, it.id)
@@ -508,9 +506,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         val appSetCount = groups.count { group ->
             group.key?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
         }
-        Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth(.94f).heightIn(max = maxHeight),
-            shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Review build", style = MaterialTheme.typography.headlineSmall)
                     Text(current.name, style = MaterialTheme.typography.titleMedium,
@@ -518,49 +516,35 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     Text("$appSetCount AppSets · ${current.selectedAppIds.size} packages selected",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
+                LazyColumn(Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     groups.forEach { (set, packages) ->
                         val isGroup = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
-                        item(key = set?.id ?: "other-packages") {
-                            Surface(shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer) {
-                                Column {
-                                    if (isGroup) Row(Modifier.fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-                                            Surface(Modifier.size(32.dp), shape = RoundedCornerShape(10.dp),
-                                                color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Icon(Icons.Default.GridView, null, Modifier.size(20.dp),
-                                                        tint = MaterialTheme.colorScheme.primary)
-                                                }
-                                            }
-                                        }
-                                        Column(Modifier.weight(1f)) {
-                                            Text(set?.name.orEmpty(), style = MaterialTheme.typography.titleSmall)
-                                            Text("${packages.size} packages selected", style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                        Icon(Icons.Default.CheckCircle, "Included AppSet", Modifier.size(22.dp),
-                                            tint = MaterialTheme.colorScheme.primary)
+                        val expanded = set?.id in expandedReviewAppSets
+                        if (isGroup) item(key = "review-group:${set?.id}") {
+                            AppSetHeader(name = set?.name.orEmpty(),
+                                packageCount = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size } ?: packages.size,
+                                selectedCount = packages.size, expanded = expanded, enabled = true,
+                                onToggleExpanded = {
+                                    set?.id?.let { id -> expandedReviewAppSets =
+                                        if (expanded) expandedReviewAppSets - id else expandedReviewAppSets + id }
+                                }, onToggleSelection = null, showSelectionIndicators = false)
+                        }
+                        if (!isGroup || expanded) packages.forEach { pkg ->
+                            item(key = "review-package:${set?.id}:${pkg.id}") {
+                                Box(Modifier.fillMaxWidth()) {
+                                    if (isGroup) Box(Modifier.matchParentSize()) {
+                                        Box(Modifier.padding(start = 2.dp).width(2.dp).fillMaxHeight()
+                                            .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(1.dp)))
                                     }
-                                    packages.forEachIndexed { index, pkg ->
-                                        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
-                                            .padding(start = if (isGroup) 28.dp else 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically) {
-                                            PackageRowContents(pkg.name,
-                                                pkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: pkg.id,
-                                                deviceStatuses[pkg.id]?.installed == true, false)
-                                        }
-                                        if (index < packages.lastIndex) HorizontalDivider(
-                                            Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                                    }
+                                    ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                                        selected = true, onOpen = {}, onSelected = {},
+                                        keepAosp = pkg.id in current.keepAospCounterparts, onKeepAospChange = {},
+                                        modifier = Modifier.padding(start = if (isGroup) 8.dp else 0.dp), readOnly = true)
                                 }
                             }
                         }
+
                     }
                 }
                 if (current.debloatTargets.isNotEmpty()) Text(
@@ -981,7 +965,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         item(key = "appset:${set.id}:${pkg.id}") {
                             Box(Modifier.fillMaxWidth()) {
                                 Box(Modifier.matchParentSize()) {
-                                    Box(Modifier.padding(start = 20.dp).width(2.dp).fillMaxHeight()
+                                    Box(Modifier.padding(start = 2.dp).width(2.dp).fillMaxHeight()
                                         .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(1.dp)))
                                 }
                             ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
@@ -990,7 +974,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 keepAosp = pkg.id in current.keepAospCounterparts,
                                 onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
                                 onSelected = { selectPackages(setOf(pkg.id), it, set) },
-                                modifier = Modifier.padding(start = 36.dp))
+                                modifier = Modifier.padding(start = 8.dp))
                             }
                         }
                     }
@@ -1046,7 +1030,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 @Composable
 private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
     onOpen: () -> Unit, onSelected: (Boolean) -> Unit, keepAosp: Boolean,
-    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier, readOnly: Boolean = false) {
     var menuOpen by remember(pkg.id) { mutableStateOf(false) }
     var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
     Box(modifier.fillMaxWidth()) {
@@ -1054,8 +1038,8 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Box(Modifier.fillMaxWidth()) {
             ProjectPackageRow(pkg, device, selected, onSelected = onSelected,
-                onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true })
-            if (selected) Box(Modifier.matchParentSize()) {
+                onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true }, readOnly = readOnly)
+            if (selected && !readOnly) Box(Modifier.matchParentSize()) {
                 Box(Modifier.align(Alignment.CenterStart).width(3.dp).fillMaxHeight(.65f)
                     .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
             }
@@ -1215,7 +1199,8 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
-    selected: Boolean, onSelected: (Boolean) -> Unit, onPressPosition: (Offset) -> Unit, onLongPress: () -> Unit) {
+    selected: Boolean, onSelected: (Boolean) -> Unit, onPressPosition: (Offset) -> Unit, onLongPress: () -> Unit,
+    readOnly: Boolean = false) {
     val version = pkg.versions.values.firstOrNull()
     Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).pointerInput(pkg.id) {
         awaitEachGesture {
@@ -1223,16 +1208,18 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
             onPressPosition(down.position)
             waitForUpOrCancellation(pass = PointerEventPass.Initial)
         }
-    }.combinedClickable(onClick = { onSelected(!selected) },
+    }.then(if (readOnly) Modifier else Modifier.combinedClickable(onClick = { onSelected(!selected) },
         onLongClick = onLongPress, onLongClickLabel = "Package options")
-        .semantics { role = Role.Checkbox; toggleableState = if (selected) ToggleableState.On else ToggleableState.Off }
+        .semantics { role = Role.Checkbox; toggleableState = if (selected) ToggleableState.On else ToggleableState.Off })
         .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        PackageRowContents(pkg.name, version?.packageName ?: pkg.id, device.installed, selected)
-        Spacer(Modifier.width(8.dp))
-        if (selected) Icon(Icons.Default.CheckCircle, "Selected", Modifier.size(22.dp),
-            tint = MaterialTheme.colorScheme.primary)
-        else Spacer(Modifier.size(22.dp))
+        PackageRowContents(pkg.name, version?.packageName ?: pkg.id, device.installed, selected && !readOnly)
+        if (!readOnly) {
+            Spacer(Modifier.width(8.dp))
+            if (selected) Icon(Icons.Default.CheckCircle, "Selected", Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.primary)
+            else Spacer(Modifier.size(22.dp))
+        }
     }
 }
 
@@ -1240,9 +1227,10 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
 @Composable
 internal fun RowScope.PackageRowContents(name: String, packageName: String, installed: Boolean, selected: Boolean) {
         val iconContext = androidx.compose.ui.platform.LocalContext.current
-        val appIcon by produceState<android.graphics.drawable.Drawable?>(null, packageName) {
+        val appIcon by produceState<Any?>(null, packageName) {
             value = withContext(Dispatchers.IO) {
                 runCatching { iconContext.packageManager.getApplicationIcon(packageName) }.getOrNull()
+                    ?: PackageIconRepository.icon(iconContext, packageName)
             }
         }
         val badgeStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp)
@@ -1253,8 +1241,10 @@ internal fun RowScope.PackageRowContents(name: String, packageName: String, inst
         Surface(Modifier.size(32.dp).align(if (installed) Alignment.TopCenter else Alignment.Center), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) {
-                if (appIcon != null) androidx.compose.foundation.Image(
-                    painter = coil3.compose.rememberAsyncImagePainter(appIcon), contentDescription = null,
+                if (appIcon != null) coil3.compose.AsyncImage(
+                    model = appIcon, contentDescription = null,
+                    error = androidx.compose.ui.graphics.vector.rememberVectorPainter(Icons.Default.Android),
+                    placeholder = androidx.compose.ui.graphics.vector.rememberVectorPainter(Icons.Default.Android),
                     modifier = Modifier.size(28.dp))
                 else Icon(Icons.Default.Android, null, Modifier.size(20.dp))
             }
