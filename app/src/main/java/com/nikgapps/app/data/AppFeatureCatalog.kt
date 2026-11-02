@@ -21,7 +21,7 @@ object AppFeatureCatalog {
         )),
         AppFeaturePage("Packages", "Select exactly what you need", listOf(
             AppFeature("AppSets or Packages", "Choose your preferred view", "Switch between grouped AppSets and individual Packages on the apps screen. Expand an AppSet to see its packages, or select the whole group."),
-            AppFeature("Selection shortcuts", "Select, clear or invert", "Expand the selected-apps summary to use bulk selection actions. Core and CoreGo are mutually exclusive, as are SetupWizard and PixelSetupWizard. Select all prefers Core and SetupWizard."),
+            AppFeature("Review your selection", "Check packages before building", "Tap Build ZIP to review selected packages grouped by AppSet and confirm the build. Core and CoreGo are mutually exclusive, as are SetupWizard and PixelSetupWizard. Select all prefers Core and SetupWizard."),
             AppFeature("Package info", "Press and hold for more options", "Tap a package tile to toggle selection. Press and hold it and choose Show info to inspect package details. Search, sort and filters help locate packages; Installed badges identify apps on your device."),
             AppFeature("Keep Stock app", "Keep the original system app", "Long-press a selected package and choose Keep Stock app to preserve its stock counterpart during installation. A red edge marks the preference. Choose Delete Stock app to restore normal removal; the generated config uses value 2 when keeping it.")
         )),
@@ -32,7 +32,7 @@ object AppFeatureCatalog {
             AppFeature("Stock-app preferences", "Your choices travel with the config", "Value 0 disables a package, 1 selects it, and 2 selects it while keeping its stock app. Import and export preserve these preferences. Required dependencies are resolved automatically.")
         )),
         AppFeaturePage("ZIP builds", "Create a flashable GApps package", listOf(
-            AppFeature("Build your ZIP", "Use your project's selected packages", "Choose Build ZIP or Create ZIP to assemble a package from the published registry. A connection is required to verify metadata and fetch package files. The normal build quota applies."),
+            AppFeature("Build your ZIP", "Use your project's selected packages", "Choose Build ZIP or Create ZIP, review your selection and confirm to assemble a package from the published registry. A connection is required to verify metadata and fetch package files. The normal build quota applies."),
             AppFeature("Build progress", "Track the full operation", "The build screen shows overall progress alongside package download progress and logs. Completed ZIPs are saved to Downloads/NikGapps and can be reopened from Home."),
             AppFeature("Standard or compressed", "Build speed or smaller files", "Settings → System lets you choose standard builds or compressed builds. Compression usually creates smaller ZIPs but takes longer. The optional build prompt can remember your choice.")
         )),

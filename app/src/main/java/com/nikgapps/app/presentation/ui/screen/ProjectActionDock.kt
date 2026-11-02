@@ -9,12 +9,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 data class ProjectDockAction(val label: String, val icon: ImageVector,
-    val enabled: Boolean = true, val configured: Boolean = false, val onClick: () -> Unit)
+    val enabled: Boolean = true, val configured: Boolean = false, val count: Int? = null, val onClick: () -> Unit)
 
 /** Independent action buttons, not selectable navigation destinations. */
 @Composable
@@ -38,6 +40,13 @@ fun ProjectActionDock(actions: List<ProjectDockAction>, modifier: Modifier = Mod
                         Icon(action.icon, null, Modifier.size(21.dp))
                         Text(action.label, color = content, style = MaterialTheme.typography.labelSmall,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        action.count?.let { count ->
+                            Badge(Modifier.align(Alignment.TopEnd).padding(3.dp)) {
+                                Text(count.toString(), modifier = Modifier.semantics {
+                                    contentDescription = "$count selected packages"
+                                })
+                            }
                         }
                         if (action.configured) Surface(
                             modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp),

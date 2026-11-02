@@ -5,6 +5,7 @@ import android.os.Build
 import android.provider.OpenableColumns
 import android.widget.Toast
 import android.text.format.DateFormat
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -117,7 +118,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var sortExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var filterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
-    var summaryExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
+    var showBuildSummary by rememberSaveable(projectId) { mutableStateOf(false) }
     var appSetView by rememberSaveable(projectId) { mutableStateOf(true) }
     var debloaterOpen by rememberSaveable(projectId) { mutableStateOf(false) }
     var expandedAppSets by rememberSaveable(projectId) { mutableStateOf(emptyList<String>()) }
@@ -161,6 +162,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     val searchFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val appsListState = rememberLazyListState()
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    BackHandler(enabled = searchVisible && !imeVisible) {
+        searchInput = TextFieldValue("")
+        searchVisible = false
+        keyboard?.hide()
+    }
+
 
     LaunchedEffect(searchVisible) {
         if (searchVisible) {
@@ -365,29 +373,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         save(selectProjectPackages(current, ids, enabled, owner?.id,
             packageAppSets.mapNotNull { (id, sets) -> sets.firstOrNull()?.id?.let { id to it } }.toMap()))
     }
-    fun updateAllSelections(action: String) {
-        if (!isOnline) {
-            Toast.makeText(context, "Internet connection is required to select apps", Toast.LENGTH_LONG).show()
-            return
-        }
-        val eligibleIds = displayedPackages.mapTo(linkedSetOf()) { it.id }
-        val defaults = packageAppSets.mapNotNull { (id, sets) -> sets.firstOrNull()?.id?.let { id to it } }.toMap()
-        val updated = when (action) {
-            "select" -> {
-                val preferred = defaultOwnersForSelectAll(packageAppSets)
-                selectProjectPackages(current, preferred.keys, true, defaultOwners = preferred, useDefaultChoices = true)
-            }
-            "clear" -> selectProjectPackages(current, eligibleIds, false)
-            else -> {
-                val cleared = selectProjectPackages(current, current.selectedAppIds.intersect(eligibleIds), false)
-                selectProjectPackages(cleared, eligibleIds - current.selectedAppIds, true, defaultOwners = defaults)
-            }
-        }
-        save(updated)
-        AppDiagnostics.info("selection", "bulk_changed", mapOf("project" to projectId.take(8),
-            "operation" to action, "before" to current.selectedAppIds.size, "after" to updated.selectedAppIds.size))
-    }
-    fun startBuild() {
+    fun startBuild(confirmed: Boolean = false) {
         val loaded = metadata ?: return
         if (projectUpdate(current, loaded).kind == ProjectUpdateKind.INCOMPATIBLE) return
         val validation = runCatching { DebloaterConfig.validate(current.debloatTargets,
@@ -396,7 +382,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             Toast.makeText(context, validation.exceptionOrNull()?.message, Toast.LENGTH_LONG).show()
             return
         }
-        navController.navigate(buildZipRoute(projectId)) { launchSingleTop = true }
+        if (confirmed) navController.navigate(buildZipRoute(projectId)) { launchSingleTop = true }
+        else showBuildSummary = true
     }
 
     LaunchedEffect(autoBuild, metadata) {
@@ -512,28 +499,87 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         visible = debloaterOpen, onDismiss = { debloaterOpen = false },
         onApply = { save(current.copy(debloatTargets = it)) })
 
+    if (showBuildSummary) androidx.compose.ui.window.Dialog(
+        onDismissRequest = { showBuildSummary = false },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val maxHeight = with(LocalDensity.current) {
+            androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height.toDp() * .88f
+        }
+        val groups = displayedPackages.filter { it.id in current.selectedAppIds }.groupBy { pkg ->
+            packageAppSets[pkg.id].orEmpty().firstOrNull {
+                isSelectedInAppSet(current, pkg.id, it.id)
+            }?.name ?: "Other packages"
+        }.toSortedMap()
+        Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth(.94f).heightIn(max = maxHeight),
+            shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Review build", style = MaterialTheme.typography.headlineSmall)
+                    Text(current.name, style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text("${groups.size} AppSets · ${current.selectedAppIds.size} packages",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    groups.forEach { (name, packages) ->
+                        item(key = name) {
+                            Surface(shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                                Column {
+                                    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer)
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.Default.ViewModule, null, Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        Badge { Text(packages.size.toString()) }
+                                    }
+                                    packages.forEachIndexed { index, pkg ->
+                                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically) {
+                                            PackageRowContents(pkg.name,
+                                                pkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: pkg.id,
+                                                deviceStatuses[pkg.id]?.installed == true, false)
+                                        }
+                                        if (index < packages.lastIndex) HorizontalDivider(
+                                            Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (current.debloatTargets.isNotEmpty()) Text(
+                    "${current.debloatTargets.size} debloater targets included", style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { showBuildSummary = false },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Button(enabled = isOnline && current.selectedAppIds.isNotEmpty(), onClick = {
+                        showBuildSummary = false
+                        startBuild(confirmed = true)
+                    }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                        Icon(Icons.Default.Inventory2, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Build ZIP", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(topBar = { TopAppBar(title = {
         Text(current.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }, actions = {
-        IconButton(onClick = {
-            if (searchVisible) {
-                searchInput = TextFieldValue("")
-                searchVisible = false
-                keyboard?.hide()
-            } else {
-                searchVisible = true
-            }
-            sortExpanded = false
-            filterExpanded = false
-            notificationsExpanded = false
-        }) {
-            Icon(
-                if (searchVisible) Icons.Default.SearchOff else Icons.Default.Search,
-                if (searchVisible) "Close search" else "Search apps"
-            )
-        }
         IconButton(onClick = {
             notificationsExpanded = !notificationsExpanded
             sortExpanded = false
@@ -591,7 +637,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp))
                         .padding(3.dp)
                         .selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(true to "AppSets", false to "Packages").forEach { (grouped, label) ->
                         val active = appSetView == grouped
@@ -604,7 +651,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             animationSpec = tween(180), label = "App view tab text"
                         )
                         Surface(
-                            modifier = Modifier.weight(1f).height(40.dp)
+                            modifier = Modifier.weight(1f).height(48.dp)
                                 .selectable(selected = active, role = Role.Tab, onClick = { appSetView = grouped }),
                             shape = RoundedCornerShape(10.dp),
                             color = tabColor,
@@ -614,6 +661,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                             }
                         }
                     }
+
                 }
                 ProjectActionDock(
                     actions = buildList {
@@ -631,12 +679,27 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 Icons.Default.FileDownload, enabled = !exportingConfig && !importingConfig,
                                 onClick = ::exportConfig))
                         }
+                        add(ProjectDockAction(if (searchVisible) "Close search" else "Search",
+                            if (searchVisible) Icons.Default.SearchOff else Icons.Default.Search,
+                            onClick = {
+                                if (searchVisible) {
+                                    searchInput = TextFieldValue("")
+                                    searchVisible = false
+                                    keyboard?.hide()
+                                } else {
+                                    searchVisible = true
+                                }
+                                sortExpanded = false
+                                filterExpanded = false
+                                notificationsExpanded = false
+                            }))
                         if (current.selectedAppIds.isEmpty()) {
                             add(ProjectDockAction("Debloater", Icons.Default.DeleteOutline,
                                 configured = current.debloatTargets.isNotEmpty(),
                                 onClick = { debloaterOpen = true }))
                         } else {
                             add(ProjectDockAction("Build ZIP", Icons.Default.Inventory2,
+                                count = current.selectedAppIds.size,
                                 onClick = {
                                     if (!isOnline) Toast.makeText(context,
                                         "Internet connection is required before building the ZIP", Toast.LENGTH_LONG).show()
@@ -886,98 +949,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 Text("Tap to select · Press and hold for package info and options.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                AnimatedVisibility(
-                    visible = !searchVisible,
-                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
-                ) {
-                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(interactionSource = null, indication = null,
-                            onClick = { summaryExpanded = !summaryExpanded }),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-                                Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
-                                }
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text("Selected apps", Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall)
-                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-                                Text("${current.selectedAppIds.size}", Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    style = MaterialTheme.typography.labelMedium)
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Icon(if (summaryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                if (summaryExpanded) "Hide selection" else "Review selection", Modifier.size(20.dp))
-                        }
-                        AnimatedVisibility(summaryExpanded,
-                            enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(160)),
-                            exit = shrinkVertically(tween(220), shrinkTowards = Alignment.Top) + fadeOut(tween(120))) {
-                            Column(Modifier.padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { updateAllSelections("select") },
-                                        enabled = isOnline,
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
-                                    ) {
-                                        Icon(Icons.Default.SelectAll, null, Modifier.size(18.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Select", maxLines = 1, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                    OutlinedButton(
-                                        onClick = { updateAllSelections("clear") },
-                                        enabled = isOnline && current.selectedAppIds.isNotEmpty(),
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .65f)),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
-                                    ) {
-                                        Icon(Icons.Default.Deselect, null, Modifier.size(18.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Clear", maxLines = 1, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                    OutlinedButton(
-                                        onClick = { updateAllSelections("invert") },
-                                        enabled = isOnline,
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
-                                    ) {
-                                        Icon(Icons.Default.SwapHoriz, null, Modifier.size(18.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Invert", maxLines = 1, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                                val selectedPackages = displayedPackages.filter { it.id in current.selectedAppIds }
-                                selectedPackages.forEachIndexed { index, selectedPkg ->
-                                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Android, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(selectedPkg.name, style = MaterialTheme.typography.bodyMedium)
-                                            Text(selectedPkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: selectedPkg.id,
-                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                    if (index != selectedPackages.lastIndex) HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant)
-                                }
-                            }
-                        }
-                        }
-                    }
-                }
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
@@ -1109,11 +1080,14 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
     var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
     Box(modifier.fillMaxWidth()) {
     ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = if (selected)
-            MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)) {
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Box(Modifier.fillMaxWidth()) {
             ProjectPackageRow(pkg, device, selected, onSelected = onSelected,
                 onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true })
+            if (selected) Box(Modifier.matchParentSize()) {
+                Box(Modifier.align(Alignment.CenterStart).width(3.dp).fillMaxHeight(.65f)
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
+            }
             if (selected && keepAosp) {
                 Box(Modifier.matchParentSize()) {
                     Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(4.dp)
@@ -1284,12 +1258,22 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
         .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
         PackageRowContents(pkg.name, version?.packageName ?: pkg.id, device.installed, selected)
+        Spacer(Modifier.width(8.dp))
+        if (selected) Icon(Icons.Default.CheckCircle, "Selected", Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.primary)
+        else Spacer(Modifier.size(22.dp))
     }
 }
 
 /** Shared by the real package list and density/font-scale previews. */
 @Composable
 internal fun RowScope.PackageRowContents(name: String, packageName: String, installed: Boolean, selected: Boolean) {
+        val iconContext = androidx.compose.ui.platform.LocalContext.current
+        val appIcon by produceState<android.graphics.drawable.Drawable?>(null, packageName) {
+            value = withContext(Dispatchers.IO) {
+                runCatching { iconContext.packageManager.getApplicationIcon(packageName) }.getOrNull()
+            }
+        }
         val badgeStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp)
         val badgeLayout = rememberTextMeasurer().measure("Installed", style = badgeStyle, maxLines = 1, softWrap = false)
         val density = LocalDensity.current
@@ -1297,7 +1281,12 @@ internal fun RowScope.PackageRowContents(name: String, packageName: String, inst
         Box(Modifier.width(IntrinsicSize.Max).widthIn(min = 56.dp).height(if (installed) iconHeight else 44.dp)) {
         Surface(Modifier.size(32.dp).align(if (installed) Alignment.TopCenter else Alignment.Center), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
-            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(20.dp)) }
+            Box(contentAlignment = Alignment.Center) {
+                if (appIcon != null) androidx.compose.foundation.Image(
+                    painter = coil3.compose.rememberAsyncImagePainter(appIcon), contentDescription = null,
+                    modifier = Modifier.size(28.dp))
+                else Icon(Icons.Default.Android, null, Modifier.size(20.dp))
+            }
         }
         if (installed) Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), shape = RoundedCornerShape(4.dp),
             color = MaterialTheme.colorScheme.tertiaryContainer,
