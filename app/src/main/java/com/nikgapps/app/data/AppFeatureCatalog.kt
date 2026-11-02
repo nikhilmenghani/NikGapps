@@ -20,7 +20,7 @@ object AppFeatureCatalog {
             AppFeature("Outdated projects", "Keep old selections separate", "Outdated projects appear below active projects with a tinted card and badge. Tap to reveal actions, then Open to review the project and available recovery options. Outdated projects cannot be built until recreated with current definitions.")
         )),
         AppFeaturePage("Packages", "Select exactly what you need", listOf(
-            AppFeature("AppSets or Packages", "Choose your preferred view", "Switch between grouped AppSets and individual Packages on the apps screen. Expand an AppSet to see its packages, or select the whole group."),
+            AppFeature("Apps and AppSets", "Choose apps from one unified list", "Multi-package AppSets appear first. Expand a group to choose individual packages, or use its checkbox to select the whole group. Single-package AppSets appear below as one selectable app card. Tap an app to toggle selection and press and hold for package information and stock-app options. Search is in the bottom action bar, immediately before Build ZIP."),
             AppFeature("Review your selection", "Check packages before building", "Tap Build ZIP to review selected packages grouped by AppSet and confirm the build. Core and CoreGo are mutually exclusive, as are SetupWizard and PixelSetupWizard. Select all prefers Core and SetupWizard."),
             AppFeature("Package info", "Press and hold for more options", "Tap a package tile to toggle selection. Press and hold it and choose Show info to inspect package details. Search, sort and filters help locate packages; Installed badges identify apps on your device."),
             AppFeature("Keep Stock app", "Keep the original system app", "Long-press a selected package and choose Keep Stock app to preserve its stock counterpart during installation. A red edge marks the preference. Choose Delete Stock app to restore normal removal; the generated config uses value 2 when keeping it.")
@@ -63,7 +63,7 @@ object AppFeatureCatalog {
                 AppFeature("Pause and resume", "Read logs at your own pace", "Use Pause in the toolbar to stop the live display, then Resume to continue."),
                 AppFeature("Clear or export", "Manage captured diagnostics", "Clear removes captured log lines from the view. Export diagnostics shares the captured logs for troubleshooting."))))
             "Installed apps" -> listOf(AppFeaturePage("Installed apps", "Review apps on this device", listOf(
-                AppFeature("Device apps", "Browse installed packages", "This screen lists apps installed on your device. To choose packages for a ZIP, open a project from Home and use AppSets or Packages."))))
+                AppFeature("Device apps", "Browse installed packages", "This screen lists apps installed on your device. To choose packages for a ZIP, open a project from Home and choose apps from the unified list."))))
             "Build requests" -> listOf(AppFeaturePage("Build requests", "Review submitted requests", listOf(
                 AppFeature("Refresh requests", "Check for the latest status", "Use Refresh in the toolbar to reload build requests. An internet connection is required."))))
             else -> listOf(page("Projects"))

@@ -85,6 +85,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -203,6 +207,24 @@ fun HomeScreen(navController: NavHostController) {
     var updateChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     var showUpdateChangelog by remember { mutableStateOf(false) }
     var showMoreOptions by remember { mutableStateOf(false) }
+    var showHomeChangelog by rememberSaveable { mutableStateOf(false) }
+    var homeChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
+    var publishedChangelogVersion by remember { mutableStateOf<String?>(null) }
+    var changelogRefresh by remember { mutableStateOf(0) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        changelogRefresh++
+    }
+    LaunchedEffect(isOnline, changelogRefresh, showHomeChangelog) {
+        if (!showHomeChangelog) {
+            homeChangelog = ChangelogRepository.fetch(context, forceRefresh = isOnline)
+            if (isOnline) publishedChangelogVersion = fetchLatestVersion(preferSourceUpdate = false)
+        }
+    }
+    val hasUpcomingChanges = homeChangelog.any {
+        com.nikgapps.app.update.changelogStatus(it.version, currentVersion, publishedChangelogVersion) ==
+            com.nikgapps.app.update.ChangelogStatus.UPCOMING
+    }
+
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -434,6 +456,17 @@ fun HomeScreen(navController: NavHostController) {
                             onClick = { showUpdateChangelog = true }
                         )
                     }
+                    IconButton(onClick = { showHomeChangelog = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (hasUpcomingChanges) MaterialTheme.colorScheme.primaryContainer
+                                else androidx.compose.ui.graphics.Color.Transparent,
+                            contentColor = if (hasUpcomingChanges) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        BadgedBox(badge = { if (hasUpcomingChanges) Badge() }) {
+                            Icon(Icons.Default.History,
+                                if (hasUpcomingChanges) "Changelog, upcoming changes available" else "Changelog")
+                        }
+                    }
                     com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
                     Box {
                         IconButton(onClick = { showMoreOptions = true }) {
@@ -556,6 +589,10 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
     }
+    if (showHomeChangelog) ChangelogDialog(
+        title = "Changelog", entries = homeChangelog,
+        onDismiss = { showHomeChangelog = false }
+    )
     if (showUpdateChangelog) {
         ChangelogDialog(
             title = "What’s new in $latestVersion",

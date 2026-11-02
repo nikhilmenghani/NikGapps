@@ -10,7 +10,6 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -30,8 +29,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -119,7 +116,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var filterExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable(projectId) { mutableStateOf(false) }
     var showBuildSummary by rememberSaveable(projectId) { mutableStateOf(false) }
-    var appSetView by rememberSaveable(projectId) { mutableStateOf(true) }
     var debloaterOpen by rememberSaveable(projectId) { mutableStateOf(false) }
     var expandedAppSets by rememberSaveable(projectId) { mutableStateOf(emptyList<String>()) }
     var searchInput by rememberSaveable(projectId, stateSaver = TextFieldValue.Saver) {
@@ -258,18 +254,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             )
         } }
     }
-    val sortedPackages = remember(displayedPackages, packageAppSets, deviceStatuses, packageSort, sortDescending, installedOnly, appSetView,
+    val sortedPackages = remember(displayedPackages, packageAppSets, deviceStatuses, packageSort, sortDescending, installedOnly,
         selectionFilter, current.selectedAppIds, searchQuery) {
         val query = searchQuery.trim().lowercase()
         val filtered = displayedPackages.filter { pkg ->
             (query.isEmpty() || pkg.name.lowercase().contains(query) || pkg.id.lowercase().contains(query) ||
                 packageAppSets[pkg.id].orEmpty().any { it.name.lowercase().contains(query) } ||
                 pkg.versions.values.any { it.packageName?.lowercase()?.contains(query) == true }) &&
-            (!installedOnly || deviceStatuses[pkg.id]?.installed == true) && (appSetView || when (selectionFilter) {
-                SelectionFilter.BOTH -> true
-                SelectionFilter.SELECTED -> pkg.id in current.selectedAppIds
-                SelectionFilter.UNSELECTED -> pkg.id !in current.selectedAppIds
-            })
+            (!installedOnly || deviceStatuses[pkg.id]?.installed == true)
         }
         when (packageSort) {
             PackageSort.NAME -> filtered.sortedBy { it.name.lowercase() }.let { if (sortDescending) it.reversed() else it }
@@ -629,40 +621,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier
-                        .widthIn(max = 448.dp)
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp))
-                        .padding(3.dp)
-                        .selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf(true to "AppSets", false to "Packages").forEach { (grouped, label) ->
-                        val active = appSetView == grouped
-                        val tabColor by animateColorAsState(
-                            targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
-                            animationSpec = tween(180), label = "App view tab background"
-                        )
-                        val tabContentColor by animateColorAsState(
-                            targetValue = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = tween(180), label = "App view tab text"
-                        )
-                        Surface(
-                            modifier = Modifier.weight(1f).height(48.dp)
-                                .selectable(selected = active, role = Role.Tab, onClick = { appSetView = grouped }),
-                            shape = RoundedCornerShape(10.dp),
-                            color = tabColor,
-                            contentColor = tabContentColor) {
-                            Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                            }
-                        }
-                    }
-
-                }
                 ProjectActionDock(
                     actions = buildList {
                         if (current.selectedAppIds.isEmpty()) {
@@ -943,25 +901,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 end = 16.dp,
                 bottom = 16.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
             item {
                 Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
-                Text("Tap to select · Press and hold for package info and options.",
+                Text("Tap an app to select · Expand groups to choose packages · Hold for options.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
-            if (!appSetView) sortedPackages.forEach { pkg ->
-                item(key = "package:${pkg.id}") {
-                    ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
-                        pkg.id in current.selectedAppIds,
-                        onOpen = { openPackage(pkg.id) },
-                        keepAosp = pkg.id in current.keepAospCounterparts,
-                        onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
-                        onSelected = { selectPackages(setOf(pkg.id), it) })
-                }
-            } else {
                 val groups = registry?.appSets?.appSets.orEmpty().map { set ->
                     set to sortedPackages.filter { pkg -> set in packageAppSets[pkg.id].orEmpty() &&
                         when (selectionFilter) {
@@ -982,10 +930,24 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 }
                 val sortedGroups = groups.sortedWith(comparator.thenBy { it.first.name.lowercase() })
                     .let { if (sortDescending) it.reversed() else it }
+                    // Keep expandable AppSets first, independently of sort direction and filters.
+                    .sortedBy { registry?.catalog?.publicPackages(it.first).orEmpty().size <= 1 }
                 sortedGroups.forEach { (set, matches) ->
                     val ids = registry?.catalog?.publicPackages(set).orEmpty().mapTo(linkedSetOf()) { it.id }
                     val selectedCount = ids.count { isSelectedInAppSet(current, it, set.id) }
                     val expanded = set.id in expandedAppSets || searchQuery.isNotBlank()
+                    if (ids.size == 1) {
+                        val pkg = matches.singleOrNull { it.id in ids } ?: return@forEach
+                        item(key = "appset:${set.id}") {
+                            ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                                isSelectedInAppSet(current, pkg.id, set.id),
+                                onOpen = { openPackage(pkg.id) },
+                                keepAosp = pkg.id in current.keepAospCounterparts,
+                                onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
+                                onSelected = { selectPackages(setOf(pkg.id), it, set) })
+                        }
+                        return@forEach
+                    }
                     item(key = "appset:${set.id}") {
                         AppSetHeader(
                             name = set.name, packageCount = ids.size, selectedCount = selectedCount,
@@ -1016,7 +978,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         }
                     }
                 }
-            }
+
             }
         }
         }
@@ -1238,7 +1200,7 @@ private fun SourceTile(title: String, version: String?, icon: androidx.compose.u
 private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
     selected: Boolean, onSelected: (Boolean) -> Unit, onPressPosition: (Offset) -> Unit, onLongPress: () -> Unit) {
     val version = pkg.versions.values.firstOrNull()
-    Row(Modifier.fillMaxWidth().pointerInput(pkg.id) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).pointerInput(pkg.id) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             onPressPosition(down.position)
@@ -1247,7 +1209,7 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
     }.combinedClickable(onClick = { onSelected(!selected) },
         onLongClick = onLongPress, onLongClickLabel = "Package options")
         .semantics { role = Role.Checkbox; toggleableState = if (selected) ToggleableState.On else ToggleableState.Off }
-        .padding(horizontal = 12.dp, vertical = 4.dp),
+        .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically) {
         PackageRowContents(pkg.name, version?.packageName ?: pkg.id, device.installed, selected)
         Spacer(Modifier.width(8.dp))
