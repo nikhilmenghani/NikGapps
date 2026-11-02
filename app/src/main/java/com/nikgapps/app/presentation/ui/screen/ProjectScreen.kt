@@ -501,8 +501,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         val groups = displayedPackages.filter { it.id in current.selectedAppIds }.groupBy { pkg ->
             packageAppSets[pkg.id].orEmpty().firstOrNull {
                 isSelectedInAppSet(current, pkg.id, it.id)
-            }?.name ?: "Other packages"
-        }.toSortedMap()
+            }
+        }.entries.sortedWith(compareBy<Map.Entry<CatalogAppSet?, List<CatalogPackage>>> {
+            it.key?.let { set -> registry?.catalog?.publicPackages(set).orEmpty().size }?.let { count -> count <= 1 } ?: true
+        }.thenBy { it.key?.name?.lowercase().orEmpty() })
+        val appSetCount = groups.count { group ->
+            group.key?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
+        }
         Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth(.94f).heightIn(max = maxHeight),
             shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -510,29 +515,41 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     Text("Review build", style = MaterialTheme.typography.headlineSmall)
                     Text(current.name, style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary)
-                    Text("${groups.size} AppSets · ${current.selectedAppIds.size} packages",
+                    Text("$appSetCount AppSets · ${current.selectedAppIds.size} packages selected",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    groups.forEach { (name, packages) ->
-                        item(key = name) {
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    groups.forEach { (set, packages) ->
+                        val isGroup = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
+                        item(key = set?.id ?: "other-packages") {
                             Surface(shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                                color = MaterialTheme.colorScheme.surfaceContainer) {
                                 Column {
-                                    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer)
-                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    if (isGroup) Row(Modifier.fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Icon(Icons.Default.GridView, null, Modifier.size(22.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                                        Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                        Badge { Text(packages.size.toString()) }
+                                        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
+                                            Surface(Modifier.size(32.dp), shape = RoundedCornerShape(10.dp),
+                                                color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(Icons.Default.GridView, null, Modifier.size(20.dp),
+                                                        tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Text(set?.name.orEmpty(), style = MaterialTheme.typography.titleSmall)
+                                            Text("${packages.size} packages selected", style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Icon(Icons.Default.CheckCircle, "Included AppSet", Modifier.size(22.dp),
+                                            tint = MaterialTheme.colorScheme.primary)
                                     }
                                     packages.forEachIndexed { index, pkg ->
-                                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                                        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                                            .padding(start = if (isGroup) 28.dp else 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically) {
                                             PackageRowContents(pkg.name,
                                                 pkg.versions.values.firstNotNullOfOrNull { it.packageName } ?: pkg.id,
