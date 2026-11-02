@@ -987,40 +987,32 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     val selectedCount = ids.count { isSelectedInAppSet(current, it, set.id) }
                     val expanded = set.id in expandedAppSets || searchQuery.isNotBlank()
                     item(key = "appset:${set.id}") {
-                        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                            Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null, onClick = {
+                        AppSetHeader(
+                            name = set.name, packageCount = ids.size, selectedCount = selectedCount,
+                            expanded = expanded, enabled = isOnline,
+                            onToggleExpanded = {
                                 expandedAppSets = if (set.id in expandedAppSets) expandedAppSets - set.id
                                     else expandedAppSets + set.id
-                            }).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Folder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(8.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(set.name, style = MaterialTheme.typography.titleSmall)
-                                    Text("$selectedCount of ${ids.size} packages selected",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                TriStateCheckbox(state = when {
-                                    selectedCount == 0 -> ToggleableState.Off
-                                    selectedCount == ids.size -> ToggleableState.On
-                                    else -> ToggleableState.Indeterminate
-                                }, enabled = isOnline,
-                                    onClick = { selectPackages(ids, selectedCount != ids.size, set) })
-                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    if (expanded) "Collapse ${set.name}" else "Expand ${set.name}")
-                            }
-                        }
+                            },
+                            onToggleSelection = { selectPackages(ids, selectedCount != ids.size, set) }
+                        )
                     }
+
                     if (expanded) matches.forEach { pkg ->
                         item(key = "appset:${set.id}:${pkg.id}") {
+                            Box(Modifier.fillMaxWidth()) {
+                                Box(Modifier.matchParentSize()) {
+                                    Box(Modifier.padding(start = 20.dp).width(2.dp).fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(1.dp)))
+                                }
                             ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
                                 isSelectedInAppSet(current, pkg.id, set.id),
                                 onOpen = { openPackage(pkg.id) },
                                 keepAosp = pkg.id in current.keepAospCounterparts,
                                 onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
                                 onSelected = { selectPackages(setOf(pkg.id), it, set) },
-                                modifier = Modifier.padding(start = 8.dp))
+                                modifier = Modifier.padding(start = 36.dp))
+                            }
                         }
                     }
                 }
