@@ -217,7 +217,7 @@ fun HomeScreen(navController: NavHostController) {
     LaunchedEffect(isOnline, changelogRefresh, showHomeChangelog) {
         if (!showHomeChangelog) {
             homeChangelog = ChangelogRepository.fetch(context, forceRefresh = isOnline)
-            if (isOnline) publishedChangelogVersion = fetchLatestVersion(preferSourceUpdate = false)
+            if (isOnline) publishedChangelogVersion = fetchLatestVersion()
         }
     }
     val hasUpcomingChanges = homeChangelog.any {

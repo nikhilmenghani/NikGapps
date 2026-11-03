@@ -12,12 +12,11 @@ import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 
 object VersionFetcher {
-    const val SOURCE_REPOSITORY = "nikhilmenghani/NikGapps"
     const val RELEASE_REPOSITORY = "nikhilmenghani/NikGappsReleases"
     private val downloadUrls = ConcurrentHashMap<String, String>()
     internal data class AppRelease(val version: String, val url: String)
 
-    fun downloadUrl(version: String): String = downloadUrls[version] ?: artifactUrl(SOURCE_REPOSITORY, version, BuildConfig.DEBUG)
+    fun downloadUrl(version: String): String = downloadUrls[version] ?: artifactUrl(RELEASE_REPOSITORY, version, BuildConfig.DEBUG)
 
     internal fun artifactUrl(repository: String, version: String, development: Boolean): String {
         val tag = if (development) "dev-v$version" else "v$version"
@@ -25,7 +24,7 @@ object VersionFetcher {
         return "https://github.com/$repository/releases/download/$tag/$file"
     }
 
-    internal suspend fun resolveRelease(installed: String, development: Boolean, preferSourceUpdate: Boolean = true,
+    internal suspend fun resolveRelease(development: Boolean,
         fetch: suspend (String) -> String?): AppRelease? {
         suspend fun from(repository: String): AppRelease? = try {
             val body = fetch(repository)
@@ -36,10 +35,7 @@ object VersionFetcher {
             }
         } catch (cancelled: CancellationException) { throw cancelled }
           catch (_: Exception) { null }
-        val primary = from(SOURCE_REPOSITORY)
-        if (preferSourceUpdate && primary != null && isNewer(primary.version, installed)) return primary
-        val fallback = from(RELEASE_REPOSITORY)
-        return if (fallback != null && (primary == null || isNewer(fallback.version, primary.version))) fallback else primary
+        return from(RELEASE_REPOSITORY)
     }
     fun isNewer(candidate: String, installed: String): Boolean {
         val left = candidate.trimStart('v').split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
@@ -51,8 +47,8 @@ object VersionFetcher {
         return false
     }
 
-    suspend fun fetchLatestVersion(preferSourceUpdate: Boolean = true): String {
-        val release = resolveRelease(BuildConfig.VERSION_NAME, BuildConfig.DEBUG, preferSourceUpdate) { repository ->
+    suspend fun fetchLatestVersion(): String {
+        val release = resolveRelease(BuildConfig.DEBUG) { repository ->
             val request = Request.Builder()
                 .url("https://api.github.com/repos/$repository/releases" + if (BuildConfig.DEBUG) "?per_page=100" else "/latest")
                 .header("Accept", "application/vnd.github+json")

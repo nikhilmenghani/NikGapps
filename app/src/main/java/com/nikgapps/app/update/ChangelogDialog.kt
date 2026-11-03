@@ -62,7 +62,7 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
     var publishedVersion by remember { mutableStateOf<String?>(null) }
     var publicationRefresh by remember { mutableIntStateOf(0) }
     LaunchedEffect(publicationRefresh) {
-        publishedVersion = VersionFetcher.fetchLatestVersion(preferSourceUpdate = false).takeUnless { it == "Unknown" }
+        publishedVersion = VersionFetcher.fetchLatestVersion().takeUnless { it == "Unknown" }
     }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { cachedEntries = ChangelogRepository.fetch(context, forceRefresh = true) }

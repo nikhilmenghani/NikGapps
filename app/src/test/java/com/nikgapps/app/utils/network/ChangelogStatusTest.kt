@@ -20,9 +20,10 @@ class ChangelogStatusTest {
             assertEquals(ChangelogStatus.INSTALLED, changelogStatus("0.80.20", "0.80.20-debug", published))
         }
     }
-    @Test fun publicationLookupChecksBothRepositoriesEvenWhenSourceHasAnUpdate() = runBlocking {
-        val release = VersionFetcher.resolveRelease("0.80.20", true, preferSourceUpdate = false) { repo ->
-            val version = if (repo == VersionFetcher.SOURCE_REPOSITORY) "0.80.21" else "0.80.22"
+    @Test fun publicationLookupUsesReleaseRepository() = runBlocking {
+        val release = VersionFetcher.resolveRelease(true) { repo ->
+            assertEquals(VersionFetcher.RELEASE_REPOSITORY, repo)
+            val version = "0.80.22"
             """[{"tag_name":"dev-v$version","prerelease":true}]"""
         }
         assertEquals("0.80.22", release?.version)
