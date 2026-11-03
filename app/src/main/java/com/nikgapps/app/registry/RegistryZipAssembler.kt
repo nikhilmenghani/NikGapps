@@ -17,7 +17,7 @@ data class BuildRequest(val androidVersion: String, val api: Int, val architectu
     val releaseId: String? = null, val compressionLevel: Int = 0,
     val keepAospCounterparts: Set<String> = emptySet(), val filenameTimestamp: Instant? = null,
     val packageDefinitions: Map<String, String> = emptyMap(), val installerSettings: Map<String, String> = emptyMap(),
-    val debloatTargets: List<String> = emptyList())
+    val debloatTargets: List<String> = emptyList(), val creatorUsername: String? = null)
 data class ValidatedArtifact(val resolved: ResolvedPackage, val file: File, val descriptor: PackageDescriptor)
 
 /** Shared files are the unmodified Python-builder assets keyed by their final ZIP path. */
@@ -27,6 +27,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     fun build(outputDirectory: File, request: BuildRequest, artifacts: List<ValidatedArtifact>): File {
         require(artifacts.isNotEmpty()) { "No resolved packages" }
         require(request.compressionLevel in 0..9) { "Invalid compression level" }
+        val creator = buildCreatorLabel(request.creatorUsername)
         DebloaterConfig.validate(request.debloatTargets,
             DebloaterConfig.conflicts(artifacts.map { it.resolved.catalogPackage }, request.keepAospCounterparts) +
                 artifacts.flatMap { listOfNotNull(it.descriptor.install?.packageTitle, it.descriptor.install?.title) })
@@ -102,7 +103,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 finalZip.text("customize.sh", "actual_file_name=${output.nameWithoutExtension}\n" + customize)
                 finalZip.text("nikgapps/build-manifest.json", manifest(request, artifacts))
                 finalZip.text("zip_name.txt", output.nameWithoutExtension)
-                finalZip.text("creator.txt", "Created by Nikhil Menghani".padStart(32).padEnd(38))
+                finalZip.text("creator.txt", creator.padStart(32).padEnd(38))
                 finalZip.text("META-INF/com/google/android/updater-script", "#MAGISK")
             }
             if (!part.renameTo(output)) error("Cannot publish ${output.name}")
@@ -154,6 +155,7 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
     private fun manifest(r: BuildRequest, artifacts: List<ValidatedArtifact>) = buildJsonObject {
         put("catalogSchemaVersion", SUPPORTED_CATALOG_SCHEMA); put("buildTimestamp", r.timestamp.toString())
         put("compressionLevel", r.compressionLevel)
+        r.creatorUsername?.let { put("creatorUsername", it.trim()) }
         put("debloatTargets", buildJsonArray { r.debloatTargets.forEach { add(it) } })
         r.releaseId?.let { put("releaseId", it) }
         put("packageDefinitions", buildJsonObject { r.packageDefinitions.forEach { (id, digest) -> put(id, digest) } })
@@ -199,4 +201,12 @@ private fun ZipOutputStream.file(path: String, file: File, compressed: Boolean) 
     })
     file.inputStream().buffered().use { it.copyTo(this) }
     closeEntry()
+}
+
+internal fun buildCreatorLabel(username: String?): String {
+    val value = username?.trim().orEmpty()
+    require(value.isEmpty() || value.matches(Regex("[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"))) {
+        "Invalid GitHub creator username"
+    }
+    return "Created by ${value.ifEmpty { "Guest" }}"
 }

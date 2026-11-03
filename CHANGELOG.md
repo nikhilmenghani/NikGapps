@@ -6,6 +6,7 @@
 - Show consistent app icons in package lists and details, using device or registry icons with offline caching and standard fallbacks.
 - Refine package details and show installed-size estimates, including dependencies and partition totals before flashing.
 - Improve navigation, bottom search controls and button layouts.
+- Credit packaged ZIPs to the signed-in GitHub username, with Guest attribution for guest builds.
 
 ## 0.80.21
 - Bundle project-specific debloating with standard commented configs in build ZIPs.

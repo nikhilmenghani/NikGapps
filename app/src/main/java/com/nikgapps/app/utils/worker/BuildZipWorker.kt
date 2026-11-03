@@ -40,6 +40,9 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         } catch (error: Exception) {
             return authFailure(error.message ?: "GitHub sign-in is required before building a ZIP.")
         }
+        val creatorUsername = if (GithubPrefs.token.isBlank()) null else GithubPrefs.username.trim()
+        if (creatorUsername != null && creatorUsername.isBlank())
+            return authFailure("Could not verify your GitHub username. Sign in again before building a ZIP.")
         val project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
@@ -127,7 +130,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     project.androidVersion.displayName, project.androidVersion.apiLevel,
                     project.architecture.value, primarySet, defaultChannel, overrides,
                     project.selectedAppIds, packageAppSets = resolution.packageAppSets,
-                    projectName = project.name,
+                    projectName = project.name, creatorUsername = creatorUsername,
                     timestamp = metadata.release?.createdAt?.let(java.time.Instant::parse) ?: java.time.Instant.now(),
                     releaseId = metadata.release?.id, compressionLevel = compressionLevel,
                     keepAospCounterparts = project.keepAospCounterparts, installerSettings = project.installerSettings,
@@ -138,6 +141,8 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             check(operations.edit().putString("worker-output:$id", output.absolutePath).commit())
             try {
                 GitHubBuildAuth.requireBuildAccess()
+                val currentCreator = if (GithubPrefs.token.isBlank()) null else GithubPrefs.username.trim()
+                check(currentCreator == creatorUsername) { "GitHub account changed. Start a new build." }
             } catch (error: Exception) {
                 output.delete()
                 throw error
