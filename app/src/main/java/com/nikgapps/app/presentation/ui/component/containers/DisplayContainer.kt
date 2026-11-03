@@ -228,6 +228,7 @@ fun AccountPreferences(showSignInHint: Boolean = false) {
                 GitHubAccountPreference()
                 GitHubTokenPreference()
             }
+            ProjectBackupPreferences()
         }
     }
 }

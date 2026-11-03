@@ -162,11 +162,19 @@ class BuildProjectRepository(context: Context) {
         saveProjects(update(getProjects()))
     }
 
+    internal fun replaceFromBackup(projects: List<BuildProject>, expectedExisting: List<BuildProject>, elite: Boolean,
+        selectedIds: Set<String> = projects.mapTo(hashSetOf()) { it.id }): Int = synchronized(WRITE_LOCK) {
+        check(getProjects() == expectedExisting) { "Projects changed while reviewing the backup. Reopen the backup and review it again." }
+        val replacement = ProjectBackups.replacement(projects, elite, selectedIds)
+        saveProjects(replacement, durable = true)
+        replacement.size
+    }
+
     fun deleteProject(projectId: String): List<BuildProject> {
         return synchronized(WRITE_LOCK) { saveProjects(getProjects().filterNot { it.id == projectId }) }
     }
 
-    private fun saveProjects(projects: List<BuildProject>): List<BuildProject> {
+    private fun saveProjects(projects: List<BuildProject>, durable: Boolean = false): List<BuildProject> {
         val json = JSONArray().apply {
             projects.forEach {
                 put(
@@ -206,7 +214,8 @@ class BuildProjectRepository(context: Context) {
                 )
             }
         }
-        preferences.edit().putString(PROJECTS_KEY, json.toString()).apply()
+        val editor = preferences.edit().putString(PROJECTS_KEY, json.toString())
+        if (durable) check(editor.commit()) { "Could not save restored projects" } else editor.apply()
         return projects
     }
 
@@ -225,6 +234,8 @@ class LatestBuildRepository(context: Context) {
     fun save(projectId: String, location: String) {
         preferences.edit().putString(projectId, location).apply()
     }
+
+    internal fun clear() { preferences.edit().clear().apply() }
 
     fun remove(projectId: String) {
         preferences.edit().remove(projectId).apply()

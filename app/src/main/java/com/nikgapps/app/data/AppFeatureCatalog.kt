@@ -6,6 +6,7 @@ data class AppFeaturePage(val title: String, val description: String, val featur
 /** Add features and pages here; the guide renders them without UI changes. */
 object AppFeatureCatalog {
     val eliteFeatures = listOf(
+        AppFeature("Selective project restore", "Choose which backup projects to import", "Open Settings → Account → Restore projects and select a .nikgapps backup. Elite users can choose compatible projects to restore; regular users import all compatible projects with read-only checkboxes. Restoring replaces the current project list after confirmation. Outdated projects cannot be imported. Keeping existing projects through incremental import is planned for a future update.", true),
         AppFeature("Unlimited projects", "Create more than $REGULAR_PROJECT_LIMIT projects", "Regular accounts can keep up to $REGULAR_PROJECT_LIMIT projects, including copies and outdated projects. Elite accounts have no project-count limit. Existing projects are preserved if membership changes.", true),
         AppFeature("Elite badge", "Recognition on your dashboard", "Sign in with an eligible GitHub account to see your Elite badge.", true),
         AppFeature("Extra builds", "Add six builds to your remaining allowance", "Use Reset build window on the project screen. Your remaining allowance plus six starts a new six-hour window. Available once per six-hour window.", true),
@@ -15,6 +16,7 @@ object AppFeatureCatalog {
     )
     val pages = listOf(
         AppFeaturePage("Projects", "Organize your own GApps selections", listOf(
+            AppFeature("Back up and restore projects", "Move projects between builds", "Open Settings → Account → Project backup to export a .nikgapps file, then Restore projects in the release build or on another device. Restore replaces all existing projects after confirmation. Regular users import all compatible projects; Elite users can select which compatible projects to import. Outdated projects are included in exports but cannot be imported and are skipped with a warning. An internet connection is required to check compatibility; project limits still apply. Backups include package selections, stock-app preferences, installer settings and debloater targets, but no tokens, APKs, ZIPs or build allowances. The backup format version determines compatibility across app releases; a newer unsupported format requires an app update."),
             AppFeature("Why GitHub sign-in?", "Account verification and Elite eligibility", GITHUB_SIGN_IN_EXPLANATION),
             AppFeature("Create a project", "Name it and choose Android", "Tap + on Home, enter a project name and select a supported Android version. ARM64 is the supported architecture. Optionally load a config to preselect packages."),
             AppFeature("Manage projects", "Edit, copy, delete and reopen ZIPs", "Long-press a project card for its menu. Rename or copy a project, delete one you no longer need, or reopen its previously built ZIP using Open ZIP."),

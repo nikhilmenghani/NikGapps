@@ -1,6 +1,7 @@
 # NikGapps changelog
 
 ## 0.80.22
+- Back up projects to versioned .nikgapps files across compatible debug and release builds. Restore replaces existing projects and skips outdated entries; Elite users can choose which projects to restore.
 - Add screen-specific help and remembered guide progress.
 - Unify AppSets and packages with animated groups and a full-screen review of packages and debloater targets.
 - Show consistent app icons in package lists and details, using device or registry icons with offline caching and standard fallbacks.
