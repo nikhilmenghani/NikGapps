@@ -496,6 +496,9 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         var expandedReviewAppSets by remember { mutableStateOf(emptySet<String>()) }
+        val installEstimate = remember(current, registry) {
+            registry?.let { runCatching { projectInstallSize(current, it) }.getOrNull() }
+        }
         val groups = displayedPackages.filter { it.id in current.selectedAppIds }.groupBy { pkg ->
             packageAppSets[pkg.id].orEmpty().firstOrNull {
                 isSelectedInAppSet(current, pkg.id, it.id)
@@ -518,6 +521,22 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text("${current.androidVersion.displayName} · $appSetCount AppSets · ${current.selectedAppIds.size} packages",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Approx. installed size", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(installEstimate?.let {
+                            if (it.complete) "≈ ${formatInstallSize(it.knownBytes)}"
+                            else "At least ${formatInstallSize(it.knownBytes)} · ${it.missingPackages} sizes unavailable"
+                        } ?: "Unavailable", style = MaterialTheme.typography.titleMedium)
+                        installEstimate?.partitions?.takeIf { it.isNotEmpty() }?.let { partitions ->
+                            Text(partitions.entries.joinToString(" · ") { "${it.key}: ${formatInstallSize(it.value)}" },
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text("Includes dependencies. Excludes temporary space, filesystem overhead and space reclaimed by removals.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -2,9 +2,6 @@ package com.nikgapps.app.presentation.ui.screen
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +23,7 @@ import com.nikgapps.app.registry.*
 fun AppConfigScreen(projectId: String, packageId: String, navController: NavHostController) {
     val context = LocalActivity.current ?: return
     val repository = remember { BuildProjectRepository(context) }
-    var project by remember(projectId) { mutableStateOf(repository.getProjects().firstOrNull { it.id == projectId }) }
+    val project = remember(projectId) { repository.getProjects().firstOrNull { it.id == projectId } }
     var metadata by remember { mutableStateOf<RegistryMetadata?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -40,26 +37,31 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
     val current = project
     val outdated = current != null && metadata?.let { unavailableProjectPackages(current, it).isNotEmpty() } == true
     val pkg = metadata?.catalog?.packages?.firstOrNull { it.id == packageId }
-    val memberAppSets = metadata?.let { loaded -> loaded.appSets.appSets.filter { set ->
-        loaded.catalog.publicPackages(set).any { it.id == packageId }
-    } }.orEmpty()
-    val channel = ReleaseChannel.STABLE
+    val channel = runCatching { ReleaseChannel.valueOf(
+        (current?.channelOverrides?.get(packageId) ?: current?.defaultChannel ?: "stable").uppercase())
+    }.getOrDefault(ReleaseChannel.STABLE)
     val version = metadata?.release?.packages?.get(packageId)?.let { pkg?.versions?.get(it) }
         ?: pkg?.channels?.get(channel.wireName)?.let { pkg.versions[it] }
         ?: pkg?.versions?.values?.firstOrNull()
-    val owner = memberAppSets.firstOrNull { it.id == current?.selectedPackageAppSets?.get(packageId) } ?: memberAppSets.firstOrNull()
-
-    fun save(value: BuildProject) {
-        if (outdated) return
-        repository.updateProject(value)
-        project = value
+    val flashSize = remember(metadata, current, packageId) {
+        runCatching {
+            val loaded = metadata ?: return@runCatching null
+            val selected = current ?: return@runCatching null
+            val owner = selected.selectedPackageAppSets[packageId]
+                ?: loaded.appSets.appSets.firstOrNull { packageId in it.packages }?.id
+                ?: return@runCatching null
+            estimateInstallSize(CatalogResolver(loaded.catalog, loaded.appSets, loaded.release).resolve(
+                owner, setOf(packageId), channel,
+                selected.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) },
+                selected.androidVersion.apiLevel, selected.architecture.value))
+        }.getOrNull()
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text(pkg?.name ?: "Package") }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }) { padding ->
+    }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 ElevatedCard(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -71,9 +73,9 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(pkg?.name ?: "Loading…", style = MaterialTheme.typography.titleLarge,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(version?.packageName ?: packageId, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text("Package details", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -84,53 +86,46 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
             if (metadata == null && error == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (pkg != null && current != null) {
                 item {
-                    SectionTitle("Package information", "Package metadata used in the flashable ZIP.")
-                    Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                         AnimatedContent(version, label = "package-version") { shown ->
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                                InfoRow("Package", shown?.packageName ?: "Not specified")
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
+                                InfoRow("Package name", shown?.packageName ?: "Not specified")
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
                                 InfoRow("Version", shown?.versionName ?: "Unavailable")
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
                                 InfoRow("Version code", shown?.versionCode?.toString() ?: "Unavailable")
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
                                 InfoRow("Android", listOfNotNull(shown?.android?.minApi?.let { "API $it+" }, shown?.android?.maxApi?.let { "up to $it" }).joinToString(" · ").ifBlank { "Any supported API" })
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
                                 InfoRow("Architecture", shown?.architectures?.joinToString().orEmpty().ifBlank { "Universal" })
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                                InfoRow("Installed payload", shown?.installBytes()?.let(::formatInstallSize) ?: "Unavailable")
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                                InfoRow("Approx. flash payload · including dependencies",
+                                    flashSize?.takeIf { it.complete }?.let { "≈ ${formatInstallSize(it.knownBytes)}" } ?: "Unavailable")
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                                InfoRow("Install partition", shown?.defaultPartition ?: "Unavailable")
+                                Text("Uncompressed files written during flashing. Temporary space and filesystem overhead are additional.",
+                                    Modifier.padding(vertical = 10.dp), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
-                item {
-                    SectionTitle("AppSet", "Choose where this package should be placed in the flashable ZIP.")
-                    Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                        FlowRow(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            memberAppSets.forEach { set -> FilterChip(selected = owner?.id == set.id,
-                                enabled = !outdated,
-                                onClick = { save(if (packageId in current.selectedAppIds)
-                                    selectProjectPackages(current, setOf(packageId), true, set.id)
-                                else current.copy(selectedAppSetId = set.id,
-                                    selectedPackageAppSets = current.selectedPackageAppSets + (packageId to set.id))) },
-                                label = { Text(set.name) }, leadingIcon = if (owner?.id == set.id) {{ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }} else null) }
-                        }
-                    }
-                }
+
             }
         }
     }
 }
 
-@Composable private fun SectionTitle(title: String, subtitle: String) {
-    Text(title, style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(2.dp))
-    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
 @Composable private fun InfoRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.foundation.text.selection.SelectionContainer {
+            Text(value, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
