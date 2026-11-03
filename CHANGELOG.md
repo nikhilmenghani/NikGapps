@@ -1,6 +1,14 @@
 # NikGapps changelog
 
+## 0.81
+- Added the ability to back up your projects and restore them after signing in on another device.
+- Improve project management, screen-specific help and navigation.
+- Unify app selection and build review, with app icons, package size estimates and debloater details.
+- Credit packaged ZIPs to the signed-in GitHub username.
+- Deliver app updates exclusively through NikGappsReleases.
+
 ## 0.80.22
+- Deliver app updates exclusively through NikGappsReleases.
 - Added the ability to back up your projects and restore them after signing in on another device.
 - Add screen-specific help and remembered guide progress.
 - Unify AppSets and packages with animated groups and a full-screen review of packages and debloater targets.
