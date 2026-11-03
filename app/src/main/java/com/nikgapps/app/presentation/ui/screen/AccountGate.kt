@@ -20,6 +20,13 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.TextButton
+import com.nikgapps.app.data.GITHUB_SIGN_IN_EXPLANATION
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +42,7 @@ import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPrefer
 fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val allowGuest = DisplayPrefs.guestAccessEnabled
+    var showWhyGitHub by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = Modifier.fillMaxSize().background(colors.background).padding(24.dp),
         contentAlignment = Alignment.Center
@@ -75,6 +83,13 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
                         color = colors.onSurfaceVariant)
                     Spacer(Modifier.height(20.dp))
                     GitHubAccountPreference(asSignInButton = true)
+                    TextButton(onClick = { showWhyGitHub = !showWhyGitHub }) {
+                        Text(if (showWhyGitHub) "Hide sign-in information" else "Why GitHub?")
+                    }
+                    AnimatedVisibility(showWhyGitHub) {
+                        Text(GITHUB_SIGN_IN_EXPLANATION, style = MaterialTheme.typography.bodyMedium,
+                            color = colors.onSurfaceVariant)
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))

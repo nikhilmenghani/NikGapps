@@ -15,6 +15,7 @@ object AppFeatureCatalog {
     )
     val pages = listOf(
         AppFeaturePage("Projects", "Organize your own GApps selections", listOf(
+            AppFeature("Why GitHub sign-in?", "Account verification and Elite eligibility", GITHUB_SIGN_IN_EXPLANATION),
             AppFeature("Create a project", "Name it and choose Android", "Tap + on Home, enter a project name and select a supported Android version. ARM64 is the supported architecture. Optionally load a config to preselect packages."),
             AppFeature("Manage projects", "Edit, copy, delete and reopen ZIPs", "Long-press a project card for its menu. Rename or copy a project, delete one you no longer need, or reopen its previously built ZIP using Open ZIP."),
             AppFeature("Outdated projects", "Keep old selections separate", "Outdated projects appear below active projects with a tinted card and badge. Tap to reveal actions, then Open to review the project and available recovery options. Outdated projects cannot be built until recreated with current definitions.")
