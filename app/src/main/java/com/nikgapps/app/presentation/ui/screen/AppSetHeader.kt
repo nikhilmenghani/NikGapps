@@ -61,3 +61,25 @@ internal fun AppSetHeader(name: String, packageCount: Int, selectedCount: Int,
         }
     }
 }
+
+/** Match Settings containers: keep children composed until the exit animation completes. */
+@Composable
+internal fun AppSetContents(expanded: Boolean, nested: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = expanded,
+        modifier = Modifier.fillMaxWidth(),
+        enter = androidx.compose.animation.expandVertically(
+            animationSpec = androidx.compose.animation.core.tween(280), expandFrom = Alignment.Top) +
+            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)),
+        exit = androidx.compose.animation.shrinkVertically(
+            animationSpec = androidx.compose.animation.core.tween(280), shrinkTowards = Alignment.Top) +
+            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(220))
+    ) {
+        Column(Modifier.fillMaxWidth().padding(top = if (nested) 6.dp else 0.dp)) {
+            if (nested) Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Column(Modifier.fillMaxWidth(), content = content)
+            } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
+        }
+    }
+}

@@ -2,8 +2,8 @@
 
 ## 0.80.22
 - Add screen-specific help and remembered guide progress.
-- Unify AppSets and packages in a compact list, with a full-screen review before building ZIPs.
-- Load app icons from the device or registry, with offline caching and standard fallback icons.
+- Unify AppSets and packages with animated groups and a full-screen review of packages and debloater targets.
+- Show consistent app icons in package lists and details, using device or registry icons with offline caching and standard fallbacks.
 - Improve navigation, bottom search controls and button layouts.
 
 ## 0.80.21

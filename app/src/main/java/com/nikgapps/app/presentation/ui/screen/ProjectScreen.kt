@@ -510,10 +510,13 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Review build", style = MaterialTheme.typography.headlineSmall)
-                    Text(current.name, style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary)
-                    Text("$appSetCount AppSets · ${current.selectedAppIds.size} packages selected",
+                    Text("Review build", style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text(current.name, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text("${current.androidVersion.displayName} · $appSetCount AppSets · ${current.selectedAppIds.size} packages",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f),
@@ -521,34 +524,34 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     groups.forEach { (set, packages) ->
                         val isGroup = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
                         val expanded = set?.id in expandedReviewAppSets
-                        if (isGroup) item(key = "review-group:${set?.id}") {
-                            AppSetHeader(name = set?.name.orEmpty(),
-                                packageCount = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size } ?: packages.size,
-                                selectedCount = packages.size, expanded = expanded, enabled = true,
-                                onToggleExpanded = {
-                                    set?.id?.let { id -> expandedReviewAppSets =
-                                        if (expanded) expandedReviewAppSets - id else expandedReviewAppSets + id }
-                                }, onToggleSelection = null, showSelectionIndicators = false)
-                        }
-                        if (!isGroup || expanded) packages.forEach { pkg ->
-                            item(key = "review-package:${set?.id}:${pkg.id}") {
-                                Box(Modifier.fillMaxWidth()) {
-                                    if (isGroup) Box(Modifier.matchParentSize()) {
-                                        Box(Modifier.padding(start = 2.dp).width(2.dp).fillMaxHeight()
-                                            .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(1.dp)))
-                                    }
-                                    ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
-                                        selected = true, onOpen = {}, onSelected = {},
-                                        keepAosp = pkg.id in current.keepAospCounterparts, onKeepAospChange = {},
-                                        modifier = Modifier.padding(start = if (isGroup) 8.dp else 0.dp), readOnly = true)
+                        item(key = "review:${set?.id ?: "other-packages"}") {
+                            Column {
+                                if (isGroup) AppSetHeader(name = set?.name.orEmpty(),
+                                    packageCount = set?.let { registry?.catalog?.publicPackages(it).orEmpty().size } ?: packages.size,
+                                    selectedCount = packages.size, expanded = expanded, enabled = true,
+                                    onToggleExpanded = {
+                                        set?.id?.let { id -> expandedReviewAppSets =
+                                            if (expanded) expandedReviewAppSets - id else expandedReviewAppSets + id }
+                                    }, onToggleSelection = null, showSelectionIndicators = false)
+                                AppSetContents(expanded = !isGroup || expanded, nested = isGroup) {
+                                    packages.forEachIndexed { index, pkg -> key(pkg.id) {
+                                        ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                                            selected = true, onOpen = {}, onSelected = {},
+                                            keepAosp = pkg.id in current.keepAospCounterparts, onKeepAospChange = {},
+                                            readOnly = true, embedded = isGroup)
+                                        if (isGroup && index < packages.lastIndex) HorizontalDivider(
+                                            Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                                    } }
+
                                 }
                             }
                         }
 
                     }
+                    if (current.debloatTargets.isNotEmpty()) item(key = "review-debloater") {
+                        DebloaterReviewTargets(current.debloatTargets)
+                    }
                 }
-                if (current.debloatTargets.isNotEmpty()) Text(
-                    "${current.debloatTargets.size} debloater targets included", style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(onClick = { showBuildSummary = false },
@@ -950,34 +953,32 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         return@forEach
                     }
                     item(key = "appset:${set.id}") {
-                        AppSetHeader(
-                            name = set.name, packageCount = ids.size, selectedCount = selectedCount,
-                            expanded = expanded, enabled = isOnline,
-                            onToggleExpanded = {
-                                expandedAppSets = if (set.id in expandedAppSets) expandedAppSets - set.id
-                                    else expandedAppSets + set.id
-                            },
-                            onToggleSelection = { selectPackages(ids, selectedCount != ids.size, set) }
-                        )
-                    }
+                        Column {
+                            AppSetHeader(
+                                name = set.name, packageCount = ids.size, selectedCount = selectedCount,
+                                expanded = expanded, enabled = isOnline,
+                                onToggleExpanded = {
+                                    expandedAppSets = if (set.id in expandedAppSets) expandedAppSets - set.id
+                                        else expandedAppSets + set.id
+                                },
+                                onToggleSelection = { selectPackages(ids, selectedCount != ids.size, set) }
+                            )
+                            AppSetContents(expanded = expanded) {
+                                matches.forEachIndexed { index, pkg -> key(pkg.id) {
+                                    ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
+                                        isSelectedInAppSet(current, pkg.id, set.id),
+                                        onOpen = { openPackage(pkg.id) },
+                                        keepAosp = pkg.id in current.keepAospCounterparts,
+                                        onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
+                                        onSelected = { selectPackages(setOf(pkg.id), it, set) }, embedded = true)
+                                    if (index < matches.lastIndex) HorizontalDivider(
+                                        Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                                } }
 
-                    if (expanded) matches.forEach { pkg ->
-                        item(key = "appset:${set.id}:${pkg.id}") {
-                            Box(Modifier.fillMaxWidth()) {
-                                Box(Modifier.matchParentSize()) {
-                                    Box(Modifier.padding(start = 2.dp).width(2.dp).fillMaxHeight()
-                                        .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(1.dp)))
-                                }
-                            ProjectPackageCard(pkg, deviceStatuses[pkg.id] ?: RegistryDeviceStatus(false),
-                                isSelectedInAppSet(current, pkg.id, set.id),
-                                onOpen = { openPackage(pkg.id) },
-                                keepAosp = pkg.id in current.keepAospCounterparts,
-                                onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
-                                onSelected = { selectPackages(setOf(pkg.id), it, set) },
-                                modifier = Modifier.padding(start = 8.dp))
                             }
                         }
                     }
+
                 }
 
             }
@@ -1030,12 +1031,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 @Composable
 private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
     onOpen: () -> Unit, onSelected: (Boolean) -> Unit, keepAosp: Boolean,
-    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier, readOnly: Boolean = false) {
+    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier, readOnly: Boolean = false, embedded: Boolean = false) {
     var menuOpen by remember(pkg.id) { mutableStateOf(false) }
     var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
     Box(modifier.fillMaxWidth()) {
-    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(if (embedded) 0.dp else 16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (embedded) 0.dp else 1.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = if (embedded)
+            MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer)) {
         Box(Modifier.fillMaxWidth()) {
             ProjectPackageRow(pkg, device, selected, onSelected = onSelected,
                 onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true }, readOnly = readOnly)
@@ -1226,13 +1229,6 @@ private fun ProjectPackageRow(pkg: CatalogPackage, device: RegistryDeviceStatus,
 /** Shared by the real package list and density/font-scale previews. */
 @Composable
 internal fun RowScope.PackageRowContents(name: String, packageName: String, installed: Boolean, selected: Boolean) {
-        val iconContext = androidx.compose.ui.platform.LocalContext.current
-        val appIcon by produceState<Any?>(null, packageName) {
-            value = withContext(Dispatchers.IO) {
-                runCatching { iconContext.packageManager.getApplicationIcon(packageName) }.getOrNull()
-                    ?: PackageIconRepository.icon(iconContext, packageName)
-            }
-        }
         val badgeStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp)
         val badgeLayout = rememberTextMeasurer().measure("Installed", style = badgeStyle, maxLines = 1, softWrap = false)
         val density = LocalDensity.current
@@ -1241,12 +1237,7 @@ internal fun RowScope.PackageRowContents(name: String, packageName: String, inst
         Surface(Modifier.size(32.dp).align(if (installed) Alignment.TopCenter else Alignment.Center), shape = RoundedCornerShape(10.dp),
             color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest) {
             Box(contentAlignment = Alignment.Center) {
-                if (appIcon != null) coil3.compose.AsyncImage(
-                    model = appIcon, contentDescription = null,
-                    error = androidx.compose.ui.graphics.vector.rememberVectorPainter(Icons.Default.Android),
-                    placeholder = androidx.compose.ui.graphics.vector.rememberVectorPainter(Icons.Default.Android),
-                    modifier = Modifier.size(28.dp))
-                else Icon(Icons.Default.Android, null, Modifier.size(20.dp))
+                com.nikgapps.app.presentation.ui.component.PackageIcon(packageName, Modifier.size(28.dp))
             }
         }
         if (installed) Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), shape = RoundedCornerShape(4.dp),

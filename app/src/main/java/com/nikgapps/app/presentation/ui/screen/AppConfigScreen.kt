@@ -64,7 +64,9 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
                 ElevatedCard(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(Modifier.size(48.dp), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Android, null, Modifier.size(24.dp)) }
+                            Box(contentAlignment = Alignment.Center) {
+                                com.nikgapps.app.presentation.ui.component.PackageIcon(version?.packageName, Modifier.size(40.dp))
+                            }
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
