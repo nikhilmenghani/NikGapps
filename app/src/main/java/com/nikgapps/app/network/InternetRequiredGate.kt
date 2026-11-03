@@ -126,7 +126,9 @@ fun InternetRequiredGate(
             LocalInternetAvailable provides (internetState == InternetState.ONLINE)
         ) { content() }
 
-        if (showGate) {
+        if (showGate && internetState == InternetState.CHECKING) {
+            com.nikgapps.app.presentation.ui.component.StartupLogoScreen()
+        } else if (showGate) {
             OfflineScreen(
                 checking = internetState == InternetState.CHECKING,
                 onRetry = { checkInternet(showChecking = true) },

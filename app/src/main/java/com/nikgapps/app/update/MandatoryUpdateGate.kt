@@ -101,7 +101,9 @@ fun MandatoryUpdateGate(
 
     Box(Modifier.fillMaxSize()) {
         content()
-        if (showGate) {
+        if (showGate && checking) {
+            com.nikgapps.app.presentation.ui.component.StartupLogoScreen()
+        } else if (showGate) {
             MandatoryUpdateScreen(
                 checking = checking,
                 currentVersion = currentVersion,
