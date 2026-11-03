@@ -34,10 +34,18 @@ Compatibility uses the same definition and package-availability checks as the
 project list, plus dependency resolution for the target API and architecture.
 
 Exports preserve all projects, including outdated ones. Restore previews all
-records, marks outdated projects as non-importable, and imports every compatible
-project by default. Regular users see all compatible projects selected with read-only checkboxes. Elite users may choose a subset; Elite status is reverified on confirmation. Both modes replace the current list; there is no merging. A clear warning and explicit
-acknowledgement explain that all current projects will be replaced. Outdated
-projects are skipped; an empty or entirely outdated backup cannot erase projects.
+records, marks outdated projects, and imports every compatible
+project by default. The full-screen restore page uses Home-style project cards;
+only the project icon highlights selection. Compatible projects are read-only and
+selected for regular users. Elite users may tap cards to choose a subset; Elite
+status is reverified on confirmation. Both modes replace the current list; there
+is no merging. Information and warning icons reveal the source/version details,
+Elite selection guidance and outdated-project notices. Pressing Restore opens a
+themed overwrite confirmation if any existing projects will be replaced. There is
+no overwrite checkbox. Elite users can enable Import outdated projects (off by
+default), then select outdated projects individually. These retain their original
+definitions and need recovery before building. Regular users skip outdated projects.
+An empty selection cannot erase projects.
 
 Regular accounts may restore at most 5 compatible projects; larger restores
 require verified Elite membership. This limit counts the replacement, not the old

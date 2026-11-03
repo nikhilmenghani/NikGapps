@@ -3,6 +3,14 @@ package com.nikgapps.app.registry
 import com.nikgapps.app.data.BuildProject
 
 internal data class BackupRestorePlan(val compatible: List<BuildProject>, val outdated: List<BuildProject>)
+/** Keep the reviewed selection when registry data changes; excluded outdated projects stay excluded. */
+internal fun BackupRestorePlan.reviewedSelection(selectedIds: Set<String>, elite: Boolean,
+    includeOutdated: Boolean): Set<String> {
+    if (!elite) return compatible.mapTo(hashSetOf()) { it.id }
+    val eligible = compatible + if (includeOutdated) outdated else emptyList()
+    return eligible.mapTo(hashSetOf()) { it.id }.intersect(selectedIds)
+}
+
 internal data class BackupTarget(val android: String, val channel: String, val architecture: String)
 internal fun BuildProject.backupTarget() = BackupTarget(catalogAndroidVersion(androidVersion.displayName), defaultChannel, architecture.value)
 

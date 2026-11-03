@@ -33,6 +33,19 @@ class ProjectBackupReviewTest {
         val file = ProjectBackups.export(listOf(valid, changed, retired), BackupSource("0.80.22", 1, "release"))
         assertEquals(3, ProjectBackups.read(file).projects.size)
     }
+    @Test fun recheckingCompatibilityPreservesEliteOutdatedSelection() {
+        val valid = project()
+        val old = project().copy(packageDefinitions = mapOf("gms_core" to "old"))
+        val plan = BackupRestorePlan(listOf(valid), listOf(old))
+        val selected = setOf(valid.id, old.id)
+        assertEquals(selected, plan.reviewedSelection(selected, elite = true, includeOutdated = true))
+        assertEquals(listOf(valid, old), ProjectBackups.replacement(plan.compatible + plan.outdated,
+            elite = true, selectedIds = plan.reviewedSelection(selected, true, true)))
+        assertEquals(setOf(valid.id), plan.reviewedSelection(selected, elite = true, includeOutdated = false))
+        assertEquals(setOf(valid.id), plan.reviewedSelection(selected, elite = false, includeOutdated = true))
+        assertEquals(setOf(old.id), plan.reviewedSelection(setOf(old.id), elite = true, includeOutdated = true))
+    }
+
     @Test fun staleOrUnavailableMetadataStopsImportInsteadOfGuessing() {
         val p = project()
         assertThrows(IllegalStateException::class.java) { planBackupRestore(listOf(p), emptyMap()) }

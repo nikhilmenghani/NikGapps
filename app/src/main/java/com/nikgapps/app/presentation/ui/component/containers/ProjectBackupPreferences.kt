@@ -4,8 +4,6 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -20,8 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.nikgapps.app.registry.*
 import com.nikgapps.BuildConfig
 import com.nikgapps.app.data.*
@@ -48,8 +44,8 @@ fun ProjectBackupPreferences() {
     var preview by remember { mutableStateOf<ProjectBackup?>(null) }
     var existingProjects by remember { mutableStateOf(emptyList<BuildProject>()) }
     var restorePlan by remember { mutableStateOf<BackupRestorePlan?>(null) }
-    var acknowledgeReplace by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+    var includeOutdated by remember { mutableStateOf(false) }
     var restoreElite by remember { mutableStateOf(false) }
     var verifiedEliteUsername by remember { mutableStateOf<String?>(null) }
 
@@ -107,11 +103,11 @@ fun ProjectBackupPreferences() {
                 }
                 restorePlan = reviewBackupProjects(backup.projects, CatalogRepository(context.cacheDir))
                 existingProjects = withContext(Dispatchers.IO) { repository.getProjects() }
-                acknowledgeReplace = false
                 selectedIds = restorePlan!!.compatible.mapTo(hashSetOf()) { it.id }
                 restoreElite = verifyElite()
                 verifiedEliteUsername = if (restoreElite) GithubPrefs.username else null
                 restoreError = null
+                includeOutdated = false
                 preview = backup
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { notice = error.message ?: "This backup could not be read. No projects were changed." }
@@ -129,7 +125,7 @@ fun ProjectBackupPreferences() {
             }
         }
         AnimatedVisibility(visible = showBackupInfo) {
-        Text("Move projects between debug and release builds using a .nikgapps file. Includes package choices, installer settings and debloater targets. Restore replaces all existing projects. Outdated projects are exported but cannot be imported. Sign-in tokens, APKs, ZIPs and build allowances are not included.",
+        Text("Move projects between debug and release builds using a .nikgapps file. Includes package choices, installer settings and debloater targets. Restore replaces all existing projects. Outdated projects are exported; Elite users can optionally restore them. Sign-in tokens, APKs, ZIPs and build allowances are not included.",
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -155,105 +151,62 @@ fun ProjectBackupPreferences() {
     preview?.let { backup ->
         val plan = restorePlan ?: return@let
         val canChooseProjects = restoreElite && GithubPrefs.username == verifiedEliteUsername && GithubPrefs.token.isNotBlank()
-        Dialog(onDismissRequest = { if (!busy) preview = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            val maxHeight = with(androidx.compose.ui.platform.LocalDensity.current) {
-                androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height.toDp() * .85f
-            }
-            Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth(.94f).heightIn(max = maxHeight),
-                shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Restore projects", style = MaterialTheme.typography.headlineSmall)
-                    Text("Created with NikGapps ${backup.source.appVersion} (${backup.source.buildType}) · Backup format ${backup.formatVersion}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Restore will replace all ${existingProjects.size} existing projects with ${if (canChooseProjects) selectedIds.size else plan.compatible.size} compatible projects from this backup. ZIP files must be rebuilt.",
-                        style = MaterialTheme.typography.bodyMedium)
-                    Text("Outdated projects cannot be imported." + if (plan.outdated.isNotEmpty()) " ${plan.outdated.size} will be skipped." else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (plan.outdated.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(if (canChooseProjects) "Elite: choose the projects to restore." else
-                        "All compatible projects are selected. Elite users can choose which projects to import.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                        if (backup.projects.isEmpty()) item { Text("This backup contains no projects.") }
-                        items(backup.projects, key = { it.id }) { project ->
-                            val outdated = plan.outdated.any { it.id == project.id }
-                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = !outdated && (project.id in selectedIds || !canChooseProjects),
-                                    enabled = canChooseProjects && !outdated && !busy,
-                                    onCheckedChange = {
-                                        selectedIds = if (it) selectedIds + project.id else selectedIds - project.id
-                                        acknowledgeReplace = false
-                                    })
-                                Column(Modifier.weight(1f)) {
-                                    Text("${project.name} · ${project.androidVersion.displayName}", style = MaterialTheme.typography.titleSmall)
-                                    Text(if (outdated) "Outdated · cannot be imported" else
-                                        "${project.selectedAppIds.size} packages",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (outdated) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+        ProjectRestoreScreen(
+            backup = backup, plan = plan, existingCount = existingProjects.size,
+            selectedIds = if (canChooseProjects) selectedIds else plan.compatible.mapTo(hashSetOf()) { it.id },
+            canChooseProjects = canChooseProjects, includeOutdated = canChooseProjects && includeOutdated,
+            onIncludeOutdated = { enabled ->
+                includeOutdated = enabled
+                val outdatedIds = plan.outdated.mapTo(hashSetOf()) { it.id }
+                selectedIds = if (enabled) selectedIds + outdatedIds else selectedIds - outdatedIds
+            }, busy = busy, error = restoreError,
+            onSelection = { id -> selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id },
+            onDismiss = { if (!busy) preview = null },
+            onRestore = {
+                scope.launch {
+                    busy = true
+                    restoreError = null
+                    try {
+                        val latestPlan = reviewBackupProjects(backup.projects, CatalogRepository(context.cacheDir))
+                        if (latestPlan.compatible != plan.compatible || latestPlan.outdated != plan.outdated) {
+                            restorePlan = latestPlan
+                            selectedIds = latestPlan.reviewedSelection(selectedIds, canChooseProjects, includeOutdated)
+                            restoreError = "Package definitions changed. Review compatibility before replacing projects."
+                            return@launch
+                        }
+                        withContext(Dispatchers.IO) {
+                            val manager = androidx.work.WorkManager.getInstance(context)
+                            check(existingProjects.none { project -> manager.getWorkInfosForUniqueWork(
+                                com.nikgapps.app.utils.worker.BuildZipWorker.uniqueName(project.id)
+                            ).get().any { !it.state.isFinished } }) {
+                                "A ZIP build is still running. Wait for it to finish before restoring projects."
                             }
                         }
-                    }
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = acknowledgeReplace, enabled = !busy && plan.compatible.isNotEmpty(),
-                            onCheckedChange = { acknowledgeReplace = it })
-                        Text("Replace all existing projects. This cannot be undone.", style = MaterialTheme.typography.bodySmall)
-                    }
-                    restoreError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(enabled = !busy, onClick = { preview = null },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Cancel") }
-                        Button(enabled = !busy && acknowledgeReplace && plan.compatible.isNotEmpty() && (!canChooseProjects || selectedIds.isNotEmpty()), modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            shape = RoundedCornerShape(16.dp), onClick = {
-                                scope.launch {
-                                    busy = true
-                                    restoreError = null
-                                    try {
-                                        val latestPlan = reviewBackupProjects(backup.projects, CatalogRepository(context.cacheDir))
-                                        if (latestPlan.compatible != plan.compatible || latestPlan.outdated != plan.outdated) {
-                                            restorePlan = latestPlan
-                                            selectedIds = latestPlan.compatible.mapTo(hashSetOf()) { it.id }
-                                            acknowledgeReplace = false
-                                            restoreError = "Package definitions changed. Review compatibility before replacing projects."
-                                            return@launch
-                                        }
-                                        withContext(Dispatchers.IO) {
-                                            val manager = androidx.work.WorkManager.getInstance(context)
-                                            check(existingProjects.none { project -> manager.getWorkInfosForUniqueWork(
-                                                com.nikgapps.app.utils.worker.BuildZipWorker.uniqueName(project.id)
-                                            ).get().any { !it.state.isFinished } }) {
-                                                "A ZIP build is still running. Wait for it to finish before restoring projects."
-                                            }
-                                        }
-                                        val allIds = latestPlan.compatible.mapTo(hashSetOf()) { it.id }
-                                        val requestedIds = if (canChooseProjects) selectedIds.toSet() else allIds
-                                        val elite = verifyElite()
-                                        if (!elite && requestedIds != allIds) {
-                                            restoreElite = false
-                                            verifiedEliteUsername = null
-                                            selectedIds = allIds
-                                            acknowledgeReplace = false
-                                            restoreError = "Elite eligibility could not be confirmed. All compatible projects are now selected; review before restoring."
-                                            return@launch
-                                        }
-                                        val count = withContext(Dispatchers.IO) {
-                                            repository.replaceFromBackup(latestPlan.compatible, existingProjects, elite, requestedIds).also {
-                                                LatestBuildRepository(context).clear()
-                                            }
-                                        }
-                                        preview = null
-                                        notice = "$count compatible projects restored. Previous projects were replaced." +
-                                            if (latestPlan.outdated.isNotEmpty()) " ${latestPlan.outdated.size} outdated projects could not be imported." else ""
-                                    } catch (cancelled: CancellationException) { throw cancelled }
-                                    catch (error: Exception) { restoreError = error.message ?: "Restore failed. No projects were changed." }
-                                    finally { busy = false }
-                                }
-                            }) { Text(if (busy) "Restoring…" else "Replace & restore") }
-                    }
+                        val allIds = latestPlan.compatible.mapTo(hashSetOf()) { it.id }
+                        val candidates = latestPlan.compatible + if (canChooseProjects && includeOutdated) latestPlan.outdated else emptyList()
+                        val requestedIds = if (canChooseProjects) selectedIds.toSet() else allIds
+                        val elite = verifyElite()
+                        if (!elite && (requestedIds != allIds || includeOutdated)) {
+                            includeOutdated = false
+                            restoreElite = false
+                            verifiedEliteUsername = null
+                            selectedIds = allIds
+                            restoreError = "Elite eligibility could not be confirmed. All compatible projects are now selected; review before restoring."
+                            return@launch
+                        }
+                        val count = withContext(Dispatchers.IO) {
+                            repository.replaceFromBackup(candidates, existingProjects, elite, requestedIds).also {
+                                LatestBuildRepository(context).clear()
+                            }
+                        }
+                        preview = null
+                        notice = "$count projects restored. Previous projects were replaced."
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) { restoreError = error.message ?: "Restore failed. No projects were changed." }
+                    finally { busy = false }
                 }
             }
-        }
+        )
     }
     notice?.let { text -> AlertDialog(
         onDismissRequest = { notice = null },

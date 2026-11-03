@@ -837,6 +837,7 @@ private fun ProjectCard(
         Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
             .semantics {
                 stateDescription = when {
                     outdated -> "Outdated project"
