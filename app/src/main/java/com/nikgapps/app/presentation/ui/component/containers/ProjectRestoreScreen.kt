@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
@@ -31,13 +32,14 @@ import com.nikgapps.app.data.ProjectBackup
 import com.nikgapps.app.registry.BackupRestorePlan
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @Composable
 internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan, existingCount: Int,
     selectedIds: Set<String>, canChooseProjects: Boolean, includeOutdated: Boolean,
     onIncludeOutdated: (Boolean) -> Unit, busy: Boolean, error: String?,
     onSelection: (String) -> Unit, onDismiss: () -> Unit, onRestore: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val projectDateFormat = remember(locale) { SimpleDateFormat("MMM d, yyyy", locale) }
     var showInfo by remember(backup) { mutableStateOf(false) }
     var showWarnings by remember(backup) { mutableStateOf(false) }
     var confirmOverwrite by remember(backup) { mutableStateOf(false) }
@@ -134,7 +136,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                                             color = MaterialTheme.colorScheme.primary)
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("${project.selectedAppIds.size} apps · ${SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(project.createdAt))}",
+                                        Text("${project.selectedAppIds.size} apps · ${projectDateFormat.format(Date(project.createdAt))}",
                                             Modifier.weight(1f).alignByBaseline(), style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text("API ${project.androidVersion.apiLevel} · ${project.architecture.displayName}",

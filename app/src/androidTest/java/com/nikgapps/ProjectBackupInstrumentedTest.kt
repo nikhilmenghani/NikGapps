@@ -44,6 +44,14 @@ class ProjectBackupInstrumentedTest {
                 destination.replaceFromBackup(emptyList(), listOf(original), false)
             }
             assertEquals(listOf(original), BuildProjectRepository(release).getProjects())
+            // Explicit Elite selection must durably retain outdated definitions too.
+            val outdated = original.copy(id = UUID.randomUUID().toString(), name = "Outdated backup",
+                packageDefinitions = mapOf("gms_core" to "retired-definition"), configVersion = "40")
+            val all = ProjectBackups.read(ProjectBackups.export(listOf(original, outdated),
+                BackupSource("0.80.22-debug", 80022, "debug"))).projects
+            assertEquals(2, destination.replaceFromBackup(all, listOf(original), elite = true,
+                selectedIds = all.mapTo(hashSetOf()) { it.id }))
+            assertEquals(all, BuildProjectRepository(release).getProjects())
             assertEquals(listOf(original), source.getProjects())
         } finally {
             for (suffix in listOf("debug", "release")) {
