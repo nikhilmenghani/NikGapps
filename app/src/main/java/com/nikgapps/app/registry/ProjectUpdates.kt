@@ -32,6 +32,8 @@ fun dismissProjectsThroughRelease(projects: List<BuildProject>, target: ReleaseS
 }
 
 fun projectUpdate(project: BuildProject, metadata: RegistryMetadata): ProjectUpdate {
+    val migrated = project.withAndroid17GmsCore(metadata)
+    if (migrated != project) return projectUpdate(migrated, metadata)
     val release = metadata.release
     if (release != null && (release.androidVersion != catalogAndroidVersion(project.androidVersion.displayName) ||
         release.channel != project.defaultChannel || release.architecture != project.architecture.value))
@@ -65,6 +67,8 @@ fun projectUpdate(project: BuildProject, metadata: RegistryMetadata): ProjectUpd
 }
 
 fun BuildProject.withCurrentConfig(metadata: RegistryMetadata): BuildProject {
+    val migrated = withAndroid17GmsCore(metadata)
+    if (migrated != this) return migrated.withCurrentConfig(metadata)
     val template = metadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]
     return copy(configVersion = template?.configVersion ?: configVersion,
         packageDefinitions = template?.packageDefinitions.orEmpty().filterKeys { it in selectedAppIds })

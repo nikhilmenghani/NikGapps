@@ -12,6 +12,8 @@ fun unavailableProjectPackages(project: BuildProject, metadata: RegistryMetadata
 }
 
 fun duplicateCurrentProject(project: BuildProject, metadata: RegistryMetadata, maxNameLength: Int = 20): BuildProject {
+    val migrated = project.withAndroid17GmsCore(metadata)
+    if (migrated != project) return duplicateCurrentProject(migrated, metadata, maxNameLength)
     val selected = project.selectedAppIds - unavailableProjectPackages(project, metadata)
     val owners = project.selectedPackageAppSets.filterKeys { it in selected }
     val sources = project.appSources.filterKeys { it in selected }

@@ -43,7 +43,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val creatorUsername = if (GithubPrefs.token.isBlank()) null else GithubPrefs.username.trim()
         if (creatorUsername != null && creatorUsername.isBlank())
             return authFailure("Could not verify your GitHub username. Sign in again before building a ZIP.")
-        val project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
+        var project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
         val operations = applicationContext.getSharedPreferences("build-operations", Context.MODE_PRIVATE)
@@ -87,6 +87,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     project.architecture.value, releaseId = baseline) else latest
             val metadata = if ((project.configVersion?.toIntOrNull() ?: 0) >
                 (pinnedMetadata.builderAssets[RegistryZipAssembler.CONFIG_TEMPLATE]?.configVersion?.toIntOrNull() ?: 0)) latest else pinnedMetadata
+            project = project.withAndroid17GmsCore(metadata)
             metadata.release?.let { log("Using release ${it.createdAt.take(10)}") }
             val defaultChannel = ReleaseChannel.valueOf(project.defaultChannel.uppercase())
             val overrides = project.channelOverrides.mapValues { ReleaseChannel.valueOf(it.value.uppercase()) }
@@ -158,7 +159,7 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
             check(operations.edit().putString("worker-published:$id", location).commit())
             quota.recordSuccess(operationId = id.toString())
             LatestBuildRepository(applicationContext).save(projectId, location)
-            recordSuccessfulProjectZip(applicationContext, project, output)
+            recordSuccessfulProjectZip(applicationContext, project, output, metadata)
             output.delete()
             log("Build complete")
             Result.success(workDataOf(KEY_LOCATION to location))

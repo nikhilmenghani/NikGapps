@@ -8,7 +8,7 @@ import java.util.zip.ZipFile
 import org.json.JSONObject
 
 /** Call only after publishing succeeds; the receipt comes from the ZIP actually built. */
-fun recordSuccessfulProjectZip(context: Context, snapshot: BuildProject, zip: File) {
+fun recordSuccessfulProjectZip(context: Context, snapshot: BuildProject, zip: File, metadata: RegistryMetadata? = null) {
     val repository = BuildProjectRepository(context)
     ZipFile(zip).use { archive ->
         val manifest = JSONObject(archive.getInputStream(archive.getEntry("nikgapps/build-manifest.json"))
@@ -17,12 +17,13 @@ fun recordSuccessfulProjectZip(context: Context, snapshot: BuildProject, zip: Fi
         val version = config.lineSequence().firstOrNull { it.startsWith("Version=") }?.substringAfter('=')?.trim()
         val definitions = manifest.optJSONObject("packageDefinitions")
         val builtRelease = manifest.optString("releaseId").takeIf { it.isNotBlank() }
-        repository.mutateProject(snapshot.id) { current ->
+        repository.mutateProject(snapshot.id) { stored ->
+            val current = metadata?.let { stored.withAndroid17GmsCore(it) } ?: stored
             if (current.selectedAppIds != snapshot.selectedAppIds || current.selectedPackageAppSets != snapshot.selectedPackageAppSets ||
                 current.androidVersion != snapshot.androidVersion || current.architecture != snapshot.architecture ||
                 current.defaultChannel != snapshot.defaultChannel || current.channelOverrides != snapshot.channelOverrides ||
                 current.keepAospCounterparts != snapshot.keepAospCounterparts || current.appSources != snapshot.appSources ||
-                current.installerSettings != snapshot.installerSettings) return@mutateProject current
+                current.installerSettings != snapshot.installerSettings) return@mutateProject stored
             current.copy(lastBuiltReleaseId = builtRelease,
             configVersion = version, dismissedReleaseId = current.dismissedReleaseId?.takeUnless { it == builtRelease }, configSnapshot = config,
             packageDefinitions = definitions?.let { values -> buildMap {
