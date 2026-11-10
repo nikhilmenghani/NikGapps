@@ -1,6 +1,8 @@
 # NikGapps changelog
 
 ## 0.81
+- Block project creation during server cooldowns and show when to retry.
+- Show server-reported request limits and manual connection checks in Developer options.
 - Added the ability to back up your projects and restore them after signing in on another device.
 - Improve project management, screen-specific help and navigation.
 - Unify app selection and build review, with app icons, package size estimates and debloater details.

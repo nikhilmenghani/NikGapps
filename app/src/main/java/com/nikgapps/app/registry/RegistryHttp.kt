@@ -16,6 +16,7 @@ internal fun <T> OkHttpClient.executeRegistryRequest(
         try {
             RegistryAvailability.requireAvailable(prepared.url)
             newCall(prepared).execute().use { response ->
+                ServerRequestLimits.observe(response)
                 if (response.isSuccessful) return read(response)
                 if (RegistryDelivery.rateLimited(response)) {
                     throw RegistryRateLimitedException(RegistryAvailability.rateLimited(

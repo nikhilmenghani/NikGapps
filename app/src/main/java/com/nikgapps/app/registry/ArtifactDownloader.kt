@@ -82,6 +82,7 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
             try { kotlinx.coroutines.awaitCancellation() } finally { call.cancel() }
         }
         try { call.execute().use { response ->
+            ServerRequestLimits.observe(response)
             if (RegistryDelivery.rateLimited(response)) {
                 throw RegistryRateLimitedException(RegistryAvailability.rateLimited(
                     response.header("Retry-After"), response.header("X-RateLimit-Reset")))

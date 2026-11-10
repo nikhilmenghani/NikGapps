@@ -60,4 +60,9 @@ object RegistryAvailability {
         clearExpired()
         deadline.value?.let { throw RegistryRateLimitedException(it) }
     }
+
+    fun activeRetryAt(): Long? {
+        clearExpired()
+        return deadline.value
+    }
 }

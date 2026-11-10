@@ -71,6 +71,7 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.presentation.ui.screen.AccountGate
+import com.nikgapps.app.presentation.ui.component.ProjectCreationGate
 
 
 private val LocalShowFeatureGuide = staticCompositionLocalOf<() -> Unit> { {} }
@@ -259,10 +260,12 @@ private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable
 @Composable
 private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
     Scaffold(bottomBar = {
-        ScreenBottomBar(onCreateProject = {
+        ProjectCreationGate(onCreate = {
             if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
             navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
-        }) { BottomNavigationBar(navController, route) }
+        }) { createProject ->
+            ScreenBottomBar(onCreateProject = createProject) { BottomNavigationBar(navController, route) }
+        }
     },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) { content() }

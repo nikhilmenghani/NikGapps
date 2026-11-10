@@ -51,6 +51,7 @@ import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.data.BuildCompressionPrefs
 import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
+import com.nikgapps.app.presentation.ui.component.ServerRequestLimitsPreference
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
@@ -202,6 +203,8 @@ fun AdvancedPreferences() {
                         developerPreference.hideDeveloperOptions()
                     }
                 )
+
+                ServerRequestLimitsPreference()
 
             }
 

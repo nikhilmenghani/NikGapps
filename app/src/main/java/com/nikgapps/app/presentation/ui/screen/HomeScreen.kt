@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import com.nikgapps.app.network.RegistryProjectContent
 import com.nikgapps.app.registry.RegistryAvailability
+import com.nikgapps.app.presentation.ui.component.ProjectCreationUnavailableDialog
 import androidx.compose.runtime.collectAsState
 import com.nikgapps.app.network.LocalInternetAvailable
 import com.nikgapps.app.analytics.AppAnalytics
@@ -267,6 +268,14 @@ fun HomeScreen(navController: NavHostController) {
         }
     }
     var showCreateProject by remember { mutableStateOf(false) }
+    var creationBlockedUntil by remember { mutableStateOf<Long?>(null) }
+    fun creationBlocked(): Boolean {
+        val retryAt = RegistryAvailability.activeRetryAt() ?: return false
+        creationBlockedUntil = retryAt
+        showCreateProject = false
+        return true
+    }
+    creationBlockedUntil?.let { ProjectCreationUnavailableDialog(it) { creationBlockedUntil = null } }
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val homeEntry = remember(navController, currentBackStackEntry) { navController.getBackStackEntry(Screens.Home.name) }
     val createRequested by homeEntry.savedStateHandle.getStateFlow(CREATE_PROJECT_REQUEST, false).collectAsState()
@@ -281,12 +290,18 @@ fun HomeScreen(navController: NavHostController) {
     var eliteMembershipResolved by remember(previewNonElite) { mutableStateOf(false) }
     var showProjectLimit by remember { mutableStateOf(false) }
     var showEliteFeatures by remember { mutableStateOf(false) }
-    LaunchedEffect(createRequested, eliteMembershipResolved) {
-        if (createRequested && eliteMembershipResolved) {
+    LaunchedEffect(createRequested, eliteMembershipResolved, registryRetryAt) {
+        if (createRequested && RegistryAvailability.activeRetryAt() != null) {
+            homeEntry.savedStateHandle[CREATE_PROJECT_REQUEST] = false
+            creationBlocked()
+        } else if (createRequested && eliteMembershipResolved) {
             homeEntry.savedStateHandle[CREATE_PROJECT_REQUEST] = false
             if (canCreateProject(projectRepository.getProjects().size, isElite)) showCreateProject = true
             else showProjectLimit = true
         }
+    }
+    LaunchedEffect(registryRetryAt, showCreateProject) {
+        if (showCreateProject) creationBlocked()
     }
     val projectScope = rememberCoroutineScope()
     val catalogRepository = remember { CatalogRepository(context.cacheDir) }
@@ -557,6 +572,7 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onShareZip = latestBuild?.let { saved -> { context.sharePublishedZip(saved) } },
                         onDuplicate = {
+                            if (creationBlocked()) return@ProjectCard
                             if (!eliteMembershipResolved || !canCreateProject(projectRepository.getProjects().size, isElite)) {
                                 if (eliteMembershipResolved) showProjectLimit = true
                                 else Toast.makeText(context, "Checking Elite membership; try again shortly", Toast.LENGTH_SHORT).show()
@@ -570,6 +586,7 @@ fun HomeScreen(navController: NavHostController) {
                                 runCatching {
                                     val metadata = catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
                                         project.defaultChannel, project.architecture.value)
+                                    if (creationBlocked()) return@launch
                                     projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)), isElite)
                                 }.onSuccess { savedProjects ->
                                     projects = savedProjects
@@ -636,6 +653,7 @@ fun HomeScreen(navController: NavHostController) {
         ProjectSheet(
             onDismiss = { showCreateProject = false },
             onSave = { project ->
+                if (creationBlocked()) return@ProjectSheet
                 try { projects = projectRepository.addProject(project, isElite) }
                 catch (_: ProjectLimitReachedException) {
                     showProjectLimit = true
