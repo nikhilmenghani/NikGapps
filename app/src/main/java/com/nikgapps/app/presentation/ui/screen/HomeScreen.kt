@@ -4,6 +4,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
+import com.nikgapps.app.network.RegistryProjectContent
+import com.nikgapps.app.registry.RegistryAvailability
+import androidx.compose.runtime.collectAsState
 import com.nikgapps.app.network.LocalInternetAvailable
 import com.nikgapps.app.analytics.AppAnalytics
 import androidx.activity.compose.LocalActivity
@@ -229,6 +232,7 @@ fun HomeScreen(navController: NavHostController) {
     val latestBuildRepository = remember { LatestBuildRepository(context) }
     val topBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var projects by remember { mutableStateOf(projectRepository.getProjects()) }
+    val registryRetryAt by RegistryAvailability.retryAtMillis.collectAsState()
     var recoveryMessage by remember { mutableStateOf(projectRepository.recoveryBackup() != null) }
     val recoveryExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) runCatching {
@@ -496,17 +500,20 @@ fun HomeScreen(navController: NavHostController) {
                 WelcomeCard(GithubPrefs.username, isElite)
                 RegistryReleaseBanner(isOnline, projects, updatesByProject)
                 ProjectsHeader()
-                EmptyProjects(Modifier.fillMaxWidth().weight(1f).padding(16.dp))
+                RegistryProjectContent(registryRetryAt, Modifier.fillMaxWidth().weight(1f)) {
+                    EmptyProjects(Modifier.fillMaxSize().padding(16.dp))
+                }
             }
         } else {
             Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
                 Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
                 RegistryReleaseBanner(isOnline, projects, updatesByProject)
                 ProjectsHeader()
-            if (projectDisplayOrder == null) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            RegistryProjectContent(registryRetryAt, Modifier.fillMaxWidth().weight(1f)) {
+            if (projectDisplayOrder == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             } else LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -585,6 +592,7 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     )
                 }
+            }
             }
             }
         }

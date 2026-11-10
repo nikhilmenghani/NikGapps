@@ -7,6 +7,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,9 +19,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.testTag
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -44,25 +49,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.nikgapps.app.registry.CatalogRepository
-import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.Dispatchers
+import com.nikgapps.app.registry.RegistryAvailability
+import com.nikgapps.app.registry.registryRetryTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 private enum class InternetState { CHECKING, ONLINE, OFFLINE }
 
 val LocalInternetAvailable = staticCompositionLocalOf { false }
-
-private val reachabilityClient = OkHttpClient.Builder()
-    .connectTimeout(5, TimeUnit.SECONDS)
-    .readTimeout(5, TimeUnit.SECONDS)
-    .callTimeout(7, TimeUnit.SECONDS)
-    .build()
 
 @Composable
 fun InternetRequiredGate(
@@ -78,6 +73,13 @@ fun InternetRequiredGate(
     val scope = rememberCoroutineScope()
     var internetState by remember { mutableStateOf(InternetState.CHECKING) }
     var checkJob by remember { mutableStateOf<Job?>(null) }
+    val retryAt by RegistryAvailability.retryAtMillis.collectAsState()
+    LaunchedEffect(retryAt) {
+        retryAt?.let {
+            delay((it - System.currentTimeMillis()).coerceAtLeast(0))
+            RegistryAvailability.clearExpired()
+        }
+    }
 
     fun checkInternet(showChecking: Boolean, confirmationDelayMs: Long = 0) {
         checkJob?.cancel()
@@ -85,7 +87,7 @@ fun InternetRequiredGate(
             if (showChecking) internetState = InternetState.CHECKING
             if (confirmationDelayMs > 0) delay(confirmationDelayMs)
             internetState = if (
-                connectivityManager.hasValidatedInternet() && canReachPackageCatalog()
+                connectivityManager.hasValidatedInternet()
             ) InternetState.ONLINE else InternetState.OFFLINE
         }
     }
@@ -147,14 +149,31 @@ private fun ConnectivityManager.hasValidatedInternet(): Boolean {
         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 }
 
-private suspend fun canReachPackageCatalog(): Boolean = withContext(Dispatchers.IO) {
-    runCatching {
-        val request = Request.Builder()
-            .url(CatalogRepository.CATALOG_URL)
-            .header("Range", "bytes=0-0")
-            .build()
-        reachabilityClient.newCall(request).execute().use { it.isSuccessful }
-    }.getOrDefault(false)
+/** Replaces only the project list, leaving the screen header and navigation in place. */
+@Composable
+internal fun RegistryProjectContent(retryAt: Long?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(modifier) {
+        if (retryAt != null && retryAt > System.currentTimeMillis()) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
+                    .testTag("registry-rate-limit"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+            ) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                    Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.padding(20.dp).size(40.dp))
+                }
+                Text("NikGapps server is currently down", style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center)
+                Text("Please try again after ${registryRetryTime(retryAt)}.", style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Builds needing downloads must wait. Your projects and cached content are saved.",
+                    style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else content()
+    }
 }
 
 @Composable
@@ -221,7 +240,7 @@ private fun OfflineScreen(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        if (checking) "Connecting to the NikGapps package catalog."
+                        if (checking) "Checking the device internet connection."
                         else "NikGapps needs an internet connection to download GApps packages before building them.",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,

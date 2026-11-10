@@ -44,8 +44,7 @@ internal object PackageIconRepository {
     }
 
     private fun get(url: String, limit: Int): ByteArray {
-        client.newCall(Request.Builder().url(url).build()).execute().use { response ->
-            check(response.isSuccessful)
+        return client.executeRegistryRequest(Request.Builder().url(url).build(), maxAttempts = 1) { response ->
             response.body.byteStream().use { input ->
                 val output = java.io.ByteArrayOutputStream()
                 val buffer = ByteArray(8192)
@@ -55,7 +54,7 @@ internal object PackageIconRepository {
                     check(output.size() + count <= limit)
                     output.write(buffer, 0, count)
                 }
-                return output.toByteArray()
+                output.toByteArray()
             }
         }
     }

@@ -75,7 +75,10 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
             val appSetsText = download(APPSETS_URL)
             val builderAssetsText = download(BUILDER_ASSETS_URL)
             val configTemplatesText = download(CONFIG_TEMPLATES_URL)
-            val releaseIndexText = runCatching { download(RELEASE_INDEX_URL) }.getOrNull()
+            val releaseIndexText = runCatching { download(RELEASE_INDEX_URL) }.getOrElse {
+                if (it is RegistryRateLimitedException) throw it
+                null
+            }
             val index = releaseIndexText?.let(CatalogParser::parseReleaseIndex)
             val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
             val releaseText = summary?.let { download("$METADATA_BASE_URL/${it.manifest}") }

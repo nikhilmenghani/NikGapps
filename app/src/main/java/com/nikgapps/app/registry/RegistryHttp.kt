@@ -13,8 +13,13 @@ internal fun <T> OkHttpClient.executeRegistryRequest(
     var lastFailure: Throwable? = null
     repeat(maxAttempts) { attempt ->
         try {
+            RegistryAvailability.requireAvailable(request.url)
             newCall(request).execute().use { response ->
                 if (response.isSuccessful) return read(response)
+                if (response.code == 429 && request.url.host == "gitlab.com") {
+                    throw RegistryRateLimitedException(RegistryAvailability.rateLimited(
+                        response.header("Retry-After"), response.header("RateLimit-Reset")))
+                }
                 val retryable = response.code == 429 || response.code in 500..599
                 if (!retryable || attempt == maxAttempts - 1)
                     error("HTTP ${response.code} for ${request.url}")
@@ -24,6 +29,7 @@ internal fun <T> OkHttpClient.executeRegistryRequest(
                 Thread.sleep(retryAfter ?: (1_000L shl attempt).coerceAtMost(30_000L))
             }
         } catch (failure: Throwable) {
+            if (failure is RegistryRateLimitedException) throw failure
             if (failure is InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw failure

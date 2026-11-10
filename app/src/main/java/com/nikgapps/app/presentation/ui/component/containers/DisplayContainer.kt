@@ -150,7 +150,7 @@ fun AdvancedPreferences() {
                 )
                 PreferenceItem(
                     label = "Require internet access",
-                    supportingText = "Show the offline gate whenever the package catalog cannot be reached",
+                    supportingText = "Show the offline gate when the device has no validated internet connection. Temporary server limits do not mark the device offline.",
                     icon = Icons.Outlined.Wifi,
                     switchState = developerPreference.requireInternetAccess,
                     onSwitchChange = { developerPreference.requireInternetAccess = it }

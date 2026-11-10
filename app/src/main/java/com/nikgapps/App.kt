@@ -33,6 +33,7 @@ class App: Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
+        com.nikgapps.app.registry.RegistryAvailability.initialize(this)
         AppAnalytics.initialize(this)
         AppUpdateManager.scheduleChecks(this, UpdatePrefs.intervalHours)
         com.nikgapps.app.utils.worker.RegistryReleaseWorker.schedule(this)
