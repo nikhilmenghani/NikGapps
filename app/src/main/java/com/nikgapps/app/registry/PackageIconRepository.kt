@@ -36,7 +36,9 @@ internal object PackageIconRepository {
                 require(name.matches(Regex("[a-zA-Z0-9_.]+")))
                 require(sha.matches(Regex("[a-f0-9]{64}")))
                 require(size in 1..MAX_ICON_BYTES.toLong())
-                require(url.startsWith("${BASE}packages/generic/app-icons/$sha/"))
+                // Legacy entries remain usable for already cached icons only.
+                val github = url.matches(Regex("https://api\\.github\\.com/repos/nikgapps/nikgapps-packages/releases/assets/[0-9]+"))
+                require(github || url.startsWith("${BASE}packages/generic/app-icons/$sha/"))
                 require(!url.contains("..") && !url.contains('?') && !url.contains('#'))
                 name to PackageIconAsset(url, sha, size)
             }.getOrNull()
@@ -70,7 +72,7 @@ internal object PackageIconRepository {
             if (assets == null || now - lastAttempt > TimeUnit.MINUTES.toMillis(30)) {
                 lastAttempt = now
                 assets = runCatching {
-                    val bytes = get("${BASE}repository/files/icons.json/raw?ref=main", 1024 * 1024)
+                    val bytes = get(RegistryDelivery.contents("icons.json"), 1024 * 1024)
                     val parsed = parse(bytes.toString(Charsets.UTF_8))
                     val temporary = File(directory, "icons.json.tmp")
                     temporary.writeBytes(bytes)

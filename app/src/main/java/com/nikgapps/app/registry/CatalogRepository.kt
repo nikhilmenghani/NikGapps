@@ -41,7 +41,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
     /** Read the last snapshot without a network request or waiting for an ongoing refresh. */
     suspend fun cached(androidVersion: String? = null, channel: String = "stable",
         architecture: String = "arm64-v8a"): RegistryMetadata? = withContext(Dispatchers.IO) { RegistryCache.withReadLease {
-        val directory = File(cacheDirectory, "nikgapps/metadata")
+        val directory = File(cacheDirectory, "nikgapps/github-metadata")
         val fetchedAt = runCatching { File(directory, "fetched-at.txt").readText().trim().toLong() }.getOrDefault(0L)
         // Files are replaced atomically; an invalid or incomplete snapshot is ignored by loadCached.
         loadCached(File(directory, "catalog.json"), File(directory, "appsets.json"),
@@ -58,7 +58,7 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         architecture: String, releaseId: String?,
         forceRefresh: Boolean = false): RegistryMetadata = withContext(Dispatchers.IO) {
         CACHE_MUTEX.withLock {
-        val directory = File(cacheDirectory, "nikgapps/metadata").apply { mkdirs() }
+        val directory = File(cacheDirectory, "nikgapps/github-metadata").apply { mkdirs() }
         val catalogCache = File(directory, "catalog.json")
         val appSetsCache = File(directory, "appsets.json")
         val builderAssetsCache = File(directory, "builder-assets.json")
@@ -71,17 +71,21 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
                 androidVersion, channel, architecture, releaseId, fetchedAt)?.let { return@withContext it }
         }
         try {
-            val catalogText = download(CATALOG_URL)
-            val appSetsText = download(APPSETS_URL)
-            val builderAssetsText = download(BUILDER_ASSETS_URL)
-            val configTemplatesText = download(CONFIG_TEMPLATES_URL)
-            val releaseIndexText = runCatching { download(RELEASE_INDEX_URL) }.getOrElse {
+            val commit = Json.parseToJsonElement(download("${RegistryDelivery.API}/git/ref/heads/main"))
+                .jsonObject.getValue("object").jsonObject.getValue("sha").jsonPrimitive.content
+            require(commit.matches(Regex("[a-f0-9]{40}"))) { "Invalid metadata commit" }
+            fun document(path: String) = download(RegistryDelivery.contents(path, commit))
+            val catalogText = document("catalog.json")
+            val appSetsText = document("appsets.json")
+            val builderAssetsText = document("builder-assets.json")
+            val configTemplatesText = document("config-templates.json")
+            val releaseIndexText = runCatching { document("releases/index.json") }.getOrElse {
                 if (it is RegistryRateLimitedException) throw it
                 null
             }
             val index = releaseIndexText?.let(CatalogParser::parseReleaseIndex)
             val summary = selectRelease(index, androidVersion, channel, architecture, releaseId)
-            val releaseText = summary?.let { download("$METADATA_BASE_URL/${it.manifest}") }
+            val releaseText = summary?.let { document(it.manifest) }
             val parsed = parsePair(catalogText, appSetsText, builderAssetsText,
                 releaseIndexText, releaseText, false, templatesText = configTemplatesText)
             atomicWrite(catalogCache, catalogText)
@@ -183,10 +187,10 @@ class CatalogRepository(private val cacheDirectory: File, private val client: Ok
         })
     }
     companion object {
-        const val CATALOG_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main/catalog.json"
-        const val APPSETS_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main/appsets.json"
-        const val BUILDER_ASSETS_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main/builder-assets.json"
-        const val METADATA_BASE_URL = "https://gitlab.com/nikgapps/nikgapps-package-catalog/-/raw/main"
+        const val METADATA_BASE_URL = "${RegistryDelivery.API}/contents"
+        const val CATALOG_URL = "$METADATA_BASE_URL/catalog.json"
+        const val APPSETS_URL = "$METADATA_BASE_URL/appsets.json"
+        const val BUILDER_ASSETS_URL = "$METADATA_BASE_URL/builder-assets.json"
         const val RELEASE_INDEX_URL = "$METADATA_BASE_URL/releases/index.json"
         const val CONFIG_TEMPLATES_URL = "$METADATA_BASE_URL/config-templates.json"
         const val GITLAB_PROJECT_ID = 85036487

@@ -17,6 +17,7 @@ object RegistryCache {
     }
     private val relativeDirectories = listOf(
         "nikgapps/metadata",
+        "nikgapps/github-metadata",
         "nikgapps/packages",
         "nikgapps/builder-assets",
         "zip-builds"

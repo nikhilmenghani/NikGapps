@@ -15,8 +15,16 @@ import org.junit.Before
 import org.junit.Test
 
 class RegistryAvailabilityTest {
-    @Before fun reset() = RegistryAvailability.clearExpired(Long.MAX_VALUE)
-    @After fun cleanup() = RegistryAvailability.clearExpired(Long.MAX_VALUE)
+    private var previousToken: () -> String = { "" }
+    @Before fun reset() {
+        previousToken = RegistryDelivery.userToken
+        RegistryDelivery.userToken = { "fixture-user-token" }
+        RegistryAvailability.clearExpired(Long.MAX_VALUE)
+    }
+    @After fun cleanup() {
+        RegistryDelivery.userToken = previousToken
+        RegistryAvailability.clearExpired(Long.MAX_VALUE)
+    }
 
     @Test fun retryAfterSupportsSecondsHttpDatesAndResetFallback() {
         val now = Instant.parse("2026-11-10T03:50:00Z").toEpochMilli()
@@ -68,7 +76,7 @@ class RegistryAvailabilityTest {
     @Test fun staleCatalogFallsBackImmediatelyDuringCooldown() = runBlocking {
         val dir = Files.createTempDirectory("rate-limit-metadata").toFile()
         try {
-            val metadata = File(dir, "nikgapps/metadata").apply { mkdirs() }
+            val metadata = File(dir, "nikgapps/github-metadata").apply { mkdirs() }
             File(metadata, "catalog.json").writeText(RegistryTestFixtures.catalog())
             File(metadata, "appsets.json").writeText(RegistryTestFixtures.appSets())
             val assets = RegistryZipAssembler.REQUIRED_ASSETS.joinToString(",") {
@@ -95,7 +103,7 @@ class RegistryAvailabilityTest {
             val target = File(dir, "nikgapps/packages/$sha.zip").apply { parentFile!!.mkdirs(); writeBytes(bytes) }
             val catalogPackage = CatalogParser.parseCatalog(RegistryTestFixtures.catalog()).packages.first()
             val version = catalogPackage.versions.getValue("s").copy(
-                artifact = Artifact("https://gitlab.com/package.zip", sha, bytes.size.toLong()))
+                artifact = Artifact("https://api.github.com/repos/nikgapps/nikgapps-packages/releases/assets/123", sha, bytes.size.toLong()))
             val pkg = ResolvedPackage(catalogPackage, "s", version, ReleaseChannel.STABLE, false)
             var calls = 0
             val client = OkHttpClient.Builder().addInterceptor { calls++; error("Network must not be used during cooldown") }.build()

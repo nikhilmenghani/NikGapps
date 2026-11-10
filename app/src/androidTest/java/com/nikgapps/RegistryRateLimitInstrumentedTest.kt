@@ -19,6 +19,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.nikgapps.app.network.InternetRequiredGate
 import com.nikgapps.app.registry.RegistryAvailability
 import com.nikgapps.app.registry.RegistryRateLimitedException
+import com.nikgapps.app.registry.RegistryDelivery
 import com.nikgapps.app.registry.executeRegistryRequest
 import com.nikgapps.app.registry.registryRetryTime
 import okhttp3.OkHttpClient
@@ -37,6 +38,8 @@ class RegistryRateLimitInstrumentedTest {
     @Test fun serverCooldownReplacesProjectsKeepsHeaderAndRestoresCachedNavigation() {
         check(InstrumentationRegistry.getInstrumentation().targetContext.packageName == "com.nikgapps.review.debug")
         RegistryAvailability.clearExpired(Long.MAX_VALUE)
+        val previousToken = RegistryDelivery.userToken
+        RegistryDelivery.userToken = { "fixture-user-token" }
         var calls = 0
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             calls++
@@ -65,7 +68,7 @@ class RegistryRateLimitInstrumentedTest {
             compose.waitUntil(10_000) { compose.onAllNodesWithText("You're offline").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithText("Open cached project").fetchSemanticsNodes().isNotEmpty() }
             val headerBefore = compose.onNodeWithText("Fixed header").fetchSemanticsNode().boundsInRoot
-            val request = Request.Builder().url("https://gitlab.com/fixture").build()
+            val request = Request.Builder().url("https://api.github.com/repos/nikgapps/nikgapps-packages/contents/fixture.json").build()
             val error = assertThrows(RegistryRateLimitedException::class.java) {
                 client.executeRegistryRequest(request) { it.body.string() }
             }
@@ -79,6 +82,9 @@ class RegistryRateLimitInstrumentedTest {
             compose.onNodeWithTag("registry-rate-limit").assertDoesNotExist()
             compose.onNodeWithText("Open cached project").performClick()
             compose.onNodeWithText("Cached project apps").assertIsDisplayed()
-        } finally { RegistryAvailability.clearExpired(Long.MAX_VALUE) }
+        } finally {
+            RegistryDelivery.userToken = previousToken
+            RegistryAvailability.clearExpired(Long.MAX_VALUE)
+        }
     }
 }

@@ -36,7 +36,8 @@ object RegistryAvailability {
     private var save: (Long?) -> Unit = {}
 
     @Synchronized fun initialize(context: Context) {
-        val prefs = context.getSharedPreferences("registry-availability", Context.MODE_PRIVATE)
+        // A previous GitLab IP cooldown must not block the new GitHub delivery service.
+        val prefs = context.getSharedPreferences("github-registry-availability", Context.MODE_PRIVATE)
         save = { value -> prefs.edit().putLong("retry-at", value ?: 0).apply() }
         val stored = prefs.getLong("retry-at", 0).takeIf { it > System.currentTimeMillis() }
         deadline.value = listOfNotNull(stored, deadline.value).maxOrNull()
@@ -55,7 +56,7 @@ object RegistryAvailability {
     }
 
     fun requireAvailable(url: HttpUrl) {
-        if (url.host != "gitlab.com") return
+        if (!RegistryDelivery.trusted(url)) return
         clearExpired()
         deadline.value?.let { throw RegistryRateLimitedException(it) }
     }

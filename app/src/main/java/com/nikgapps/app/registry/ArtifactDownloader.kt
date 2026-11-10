@@ -74,16 +74,17 @@ class ArtifactDownloader(private val cacheDirectory: File, private val client: O
     }
     private suspend fun download(id: String, artifact: Artifact, part: File, progress: suspend (DownloadProgress) -> Unit) = kotlinx.coroutines.coroutineScope {
         val offset = part.takeIf { it.isFile }?.length() ?: 0L
-        val request = Request.Builder().url(artifact.url).apply { if (offset > 0) header("Range", "bytes=$offset-") }.build()
+        val request = RegistryDelivery.prepare(Request.Builder().url(artifact.url)
+            .apply { if (offset > 0) header("Range", "bytes=$offset-") }.build())
         RegistryAvailability.requireAvailable(request.url)
         val call = client.newCall(request)
         val watcher = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
             try { kotlinx.coroutines.awaitCancellation() } finally { call.cancel() }
         }
         try { call.execute().use { response ->
-            if (response.code == 429 && request.url.host == "gitlab.com") {
+            if (RegistryDelivery.rateLimited(response)) {
                 throw RegistryRateLimitedException(RegistryAvailability.rateLimited(
-                    response.header("Retry-After"), response.header("RateLimit-Reset")))
+                    response.header("Retry-After"), response.header("X-RateLimit-Reset")))
             }
             if (!response.isSuccessful) throw ArtifactDownloadException(
                 "HTTP ${response.code} while downloading '$id'",

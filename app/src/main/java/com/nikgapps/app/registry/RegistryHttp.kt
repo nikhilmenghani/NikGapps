@@ -10,15 +10,16 @@ internal fun <T> OkHttpClient.executeRegistryRequest(
     maxAttempts: Int = 5,
     read: (Response) -> T,
 ): T {
+    val prepared = RegistryDelivery.prepare(request)
     var lastFailure: Throwable? = null
     repeat(maxAttempts) { attempt ->
         try {
-            RegistryAvailability.requireAvailable(request.url)
-            newCall(request).execute().use { response ->
+            RegistryAvailability.requireAvailable(prepared.url)
+            newCall(prepared).execute().use { response ->
                 if (response.isSuccessful) return read(response)
-                if (response.code == 429 && request.url.host == "gitlab.com") {
+                if (RegistryDelivery.rateLimited(response)) {
                     throw RegistryRateLimitedException(RegistryAvailability.rateLimited(
-                        response.header("Retry-After"), response.header("RateLimit-Reset")))
+                        response.header("Retry-After"), response.header("X-RateLimit-Reset")))
                 }
                 val retryable = response.code == 429 || response.code in 500..599
                 if (!retryable || attempt == maxAttempts - 1)
