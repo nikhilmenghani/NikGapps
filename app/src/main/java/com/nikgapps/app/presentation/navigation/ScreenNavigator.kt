@@ -157,7 +157,7 @@ fun ScreenNavigator(
     if (!signedIn && !(GithubPrefs.guestMode && DisplayPrefs.guestAccessEnabled)) {
         BackHandler(enabled = showSignInSettings) { showSignInSettings = false }
         if (showSignInSettings) {
-            SettingsScreen(onBack = { showSignInSettings = false }, startOnAccount = true)
+            SettingsScreen(onBack = { showSignInSettings = false })
         } else {
             AccountGate(onOpenSettings = { showSignInSettings = true },
                 onContinueAsGuest = { GithubPrefs.continueAsGuest() })
