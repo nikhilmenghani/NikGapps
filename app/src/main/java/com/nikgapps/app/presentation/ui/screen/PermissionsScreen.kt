@@ -3,6 +3,7 @@ package com.nikgapps.app.presentation.ui.screen
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -83,10 +88,17 @@ fun PermissionsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Text("Set up access", style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.align(Alignment.Start))
+                Text("Allow the access NikGapps needs to build ZIPs, keep you updated and install app updates.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(4.dp))
                 permissionMap.forEach { (permissionName, _) ->
                     PermissionsManagerCard(
                         permissionName = permissionName,
@@ -122,12 +134,6 @@ fun PermissionsManagerCard(
             )
         )
     }
-    var permissionsText by remember {
-        mutableStateOf(
-            if (hasPermission) "$permissionName Permission Granted" else "Request $permissionName Permission"
-        )
-    }
-
     val requestPermissionLauncher = Permissions.requestPermission(
         context = context,
         permissionName = permissionName
@@ -135,11 +141,7 @@ fun PermissionsManagerCard(
         hasPermission = isGranted
         permanentlyDenied = isPermanentlyDenied
         onPermissionStatusChanged(isGranted)
-        permissionsText = when {
-            isGranted -> "$permissionName Permission Granted"
-            isPermanentlyDenied -> "Request $permissionName Permission, Go to Settings"
-            else -> "$permissionName Permission Denied"
-        }
+
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -150,11 +152,7 @@ fun PermissionsManagerCard(
                 permanentlyDenied =
                     Permissions.isPermissionPermanentlyDenied(context, permissionName)
                 onPermissionStatusChanged(hasPermission)
-                permissionsText = when {
-                    hasPermission -> "$permissionName Permission Granted"
-                    permanentlyDenied -> "Request $permissionName Permission, Go to Settings"
-                    else -> "Request $permissionName Permission"
-                }
+
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -164,11 +162,22 @@ fun PermissionsManagerCard(
     }
 
     PermissionsCard(
-        title = "$permissionName Permission",
+        title = when (permissionName) {
+            PermissionConstants.STORAGE -> "Files and downloads"
+            PermissionConstants.INSTALL_APPS -> "App updates"
+            else -> permissionName
+        },
+        icon = when (permissionName) {
+            PermissionConstants.STORAGE -> Icons.Outlined.FolderOpen
+            PermissionConstants.INSTALL_APPS -> Icons.Outlined.SystemUpdate
+            else -> Icons.Outlined.Notifications
+        },
         description = permissionMap[permissionName]?.rationale
             ?: "We need this permission for better functionality.",
         isPermissionGranted = hasPermission,
-        permissionsText = permissionsText,
+        permissionsText = if (permanentlyDenied || permissionName == PermissionConstants.INSTALL_APPS ||
+            (permissionName == PermissionConstants.STORAGE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R))
+            "Open settings" else "Allow access",
         onRequestPermission = {
             if (!hasPermission) {
                 when {

@@ -16,7 +16,7 @@ object PermissionConstants {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 put(NOTIFICATIONS, PermissionInfo(
                     permission = arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    rationale = "Notification permission is required to send you progress update notifications.",
+                    rationale = "See build progress, completion updates and release announcements.",
                     action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
                 ))
             }
@@ -29,7 +29,7 @@ object PermissionConstants {
                         Manifest.permission.WRITE_EXTERNAL_STORAGE
                     )
                 },
-                rationale = "Storage permission is required to download and operate on NikGapps apk and zip files.",
+                rationale = "Download packages and save your ZIP builds on this device.",
                 action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
                 } else {
@@ -42,7 +42,7 @@ object PermissionConstants {
 //        ),
             put(INSTALL_APPS, PermissionInfo(
                 permission = arrayOf(Manifest.permission.REQUEST_INSTALL_PACKAGES),
-                rationale = "Install unknown apps permission is for seamless NikGapps app updates.",
+                rationale = "Allow Android to install NikGapps updates that you choose to download.",
                 action = if (Build.VERSION.SDK_INT >= 26) Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES
                     else Settings.ACTION_SECURITY_SETTINGS
             ))
