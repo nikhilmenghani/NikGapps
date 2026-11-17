@@ -200,8 +200,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
                         Text("Overall build progress" + (overall?.let { " · ~${(it * 100).toInt()}%" } ?: ""),
                             style = MaterialTheme.typography.labelMedium)
                         overall?.let { value ->
-                            LinearProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
-                        } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                            LinearWavyProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
+                        } ?: LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                         Text(if (total > 0) "$completed of $total packages prepared · includes dependencies"
                             else "Preparing package list…",
                             style = MaterialTheme.typography.labelSmall,
@@ -211,8 +211,8 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
                             (operationProgress?.let { " · ${(it * 100).toInt()}%" } ?: ""),
                             style = MaterialTheme.typography.labelMedium)
                         operationProgress?.let { value ->
-                            LinearProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
-                        } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                            LinearWavyProgressIndicator(progress = { value }, modifier = Modifier.fillMaxWidth())
+                        } ?: LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                     }
                     BuildStage.AWAITING_FILE_CHOICE -> Text(
                         "Choose whether to replace the existing ZIP or keep both files",
@@ -221,7 +221,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
                     )
                     BuildStage.COMPLETE -> {
                         Text("Overall build progress · 100%", style = MaterialTheme.typography.labelMedium)
-                        LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth())
+                        LinearWavyProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth())
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
                             OutlinedButton(onClick = { context.openNikGappsFolder() }) {
                                 Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(6.dp)); Text("Open folder")

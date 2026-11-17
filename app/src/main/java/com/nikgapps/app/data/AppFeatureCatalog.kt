@@ -17,7 +17,7 @@ object AppFeatureCatalog {
     val pages = listOf(
         AppFeaturePage("Projects", "Organize your own GApps selections", listOf(
             AppFeature("Back up and restore projects", "Move projects between builds", "Open Settings → Account → Project backup to export a .nikgapps file, then Restore projects in the release build or on another device. Restore replaces all existing projects after confirmation. Regular users import all compatible projects; Elite users can select which compatible projects to import. Outdated projects are exported and skipped by default; Elite users can enable Import outdated projects. An internet connection is required to check compatibility; project limits still apply. Backups include package selections, stock-app preferences, installer settings and debloater targets, but no tokens, APKs, ZIPs or build allowances. The backup format version determines compatibility across app releases; a newer unsupported format requires an app update."),
-            AppFeature("Why GitHub sign-in?", "Package downloads, account verification and ZIP credits", GITHUB_SIGN_IN_EXPLANATION),
+            AppFeature("Why GitHub sign-in?", "Package downloads, app updates and ZIP credits", GITHUB_SIGN_IN_EXPLANATION),
             AppFeature("Create a project", "Name it and choose Android", "Tap + on Home, enter a project name and select a supported Android version. ARM64 is the supported architecture. Optionally load a config to preselect packages."),
             AppFeature("Manage projects", "Edit, copy, delete and reopen ZIPs", "Long-press a project card for its menu. Rename or copy a project, delete one you no longer need, or reopen its previously built ZIP using Open ZIP."),
             AppFeature("Outdated projects", "Keep old selections separate", "Outdated projects appear below active projects with a tinted card and badge. Tap to reveal actions, then Open to review the project and available recovery options. Outdated projects cannot be built until recreated with current definitions.")
@@ -40,7 +40,7 @@ object AppFeatureCatalog {
             AppFeature("Standard or compressed", "Build speed or smaller files", "Settings → System lets you choose standard builds or compressed builds. Compression usually creates smaller ZIPs but takes longer. The optional build prompt can remember your choice.")
         )),
         AppFeaturePage("Settings", "Make NikGapps work your way", listOf(
-            AppFeature("Appearance", "Customize the app's look", "Open Settings → Appearance to adjust the available theme and display preferences."),
+            AppFeature("Appearance", "Customize the app's look", "Open Settings → Appearance to choose your theme and colors. Liquid glass turns the colorful background and glass surfaces on or off; turn it off for the standard themed background and solid cards. Tap its info icon for details."),
             AppFeature("Updates and changelog", "Stay informed about new releases", "Settings → System offers automatic update-check intervals. Settings → About has the cached changelog. Expand release rows, use Show all for longer lists, or Refresh to download the latest changelog."),
             AppFeature("Background operation", "Review permissions and battery access", "Use Settings → System to review device access and battery optimization settings so background operations can continue reliably.")
         )),

@@ -3,19 +3,17 @@ package com.nikgapps.app.presentation.navigation
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.FolderSpecial
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Terminal
@@ -35,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
@@ -43,7 +42,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -55,6 +56,7 @@ import com.nikgapps.app.presentation.ui.screen.AppsScreen
 import com.nikgapps.app.presentation.ui.screen.AppConfigScreen
 import com.nikgapps.app.presentation.ui.screen.BuildZipScreen
 import com.nikgapps.app.presentation.ui.screen.HomeScreen
+import com.nikgapps.app.presentation.ui.screen.DownloadScreen
 import com.nikgapps.app.presentation.ui.screen.LogsScreen
 import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.PullRequestsScreen
@@ -71,7 +73,11 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.presentation.ui.screen.AccountGate
+import com.nikgapps.app.presentation.ui.component.AccountMembershipProvider
+import com.nikgapps.app.presentation.ui.component.AccountProfileButton
 import com.nikgapps.app.presentation.ui.component.ProjectCreationGate
+import com.nikgapps.app.presentation.ui.component.ProjectGlassSurface
+import com.nikgapps.app.presentation.ui.component.ProjectsBackdrop
 
 
 private val LocalShowFeatureGuide = staticCompositionLocalOf<() -> Unit> { {} }
@@ -92,7 +98,8 @@ data class NavItem(
 )
 
 val listOfNavItems = buildList {
-    add(NavItem("Home", Icons.Default.Home, Screens.Home.name))
+    add(NavItem("Projects", Icons.Default.FolderSpecial, Screens.Home.name))
+    add(NavItem("Download", Icons.Default.FileDownload, Screens.Download.name))
 }
 
 enum class Screens {
@@ -220,76 +227,93 @@ fun ScreenNavigator(
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController, selectedRoute: String) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-            Row(Modifier.fillMaxWidth().padding(4.dp)
-                .animateContentSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOfNavItems.forEach { navItem ->
-                    val selected = selectedRoute == navItem.route
-                    ExpressiveNavigationItem(navItem, selected, {
-                        if (!selected) navController.navigateWithState(route = navItem.route)
-                    }, if (selected) Modifier.weight(1f) else Modifier.width(56.dp))
-                }
-
+fun BottomNavigationBar(navController: NavHostController, selectedRoute: String, modifier: Modifier = Modifier) {
+    ProjectGlassSurface(modifier = modifier, shape = CircleShape) {
+        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOfNavItems.forEach { navItem ->
+                val selected = selectedRoute == navItem.route
+                ExpressiveNavigationItem(navItem, selected, {
+                    if (!selected) navController.navigateWithState(route = navItem.route)
+                }, Modifier.weight(1f))
             }
         }
+    }
 }
 
 /** Navigation and the screen action are independent siblings, not mixed nav items. */
 @Composable
-private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable (Modifier) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Leave room for two 56dp actions, their gaps and the screen margins.
+        val navigationWidth = (maxWidth - 168.dp).coerceIn(96.dp, 208.dp)
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.weight(1f)) { navigation() }
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
+            navigation(Modifier.width(navigationWidth))
+            ProjectGlassSurface(modifier = Modifier.size(56.dp), shape = CircleShape) {
             Surface(onClick = onCreateProject,
                 modifier = Modifier.size(56.dp).semantics { role = Role.Button },
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
+                contentColor = MaterialTheme.colorScheme.onSurface) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Add, "Create project", Modifier.size(24.dp))
                 }
             }
+            }
+            AccountProfileButton()
         }
     }
 }
 
 /** Keep each destination's insets stable while its entire screen transitions. */
 @Composable
-private fun NavigationTab(navController: NavHostController, route: String, content: @Composable () -> Unit) {
-    Scaffold(bottomBar = {
-        ProjectCreationGate(onCreate = {
-            if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
-            navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
-        }) { createProject ->
-            ScreenBottomBar(onCreateProject = createProject) { BottomNavigationBar(navController, route) }
+private fun NavigationTab(navController: NavHostController, route: String, content: @Composable (Dp) -> Unit) {
+    AccountMembershipProvider {
+        ProjectsBackdrop(enabled = route == Screens.Home.name || route == Screens.Download.name) {
+        Scaffold(bottomBar = {
+            ProjectCreationGate(onCreate = {
+                if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
+                navController.getBackStackEntry(Screens.Home.name).savedStateHandle[CREATE_PROJECT_REQUEST] = true
+            }) { createProject ->
+                ScreenBottomBar(onCreateProject = createProject) { navigationModifier ->
+                    BottomNavigationBar(navController, route, navigationModifier)
+                }
+            }
+        },
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+            val floatingOverContent = route == Screens.Home.name
+            // Home scrolls behind the floating controls. Reserve their space in the
+            // list's content padding, rather than clipping the viewport above them.
+            Box(Modifier.fillMaxSize()
+                .padding(if (floatingOverContent) PaddingValues(0.dp) else padding)
+                .consumeWindowInsets(padding)) {
+                content(if (floatingOverContent) padding.calculateBottomPadding() else 0.dp)
+            }
         }
-    },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) { content() }
+        }
     }
 }
 
 @Composable
 private fun ExpressiveNavigationItem(item: NavItem, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val containerColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .12f) else Color.Transparent,
         label = "navigationContainer")
     val contentColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "navigationContent")
-    Surface(onClick = onClick, modifier = modifier.semantics { role = Role.Tab; this.selected = selected },
-        shape = RoundedCornerShape(20.dp), color = containerColor, contentColor = contentColor,
-        tonalElevation = if (selected) 2.dp else 0.dp) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically) {
-            Icon(item.icon, contentDescription = if (selected) null else item.label, Modifier.size(22.dp))
-            AnimatedVisibility(selected, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
-                Text(item.label, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold, maxLines = 1)
-            }
+    Surface(onClick = onClick, modifier = modifier.heightIn(min = 56.dp).semantics { role = Role.Tab; this.selected = selected },
+        shape = CircleShape, color = containerColor, contentColor = contentColor,
+        tonalElevation = 0.dp) {
+        Column(Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(item.icon, contentDescription = null, Modifier.size(24.dp))
+            Text(item.label, style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -329,10 +353,15 @@ fun NavigationHost(
             // Home is terminal even if an older saved stack contained history
             // below it. Screen-local dialogs register later and consume Back first.
             BackHandler(enabled = activity != null && entry?.destination?.route == Screens.Home.name) { activity?.finish() }
-            NavigationTab(navController, Screens.Home.name) { HomeScreen(navController = navController) }
+            NavigationTab(navController, Screens.Home.name) { floatingBarBottomPadding ->
+                HomeScreen(navController = navController, floatingBarBottomPadding = floatingBarBottomPadding)
+            }
         }
         composable(route = Screens.Profile.name) {
             ProfileScreen()
+        }
+        composable(route = Screens.Download.name) {
+            NavigationTab(navController, Screens.Download.name) { DownloadScreen() }
         }
         composable(route = Screens.Apps.name) {
             AppsScreen()

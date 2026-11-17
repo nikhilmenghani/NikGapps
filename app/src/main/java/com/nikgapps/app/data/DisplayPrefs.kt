@@ -7,6 +7,12 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import com.nikgapps.app.utils.managers.prefMutableState
 
 object DisplayPrefs {
+    var useLiquidGlass by prefMutableState(
+        keyName = "useLiquidGlass",
+        defaultValue = true,
+        getPreferencesKey = { booleanPreferencesKey(it) }
+    )
+
     var useRadialProjectMenu by prefMutableState(
         keyName = "useRadialProjectMenu",
         defaultValue = true,

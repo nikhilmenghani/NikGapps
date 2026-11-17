@@ -284,12 +284,14 @@ private fun GitHubTokenAccessDialog(onDismiss: () -> Unit) {
                             onClick = { classicExpanded = !classicExpanded }
                         ) {
                             TokenHelpSetting("Scopes", "Leave all checkboxes unchecked")
-                            Text("No extra scopes are needed to read public NikGapps files.",
+                            Text("No extra scopes are needed to read public NikGapps files and release information.",
                                 style = MaterialTheme.typography.bodyMedium)
                         }
                         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("NikGapps needs read-only access to public repositories to download packages. " +
-                                "Using your token helps avoid download interruptions caused by GitHub's request limits.",
+                            Text("NikGapps uses read-only access to public repositories to download packages, check app updates " +
+                                "and identify upcoming changelog entries. Your token reduces interruptions caused by GitHub's request limits.",
+                                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            Text("Continue with GitHub provides this access automatically. You don't need to create or paste a separate token.",
                                 style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                             Text("Your private repositories and write access are not needed.",
                                 style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

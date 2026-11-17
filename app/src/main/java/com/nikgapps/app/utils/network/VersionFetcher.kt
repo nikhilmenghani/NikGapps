@@ -1,6 +1,8 @@
 package com.nikgapps.app.utils.network
 
 import com.nikgapps.BuildConfig
+import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.UpdatePrefs
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -9,11 +11,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 object VersionFetcher {
     const val RELEASE_REPOSITORY = "nikhilmenghani/NikGappsReleases"
     private val downloadUrls = ConcurrentHashMap<String, String>()
+    private val releaseMutex = Mutex()
     internal data class AppRelease(val version: String, val url: String)
 
     fun downloadUrl(version: String): String = downloadUrls[version] ?: artifactUrl(RELEASE_REPOSITORY, version, BuildConfig.DEBUG)
@@ -47,19 +52,57 @@ object VersionFetcher {
         return false
     }
 
-    suspend fun fetchLatestVersion(): String {
-        val release = resolveRelease(BuildConfig.DEBUG) { repository ->
-            val request = Request.Builder()
-                .url("https://api.github.com/repos/$repository/releases" + if (BuildConfig.DEBUG) "?per_page=100" else "/latest")
-                .header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2022-11-28")
-                .build()
+    internal fun releaseRequest(development: Boolean, token: String): Request = Request.Builder()
+        .url("https://api.github.com/repos/$RELEASE_REPOSITORY/releases" + if (development) "?per_page=100" else "/latest")
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .header("User-Agent", "NikGapps")
+        .apply { if (token.isNotBlank()) header("Authorization", "Bearer ${token.trim()}") }
+        .build()
+
+    /** Only validated successful lookups replace the persisted, channel-specific version. */
+    internal suspend fun fetchRelease(
+        development: Boolean,
+        token: String,
+        readCachedVersion: () -> String?,
+        saveVersion: (String) -> Unit,
+        execute: suspend (Request) -> String?
+    ): AppRelease? {
+        val fresh = resolveRelease(development) { execute(releaseRequest(development, token)) }
+        if (fresh != null) {
+            saveVersion(fresh.version)
+            return fresh
+        }
+        // Read after the failed lookup so a success from another caller is retained.
+        return readCachedVersion()?.takeIf { validCachedVersion(it, development) }?.let {
+            AppRelease(it, artifactUrl(RELEASE_REPOSITORY, it, development))
+        }
+    }
+
+    private fun validCachedVersion(version: String, development: Boolean): Boolean =
+        Regex("[0-9]+(?:\\.[0-9]+){1,2}").matches(version) && (!development || isValidVersion(version))
+
+    /** Available before a network request finishes, including after restarting the app. */
+    fun lastKnownVersion(): String? = cachedVersion(BuildConfig.DEBUG)
+
+    private fun cachedVersion(development: Boolean): String? =
+        (if (development) UpdatePrefs.lastSuccessfulDevelopmentRelease else UpdatePrefs.lastSuccessfulStableRelease)
+            .takeIf { validCachedVersion(it, development) }
+
+    suspend fun fetchLatestVersion(): String = releaseMutex.withLock {
+        val development = BuildConfig.DEBUG
+        val release = fetchRelease(development, GithubPrefs.token,
+            readCachedVersion = { cachedVersion(development) },
+            saveVersion = { version ->
+                if (development) UpdatePrefs.lastSuccessfulDevelopmentRelease = version
+                else UpdatePrefs.lastSuccessfulStableRelease = version
+            }) { request ->
             NetworkClient.executeRequest(request).use { response ->
                 if (response.isSuccessful) response.body.string() else null
             }
         }
         if (release != null) downloadUrls[release.version] = release.url
-        return release?.version ?: "Unknown"
+        release?.version ?: "Unknown"
     }
 
     internal fun parseReleaseVersion(responseBody: String): String {

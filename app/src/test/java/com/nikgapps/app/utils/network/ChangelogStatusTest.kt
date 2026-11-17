@@ -14,9 +14,9 @@ class ChangelogStatusTest {
         assertEquals(ChangelogStatus.RELEASED, changelogStatus("0.80.21", "0.80.20", "0.80.21"))
         assertEquals(ChangelogStatus.RELEASED, changelogStatus("0.80.19", "0.80.20", "0.80.21"))
     }
-    @Test fun unknownPublicationStateDoesNotClaimUpcoming() {
+    @Test fun unknownPublicationStateDoesNotClaimReleasedOrUpcoming() {
         for (published in listOf(null, "Unknown")) {
-            assertEquals(ChangelogStatus.RELEASED, changelogStatus("0.80.22", "0.80.20", published))
+            assertEquals(ChangelogStatus.UNKNOWN, changelogStatus("0.80.22", "0.80.20", published))
             assertEquals(ChangelogStatus.INSTALLED, changelogStatus("0.80.20", "0.80.20-debug", published))
         }
     }

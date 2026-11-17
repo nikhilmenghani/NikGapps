@@ -1,5 +1,9 @@
 # Parked features
 
+## Package downloads
+
+- [ ] **Guest package downloads:** populate the Download destination with existing NikGapps packages and allow guests to download them. The navigation entry and placeholder are in place; package browsing, downloading and public guest access remain to be implemented.
+
 ## Project backup and restore
 
 - [x] **Elite project selection:** regular restores select all compatible projects read-only; Elite users can choose projects. Both modes replace the current project list.

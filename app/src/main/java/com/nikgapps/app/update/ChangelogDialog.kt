@@ -59,10 +59,10 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
     }
     var cachedEntries by remember { mutableStateOf<List<ChangelogEntry>?>(null) }
     var refreshing by remember { mutableStateOf(false) }
-    var publishedVersion by remember { mutableStateOf<String?>(null) }
+    var publishedVersion by remember { mutableStateOf(VersionFetcher.lastKnownVersion()) }
     var publicationRefresh by remember { mutableIntStateOf(0) }
     LaunchedEffect(publicationRefresh) {
-        publishedVersion = VersionFetcher.fetchLatestVersion().takeUnless { it == "Unknown" }
+        VersionFetcher.fetchLatestVersion().takeUnless { it == "Unknown" }?.let { publishedVersion = it }
     }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { cachedEntries = ChangelogRepository.fetch(context, forceRefresh = true) }
@@ -71,6 +71,9 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
         val visible = if (onUpdate == null) source else source.filter { item -> entries.any { it.version == item.version } }
         visible.sortedWith { a, b -> ChangelogRepository.compareVersions(b.version, a.version) }
     }
+    // Mark the content actually shown, including notes loaded by the dialog's refresh.
+    // Every entry point shares this so reading in Settings also clears the Home badge.
+    LaunchedEffect(releases) { ChangelogReadState.markRead(releases) }
     // A refreshed catalog can add a newer release after the old first row was composed.
     // Own expansion at the dialog level so the former first row cannot stay open by default.
     var expandedVersions by rememberSaveable(releases.firstOrNull()?.version) {

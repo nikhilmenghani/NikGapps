@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import com.nikgapps.app.network.RegistryProjectContent
 import com.nikgapps.app.registry.RegistryAvailability
+import com.nikgapps.app.presentation.ui.component.ProjectGlassSurface
+import com.nikgapps.app.presentation.ui.component.LocalAccountMembership
 import com.nikgapps.app.presentation.ui.component.ProjectCreationUnavailableDialog
 import androidx.compose.runtime.collectAsState
 import com.nikgapps.app.network.LocalInternetAvailable
@@ -30,7 +32,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
@@ -42,6 +43,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -54,11 +56,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
@@ -80,7 +81,6 @@ import androidx.compose.material3.DropdownMenuItem
 import com.nikgapps.app.data.canCreateProject
 import com.nikgapps.app.data.REGULAR_PROJECT_LIMIT
 import com.nikgapps.app.data.ProjectLimitReachedException
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -90,6 +90,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.History
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.ui.res.painterResource
+import com.nikgapps.R
+import com.nikgapps.app.data.DisplayPrefs
+import com.nikgapps.app.data.ThemePreference
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.IconButtonDefaults
@@ -139,7 +146,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
@@ -161,7 +167,6 @@ import com.nikgapps.app.data.Architecture
 import com.nikgapps.app.data.BuildProject
 import com.nikgapps.app.data.BuildProjectRepository
 import com.nikgapps.app.data.GithubPrefs
-import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import com.nikgapps.app.utils.network.EliteMembershipRepository
 import com.nikgapps.app.data.LatestBuildRepository
 import com.nikgapps.app.data.projectNameLimit
@@ -181,8 +186,10 @@ import com.nikgapps.app.update.AppUpdateManager
 import com.nikgapps.app.update.ChangelogDialog
 import com.nikgapps.app.update.ChangelogEntry
 import com.nikgapps.app.update.ChangelogRepository
+import com.nikgapps.app.update.ChangelogReadState
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.app.utils.network.VersionFetcher.fetchLatestVersion
+import com.nikgapps.app.utils.network.VersionFetcher
 import com.nikgapps.app.utils.network.VersionFetcher.isNewer
 import com.nikgapps.dumps.getCurrentVersion
 import com.nikgapps.dumps.installApk
@@ -191,15 +198,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
-import coil3.compose.SubcomposeAsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavHostController) {
+fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 0.dp) {
     val isOnline = LocalInternetAvailable.current
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < .5f
     var projectMenuId by remember { mutableStateOf<String?>(null) }
     val projectMenuVisible = projectMenuId != null
     val context = LocalActivity.current as MainActivity
@@ -213,7 +220,7 @@ fun HomeScreen(navController: NavHostController) {
     var showMoreOptions by remember { mutableStateOf(false) }
     var showHomeChangelog by rememberSaveable { mutableStateOf(false) }
     var homeChangelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
-    var publishedChangelogVersion by remember { mutableStateOf<String?>(null) }
+    var publishedChangelogVersion by remember { mutableStateOf(VersionFetcher.lastKnownVersion()) }
     var changelogRefresh by remember { mutableStateOf(0) }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         changelogRefresh++
@@ -221,13 +228,12 @@ fun HomeScreen(navController: NavHostController) {
     LaunchedEffect(isOnline, changelogRefresh, showHomeChangelog) {
         if (!showHomeChangelog) {
             homeChangelog = ChangelogRepository.fetch(context, forceRefresh = isOnline)
-            if (isOnline) publishedChangelogVersion = fetchLatestVersion()
+            if (isOnline) fetchLatestVersion().takeUnless { it == "Unknown" }?.let { publishedChangelogVersion = it }
         }
     }
-    val hasUpcomingChanges = homeChangelog.any {
-        com.nikgapps.app.update.changelogStatus(it.version, currentVersion, publishedChangelogVersion) ==
-            com.nikgapps.app.update.ChangelogStatus.UPCOMING
-    }
+    val hasUnreadUpcomingChanges = ChangelogReadState.hasUnreadUpcoming(
+        homeChangelog, currentVersion, publishedChangelogVersion
+    )
 
     val projectRepository = remember { BuildProjectRepository(context) }
     val latestBuildRepository = remember { LatestBuildRepository(context) }
@@ -285,9 +291,9 @@ fun HomeScreen(navController: NavHostController) {
     var updatesByProject by remember { mutableStateOf<Map<String, ProjectUpdate>>(emptyMap()) }
     var unavailableByProject by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var projectDisplayOrder by remember { mutableStateOf<List<String>?>(null) }
-    val previewNonElite = com.nikgapps.app.data.DisplayPrefs.nonElitePreviewEnabled
-    var isElite by remember(previewNonElite) { mutableStateOf(false) }
-    var eliteMembershipResolved by remember(previewNonElite) { mutableStateOf(false) }
+    val membership = LocalAccountMembership.current
+    val isElite = membership.isElite
+    val eliteMembershipResolved = membership.resolved
     var showProjectLimit by remember { mutableStateOf(false) }
     var showEliteFeatures by remember { mutableStateOf(false) }
     LaunchedEffect(createRequested, eliteMembershipResolved, registryRetryAt) {
@@ -368,34 +374,6 @@ fun HomeScreen(navController: NavHostController) {
         initializeOrder() // Also unblock missing-cache and failed-refresh cases.
     }
 
-    LaunchedEffect(GithubPrefs.username, GithubPrefs.token) {
-        if (GithubPrefs.avatarUrl.isBlank() && GithubPrefs.token.isNotBlank()) {
-            try {
-                GithubPrefs.avatarUrl = GitHubDeviceAuth.accountProfile(GithubPrefs.token).avatarUrl
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Keep the fallback icon when the account lookup is unavailable.
-            }
-        }
-    }
-
-    LaunchedEffect(GithubPrefs.username, isOnline, previewNonElite) {
-        isElite = false
-        eliteMembershipResolved = false
-        try {
-        if (isOnline && GithubPrefs.username.isNotBlank()) {
-            try {
-                isElite = EliteMembershipRepository.isElite(GithubPrefs.username)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Do not show an unverified badge when the tracker cannot be reached.
-            }
-        }
-        } finally { eliteMembershipResolved = true }
-    }
-
     LaunchedEffect(Unit) {
         latestVersion = withContext(Dispatchers.IO) { fetchLatestVersion() }
         isLatestVersion = latestVersion == "Unknown" || !isNewer(latestVersion, currentVersion)
@@ -442,178 +420,190 @@ fun HomeScreen(navController: NavHostController) {
         workInfo.observeForever(observer)
     }
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection)
-            .blur(if (projectMenuVisible) 6.dp else 0.dp)
-            .drawWithContent {
-                drawContent()
-                if (projectMenuVisible) drawRect(Color.Black.copy(alpha = .20f))
-            },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "NikGapps",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            "v$currentVersion",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+        Scaffold(
+            containerColor = Color.Transparent,
+            modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection)
+                .blur(if (projectMenuVisible) 6.dp else 0.dp)
+                .drawWithContent {
+                    drawContent()
+                    if (projectMenuVisible) drawRect(Color.Black.copy(alpha = .20f))
                 },
-                actions = {
-                    if (!isLatestVersion) {
-                        HomeUpdateIndicator(
-                            latestVersion = latestVersion,
-                            isDownloading = isDownloading,
-                            onClick = { showUpdateChangelog = true }
-                        )
-                    }
-                    IconButton(onClick = { showHomeChangelog = true },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (hasUpcomingChanges) MaterialTheme.colorScheme.primaryContainer
-                                else androidx.compose.ui.graphics.Color.Transparent,
-                            contentColor = if (hasUpcomingChanges) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurfaceVariant)) {
-                        BadgedBox(badge = { if (hasUpcomingChanges) Badge() }) {
-                            Icon(Icons.Default.History,
-                                if (hasUpcomingChanges) "Changelog, upcoming changes available" else "Changelog")
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent),
+                    title = { Text("Projects") },
+                    actions = {
+                        ProjectGlassSurface(modifier = Modifier.padding(end = 12.dp), shape = CircleShape) {
+                        Row(Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = if (darkTheme) .22f else .18f))
+                            .padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (!isLatestVersion) {
+                            HomeUpdateIndicator(
+                                latestVersion = latestVersion,
+                                isDownloading = isDownloading,
+                                onClick = { showUpdateChangelog = true }
+                            )
                         }
-                    }
-                    com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
-                    Box {
-                        IconButton(onClick = { showMoreOptions = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        IconToggleButton(
+                            checked = darkTheme,
+                            onCheckedChange = { dark ->
+                                DisplayPrefs.theme = if (dark) ThemePreference.DARK.ordinal else ThemePreference.LIGHT.ordinal
+                            },
+                            modifier = Modifier.size(48.dp),
+                            colors = IconButtonDefaults.iconToggleButtonColors(
+                                containerColor = Color.Transparent,
+                                checkedContainerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ) {
+                            Crossfade(targetState = darkTheme, animationSpec = tween(180), label = "Theme icon") { dark ->
+                                Icon(painterResource(if (dark) R.drawable.ic_dark_mode_rounded else R.drawable.ic_light_mode_rounded),
+                                    contentDescription = if (dark) "Switch to light mode" else "Switch to dark mode",
+                                    modifier = Modifier.size(24.dp))
+                            }
                         }
-                        DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
-                            shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                            DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) },
-                                onClick = {
-                                    showMoreOptions = false
-                                    navController.navigate(Screens.Settings.name) { launchSingleTop = true }
-                                })
-                            DropdownMenuItem(text = { Text("Logs") }, leadingIcon = { Icon(Icons.Default.Terminal, null) },
-                                onClick = {
-                                    showMoreOptions = false
-                                    navController.navigate(Screens.Logs.name) { launchSingleTop = true }
-                                })
+                        IconButton(onClick = { showHomeChangelog = true },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (hasUnreadUpcomingChanges) MaterialTheme.colorScheme.primaryContainer
+                                    else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = if (hasUnreadUpcomingChanges) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)) {
+                            BadgedBox(badge = { if (hasUnreadUpcomingChanges) Badge() }) {
+                                Icon(Icons.Default.History,
+                                    if (hasUnreadUpcomingChanges) "Changelog, unread upcoming changes" else "Changelog")
+                            }
                         }
-                    }
-                },
-                scrollBehavior = topBarScrollBehavior
-            )
-        }
-    ) { paddingValues ->
-        if (projects.isEmpty()) {
-            Column(Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
-                WelcomeCard(GithubPrefs.username, isElite)
-                RegistryReleaseBanner(isOnline, projects, updatesByProject)
-                ProjectsHeader()
-                RegistryProjectContent(registryRetryAt, Modifier.fillMaxWidth().weight(1f)) {
-                    EmptyProjects(Modifier.fillMaxSize().padding(16.dp))
-                }
+                        com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
+                        Box {
+                            IconButton(onClick = { showMoreOptions = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            }
+                            DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
+                                shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) },
+                                    onClick = {
+                                        showMoreOptions = false
+                                        navController.navigate(Screens.Settings.name) { launchSingleTop = true }
+                                    })
+                                DropdownMenuItem(text = { Text("Logs") }, leadingIcon = { Icon(Icons.Default.Terminal, null) },
+                                    onClick = {
+                                        showMoreOptions = false
+                                        navController.navigate(Screens.Logs.name) { launchSingleTop = true }
+                                    })
+                            }
+                        }
+                        }
+                        }
+                    },
+                    scrollBehavior = topBarScrollBehavior
+                )
             }
-        } else {
-            Column(Modifier.fillMaxSize().padding(paddingValues).padding(top = 16.dp)) {
-                Box(Modifier.padding(horizontal = 16.dp)) { WelcomeCard(GithubPrefs.username, isElite) }
-                RegistryReleaseBanner(isOnline, projects, updatesByProject)
-                ProjectsHeader()
-            RegistryProjectContent(registryRetryAt, Modifier.fillMaxWidth().weight(1f)) {
-            if (projectDisplayOrder == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            } else LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(projectsInDisplayOrder(projects, projectDisplayOrder.orEmpty()), key = { it.id }) { project ->
-                    val latestBuild = latestBuildRepository.get(project.id)
-                    ProjectCard(
-                        project = project,
-                        onMenuVisibilityChanged = { visible ->
-                            if (visible) projectMenuId = project.id
-                            else if (projectMenuId == project.id) projectMenuId = null
-                        },
-                        unavailable = unavailableByProject[project.id],
-                        update = updatesByProject[project.id],
-                        onDismissUpdate = { releaseId -> projects = projectRepository.mutateProject(project.id) { it.copy(
-                            dismissedReleaseId = releaseId) } },
-                        onDismissAllUpdates = { releaseId ->
-                            val target = metadataByProject[project.id]?.releaseIndex?.releases?.firstOrNull { it.id == releaseId }
-                            if (target != null) projects = projectRepository.mutateProjects { saved ->
-                                dismissProjectsThroughRelease(saved, target, metadataByProject)
-                            }
-                        },
-                        onExport = {
-                            val loaded = metadataByProject[project.id]
-                            if (loaded != null) {
-                                pendingExport = recoveryProjectConfig(project, loaded)
-                                projectExport.launch("${project.name}.config")
-                            }
-                        },
-                        onOpen = {
-                            AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
-                            navController.navigate(projectRoute(project.id)) { launchSingleTop = true }
-                        },
-                        onBuild = {
-                            if (isOnline && unavailableByProject[project.id]?.isEmpty() == true && updatesByProject[project.id]?.kind != ProjectUpdateKind.INCOMPATIBLE)
-                                navController.navigate(buildZipRoute(project.id, latest = updatesByProject[project.id]?.kind == ProjectUpdateKind.AVAILABLE))
-                            else Toast.makeText(
-                                context,
-                                "Internet connection is required before building the ZIP",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        },
-                        onShareZip = latestBuild?.let { saved -> { context.sharePublishedZip(saved) } },
-                        onDuplicate = {
-                            if (creationBlocked()) return@ProjectCard
-                            if (!eliteMembershipResolved || !canCreateProject(projectRepository.getProjects().size, isElite)) {
-                                if (eliteMembershipResolved) showProjectLimit = true
-                                else Toast.makeText(context, "Checking Elite membership; try again shortly", Toast.LENGTH_SHORT).show()
-                                return@ProjectCard
-                            }
-                            if (updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) {
-                                Toast.makeText(context, "Export this config and recreate the project using Import config.", Toast.LENGTH_LONG).show()
-                                return@ProjectCard
-                            }
-                            projectScope.launch {
-                                runCatching {
-                                    val metadata = catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
-                                        project.defaultChannel, project.architecture.value)
-                                    if (creationBlocked()) return@launch
-                                    projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)), isElite)
-                                }.onSuccess { savedProjects ->
-                                    projects = savedProjects
-                                    AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
-                                }.onFailure {
-                                    if (it is ProjectLimitReachedException) showProjectLimit = true
-                                    else Toast.makeText(context, "Cannot check the latest package list; try again online",
-                                        Toast.LENGTH_LONG).show()
+        ) { paddingValues ->
+            if (projects.isEmpty()) {
+                Column(Modifier.fillMaxSize().padding(paddingValues)
+                    .padding(bottom = floatingBarBottomPadding).padding(16.dp)) {
+                    RegistryReleaseBanner(isOnline, projects, updatesByProject)
+                    RegistryProjectContent(registryRetryAt, Modifier.fillMaxWidth().weight(1f)) {
+                        EmptyProjects(Modifier.fillMaxSize().padding(16.dp))
+                    }
+                }
+            } else {
+                Box(Modifier.fillMaxSize().padding(paddingValues)) {
+                RegistryProjectContent(registryRetryAt, Modifier.fillMaxSize()) {
+                if (projectDisplayOrder == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                } else LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = floatingBarBottomPadding + 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item(key = "release-notice") {
+                        RegistryReleaseBanner(isOnline, projects, updatesByProject)
+                    }
+                    items(projectsInDisplayOrder(projects, projectDisplayOrder.orEmpty()), key = { it.id }) { project ->
+                        val latestBuild = latestBuildRepository.get(project.id)
+                        Box(Modifier.padding(horizontal = 16.dp)) {
+                        ProjectCard(
+                            project = project,
+                            onMenuVisibilityChanged = { visible ->
+                                if (visible) projectMenuId = project.id
+                                else if (projectMenuId == project.id) projectMenuId = null
+                            },
+                            unavailable = unavailableByProject[project.id],
+                            update = updatesByProject[project.id],
+                            onDismissUpdate = { releaseId -> projects = projectRepository.mutateProject(project.id) { it.copy(
+                                dismissedReleaseId = releaseId) } },
+                            onDismissAllUpdates = { releaseId ->
+                                val target = metadataByProject[project.id]?.releaseIndex?.releases?.firstOrNull { it.id == releaseId }
+                                if (target != null) projects = projectRepository.mutateProjects { saved ->
+                                    dismissProjectsThroughRelease(saved, target, metadataByProject)
                                 }
+                            },
+                            onExport = {
+                                val loaded = metadataByProject[project.id]
+                                if (loaded != null) {
+                                    pendingExport = recoveryProjectConfig(project, loaded)
+                                    projectExport.launch("${project.name}.config")
+                                }
+                            },
+                            onOpen = {
+                                AppDiagnostics.info("project", "opened", mapOf("project" to project.id.take(8)))
+                                navController.navigate(projectRoute(project.id)) { launchSingleTop = true }
+                            },
+                            onBuild = {
+                                if (isOnline && unavailableByProject[project.id]?.isEmpty() == true && updatesByProject[project.id]?.kind != ProjectUpdateKind.INCOMPATIBLE)
+                                    navController.navigate(buildZipRoute(project.id, latest = updatesByProject[project.id]?.kind == ProjectUpdateKind.AVAILABLE))
+                                else Toast.makeText(
+                                    context,
+                                    "Internet connection is required before building the ZIP",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            onShareZip = latestBuild?.let { saved -> { context.sharePublishedZip(saved) } },
+                            onDuplicate = {
+                                if (creationBlocked()) return@ProjectCard
+                                if (!eliteMembershipResolved || !canCreateProject(projectRepository.getProjects().size, isElite)) {
+                                    if (eliteMembershipResolved) showProjectLimit = true
+                                    else Toast.makeText(context, "Checking Elite membership; try again shortly", Toast.LENGTH_SHORT).show()
+                                    return@ProjectCard
+                                }
+                                if (updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) {
+                                    Toast.makeText(context, "Export this config and recreate the project using Import config.", Toast.LENGTH_LONG).show()
+                                    return@ProjectCard
+                                }
+                                projectScope.launch {
+                                    runCatching {
+                                        val metadata = catalogRepository.load(catalogAndroidVersion(project.androidVersion.displayName),
+                                            project.defaultChannel, project.architecture.value)
+                                        if (creationBlocked()) return@launch
+                                        projectRepository.addProject(duplicateCurrentProject(project, metadata, projectNameLimit(isElite)), isElite)
+                                    }.onSuccess { savedProjects ->
+                                        projects = savedProjects
+                                        AppDiagnostics.info("project", "duplicated", mapOf("source" to project.id.take(8)))
+                                    }.onFailure {
+                                        if (it is ProjectLimitReachedException) showProjectLimit = true
+                                        else Toast.makeText(context, "Cannot check the latest package list; try again online",
+                                            Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            onEdit = {
+                                if (unavailableByProject[project.id]?.isNotEmpty() == true || updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) return@ProjectCard
+                                AppDiagnostics.info("project", "edit_opened", mapOf("project" to project.id.take(8)))
+                                projectToEdit = project
+                            },
+                            onDelete = {
+                                AppDiagnostics.info("project", "delete_requested", mapOf("project" to project.id.take(8)))
+                                projectToDelete = project
                             }
-                        },
-                        onEdit = {
-                            if (unavailableByProject[project.id]?.isNotEmpty() == true || updatesByProject[project.id]?.kind == ProjectUpdateKind.INCOMPATIBLE) return@ProjectCard
-                            AppDiagnostics.info("project", "edit_opened", mapOf("project" to project.id.take(8)))
-                            projectToEdit = project
-                        },
-                        onDelete = {
-                            AppDiagnostics.info("project", "delete_requested", mapOf("project" to project.id.take(8)))
-                            projectToDelete = project
+                        )
                         }
-                    )
+                    }
+                }
+                }
                 }
             }
-            }
-            }
         }
-    }
     if (showHomeChangelog) ChangelogDialog(
         title = "Changelog", entries = homeChangelog,
         onDismiss = { showHomeChangelog = false }
@@ -711,76 +701,6 @@ fun HomeScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun ProjectsHeader() {
-    Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center) {
-        Text("Projects", style = MaterialTheme.typography.headlineLarge)
-    }
-}
-
-@Composable
-private fun WelcomeCard(username: String, isElite: Boolean) {
-    val guest = com.nikgapps.app.data.DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode &&
-        (GithubPrefs.token.isBlank() || username.isBlank())
-    val textHeight = with(LocalDensity.current) {
-        MaterialTheme.typography.titleMedium.lineHeight.toDp() * 2 +
-            MaterialTheme.typography.labelSmall.lineHeight.toDp()
-    } + 2.dp
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.width(76.dp).height(textHeight.coerceAtLeast(68.dp)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)) {
-                if (guest || GithubPrefs.avatarUrl.isBlank()) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-                } else {
-                    SubcomposeAsyncImage(
-                        model = GithubPrefs.avatarUrl,
-                        contentDescription = "$username's GitHub profile picture",
-                        modifier = Modifier.size(40.dp).clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        loading = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
-                        error = { Icon(Icons.Default.AccountCircle, contentDescription = null) }
-                    )
-                }
-                // The fixed column height prevents membership updates from moving the card.
-                if (isElite && !guest) Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                ) {
-                    Row(Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Text("ELITE", style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                    }
-                }
-            }
-            Column(Modifier.weight(1f).height(textHeight),
-                verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
-                Text(if (guest) "Welcome, Guest" else if (username.isBlank()) "Loading account…" else "Welcome, $username",
-                    style = MaterialTheme.typography.titleMedium, maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(if (guest) "Guest mode · Sign in from Settings" else "Signed in with GitHub",
-                    style = MaterialTheme.typography.labelSmall, maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            }
-        }
-    }
-}
-
-@Composable
 private fun EmptyProjects(modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -796,7 +716,7 @@ private fun EmptyProjects(modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProjectCard(
+internal fun ProjectCard(
     project: BuildProject,
     onMenuVisibilityChanged: (Boolean) -> Unit,
     unavailable: Set<String>?,
@@ -857,10 +777,11 @@ private fun ProjectCard(
     }
     var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
+    val liquidGlass = DisplayPrefs.useLiquidGlass
     val canBuild = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated
     var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
     Box {
-        Surface(
+        ProjectGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
@@ -882,13 +803,7 @@ private fun ProjectCard(
                     if (actionsExpanded) "Hide configuration details" else "Show configuration details"
                 } else "Open project",
                 onLongClick = { showProjectMenu = true }
-            ),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 2.dp,
-        shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            )
     ) {
         Column(
             modifier = Modifier.animateContentSize().padding(12.dp),
@@ -904,9 +819,9 @@ private fun ProjectCard(
                     modifier = Modifier.size(44.dp),
                     shape = MaterialTheme.shapes.medium,
                     color = when {
-                        outdated -> MaterialTheme.colorScheme.errorContainer
-                        update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                        outdated -> MaterialTheme.colorScheme.errorContainer.copy(alpha = if (liquidGlass) .38f else 1f)
+                        update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.primary.copy(alpha = if (liquidGlass) .18f else 1f)
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (liquidGlass) .35f else 1f)
                     }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -914,8 +829,8 @@ private fun ProjectCard(
                             Icons.Outlined.FolderSpecial,
                             contentDescription = null,
                             tint = when {
-                                outdated -> MaterialTheme.colorScheme.onErrorContainer
-                                update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.onPrimary
+                                outdated -> if (liquidGlass) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onErrorContainer
+                                update?.kind == ProjectUpdateKind.AVAILABLE -> if (liquidGlass) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
