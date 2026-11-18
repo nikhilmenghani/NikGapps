@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -107,7 +107,7 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
                     FilledTonalButton(onClick = { showWhyGitHub = true },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = RoundedCornerShape(16.dp)) {
-                        Icon(Icons.Outlined.Info, null, Modifier.size(20.dp))
+                        Icon(AppIcons.Info, null, Modifier.size(20.dp))
                         Spacer(Modifier.size(8.dp))
                         Text("Why GitHub?")
                     }

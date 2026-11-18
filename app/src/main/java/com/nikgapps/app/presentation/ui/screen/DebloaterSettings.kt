@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -18,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -88,7 +88,7 @@ fun DebloaterSettings(projectId: String, projectName: String, targets: List<Stri
                         Text("Project: $projectName", style = MaterialTheme.typography.bodyMedium)
                     }
                     IconButton(onClick = { toggleNotice("info") }) {
-                        Icon(Icons.Default.Info, if (noticeVisible && noticeType == "info") "Hide debloater information" else "Show debloater information",
+                        Icon(AppIcons.Info, if (noticeVisible && noticeType == "info") "Hide debloater information" else "Show debloater information",
                             tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { toggleNotice("warning") }) {

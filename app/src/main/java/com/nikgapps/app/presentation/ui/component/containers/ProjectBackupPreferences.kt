@@ -1,12 +1,12 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
@@ -120,7 +120,7 @@ fun ProjectBackupPreferences() {
             verticalAlignment = Alignment.CenterVertically) {
             PreferenceSubtitle(text = "Project backup", contentPadding = PaddingValues(0.dp))
             IconButton(onClick = { showBackupInfo = !showBackupInfo }) {
-                Icon(Icons.Default.Info, if (showBackupInfo) "Hide backup information" else "About project backup",
+                Icon(AppIcons.Info, if (showBackupInfo) "Hide backup information" else "About project backup",
                     tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
         }

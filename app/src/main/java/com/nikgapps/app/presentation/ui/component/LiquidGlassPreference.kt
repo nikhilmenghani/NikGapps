@@ -5,7 +5,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BlurOn
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,7 +35,7 @@ internal fun LiquidGlassPreference() {
                 Text("Liquid glass", modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 IconButton(onClick = { showInfo = true }) {
-                    Icon(Icons.Outlined.Info, "About liquid glass", Modifier.size(20.dp),
+                    Icon(AppIcons.Info, "About liquid glass", Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

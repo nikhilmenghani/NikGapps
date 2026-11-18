@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.OpenableColumns
@@ -66,7 +67,10 @@ import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.presentation.ui.component.StockAppRemovalDialog
 import com.nikgapps.app.presentation.ui.component.HeaderActionPill
-import com.nikgapps.app.presentation.ui.component.AdaptiveTopAppBar
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.DataUsage
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.network.EliteMembershipRepository
@@ -410,7 +414,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                                Icon(AppIcons.Info, null, tint = MaterialTheme.colorScheme.onErrorContainer)
                                 Text("Outdated project", style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.onErrorContainer)
                             }
@@ -592,8 +596,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
 
-    Scaffold(topBar = { AdaptiveTopAppBar(title = current.name,
-        onBack = { navController.navigateUp() }, actions = {
+    Scaffold(topBar = { TopAppBar(title = {}, navigationIcon = {
+        IconButton(onClick = { navController.navigateUp() }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+        }
+    }, actions = {
         HeaderActionPill {
         IconButton(onClick = {
             notificationsExpanded = !notificationsExpanded
@@ -603,7 +610,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             val quotaStatus = BuildQuotaRepository(context).status(quotaClock)
             Box(Modifier.size(32.dp)) {
                 Icon(
-                    Icons.Default.DataUsage,
+                    Icons.Outlined.DataUsage,
                     if (notificationsExpanded) "Close project updates" else
                         "Build usage, ${quotaStatus.remaining} of ${quotaStatus.limit} builds available",
                     modifier = Modifier.align(Alignment.Center).size(24.dp)
@@ -626,7 +633,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             filterExpanded = false
             notificationsExpanded = false
         }) {
-            Icon(Icons.AutoMirrored.Filled.Sort, if (sortExpanded) "Close sort options" else "Sort apps")
+            Icon(Icons.AutoMirrored.Outlined.Sort, if (sortExpanded) "Close sort options" else "Sort apps")
         }
         com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
         IconButton(onClick = {
@@ -634,7 +641,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             sortExpanded = false
             notificationsExpanded = false
         }) {
-            Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
+            Icon(Icons.Outlined.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
         }
         }
     }) }, bottomBar = {
@@ -927,9 +934,16 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             ),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
             item {
-                Text("Choose your apps", style = MaterialTheme.typography.titleLarge)
-                Text("Tap an app to select · Expand groups to choose packages · Hold for options.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Choose your apps", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(Icons.Outlined.Folder, null, Modifier.padding(top = 2.dp).size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
+                    Text("${current.name} · ${current.androidVersion.displayName}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Spacer(Modifier.height(16.dp))
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
                 if (metadata == null && loadError == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
@@ -1090,7 +1104,7 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
             )
         }
         DropdownMenuItem(text = { Text("Show info") },
-            leadingIcon = { Icon(Icons.Default.Info, null) },
+            leadingIcon = { Icon(AppIcons.Info, null) },
             onClick = { menuOpen = false; onOpen() })
     }
     }

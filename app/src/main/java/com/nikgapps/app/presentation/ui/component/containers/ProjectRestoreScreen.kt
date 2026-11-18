@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -11,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.*
@@ -56,7 +56,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = { showInfo = !showInfo }) {
-                        Icon(Icons.Default.Info, if (showInfo) "Hide restore information" else "Restore information",
+                        Icon(AppIcons.Info, if (showInfo) "Hide restore information" else "Restore information",
                             tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { showWarnings = !showWarnings }) {

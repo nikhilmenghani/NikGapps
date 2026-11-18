@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,6 +62,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -70,7 +73,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -467,14 +469,14 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                                 contentColor = if (hasUnreadUpcomingChanges) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant)) {
                             BadgedBox(badge = { if (hasUnreadUpcomingChanges) Badge() }) {
-                                Icon(Icons.Default.History,
+                                Icon(Icons.Outlined.History,
                                     if (hasUnreadUpcomingChanges) "Changelog, unread upcoming changes" else "Changelog")
                             }
                         }
                         com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
                         Box {
                             IconButton(onClick = { showMoreOptions = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "More options")
                             }
                             DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
                                 shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
@@ -1199,7 +1201,7 @@ private fun ProjectSheet(
                                 when {
                                     importError != null -> Icons.Default.ErrorOutline
                                     validatedConfig != null -> Icons.Default.CheckCircle
-                                    else -> Icons.Default.Info
+                                    else -> AppIcons.Info
                                 },
                                 contentDescription = if (validatedConfig != null && importError == null) "Config loaded successfully" else null,
                                 modifier = Modifier.size(20.dp),

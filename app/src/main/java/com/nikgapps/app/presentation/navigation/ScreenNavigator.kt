@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.navigation
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -14,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Settings
@@ -86,7 +86,7 @@ private val LocalShowFeatureGuide = staticCompositionLocalOf<() -> Unit> { {} }
 fun HelpIconButton(reserveTrailingSlot: Boolean = true) {
     val onShowHelp = LocalShowFeatureGuide.current
     androidx.compose.material3.IconButton(onClick = onShowHelp) {
-        Icon(Icons.Default.Info, "Discover NikGapps features")
+        Icon(AppIcons.Info, "Discover NikGapps features")
     }
     if (reserveTrailingSlot) Spacer(Modifier.width(48.dp))
 }

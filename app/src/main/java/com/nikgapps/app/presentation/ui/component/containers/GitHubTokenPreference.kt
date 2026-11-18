@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
+import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -35,7 +36,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -155,7 +155,7 @@ internal fun GitHubTokenTopSheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
                                 keyboard?.hide()
                                 showTokenHelp = true
                             }) {
-                                Icon(Icons.Outlined.Info, contentDescription = "Token permissions and help")
+                                Icon(AppIcons.Info, contentDescription = "Token permissions and help")
                             }
                             IconButton(onClick = onDismiss) {
                                 Icon(Icons.Outlined.Close, contentDescription = "Close token editor")

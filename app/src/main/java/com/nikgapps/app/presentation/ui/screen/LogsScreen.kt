@@ -11,6 +11,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -140,15 +144,15 @@ fun LogsScreen(onBack: () -> Unit = {}) {
         subtitle = "NikGapps process · PID ${Process.myPid()}", onBack = onBack, actions = {
         HeaderActionPill {
         IconButton(onClick = { paused = !paused }) {
-            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+            Icon(if (paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                 if (paused) "Resume Logcat" else "Pause Logcat")
         }
         IconButton(onClick = {
             clearGeneration.incrementAndGet()
             lines = emptyList()
-        }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
+        }) { Icon(Icons.Outlined.DeleteSweep, "Clear captured logs") }
         com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
-        IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Default.IosShare, "Export diagnostics") }
+        IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Outlined.IosShare, "Export diagnostics") }
         }
     }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp)) {
