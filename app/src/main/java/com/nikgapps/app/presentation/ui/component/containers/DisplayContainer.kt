@@ -9,10 +9,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -66,52 +63,50 @@ fun AppearancePreferences() {
     val dialog = globalClass.singleChoiceDialog
     val preferences = globalClass.preferencesManager.displayPrefs
 
-    SettingsPage {
-        Container(
-            title = stringResource(R.string.settings_appearance),
-            initiallyExpanded = true
-        ) {
-            PreferenceSubtitle(text = "Project actions")
-            PreferenceItem(
-                label = "Radial project menu",
-                supportingText = "Use circular actions when holding a project. Turn off for the list menu.",
-                icon = Icons.Outlined.AppSettingsAlt,
-                switchState = preferences.useRadialProjectMenu,
-                onSwitchChange = { preferences.useRadialProjectMenu = it }
-            )
-            PreferenceSubtitle(text = stringResource(R.string.settings_colors_and_theme))
-            LiquidGlassPreference()
-            PreferenceItem(
-                label = stringResource(R.string.use_dynamic_color),
-                supportingText = emptyString,
-                icon = Icons.Outlined.ColorLens,
-                switchState = preferences.useDynamicColor,
-                onSwitchChange = { preferences.useDynamicColor = it }
-            )
+    Container(
+        title = stringResource(R.string.settings_appearance),
+        initiallyExpanded = false
+    ) {
+        PreferenceSubtitle(text = "Project actions")
+        PreferenceItem(
+            label = "Radial project menu",
+            supportingText = "Use circular actions when holding a project. Turn off for the list menu.",
+            icon = Icons.Outlined.AppSettingsAlt,
+            switchState = preferences.useRadialProjectMenu,
+            onSwitchChange = { preferences.useRadialProjectMenu = it }
+        )
+        PreferenceSubtitle(text = stringResource(R.string.settings_colors_and_theme))
+        LiquidGlassPreference()
+        PreferenceItem(
+            label = stringResource(R.string.use_dynamic_color),
+            supportingText = emptyString,
+            icon = Icons.Outlined.ColorLens,
+            switchState = preferences.useDynamicColor,
+            onSwitchChange = { preferences.useDynamicColor = it }
+        )
 
-            PreferenceItem(
-                    label = stringResource(R.string.theme),
-                    supportingText = when (preferences.theme) {
-                        ThemePreference.LIGHT.ordinal -> stringResource(R.string.light)
-                        ThemePreference.DARK.ordinal -> stringResource(R.string.dark)
-                        else -> stringResource(R.string.follow_system)
-                    },
-                    icon = Icons.Outlined.DarkMode,
-                    onClick = {
-                        dialog.show(
-                            title = globalClass.getString(R.string.theme),
-                            description = globalClass.getString(R.string.select_theme_preference),
-                            choices = listOf(
-                                globalClass.getString(R.string.light),
-                                globalClass.getString(R.string.dark),
-                                globalClass.getString(R.string.follow_system)
-                            ),
-                            selectedChoice = preferences.theme,
-                            onSelect = { preferences.theme = it }
-                        )
-                    }
-            )
-        }
+        PreferenceItem(
+                label = stringResource(R.string.theme),
+                supportingText = when (preferences.theme) {
+                    ThemePreference.LIGHT.ordinal -> stringResource(R.string.light)
+                    ThemePreference.DARK.ordinal -> stringResource(R.string.dark)
+                    else -> stringResource(R.string.follow_system)
+                },
+                icon = Icons.Outlined.DarkMode,
+                onClick = {
+                    dialog.show(
+                        title = globalClass.getString(R.string.theme),
+                        description = globalClass.getString(R.string.select_theme_preference),
+                        choices = listOf(
+                            globalClass.getString(R.string.light),
+                            globalClass.getString(R.string.dark),
+                            globalClass.getString(R.string.follow_system)
+                        ),
+                        selectedChoice = preferences.theme,
+                        onSelect = { preferences.theme = it }
+                    )
+                }
+        )
     }
 }
 
@@ -120,121 +115,117 @@ fun AdvancedPreferences() {
     val context = LocalContext.current
     val developerPreference = globalClass.preferencesManager.displayPrefs
 
-    SettingsPage {
-        Container(
-            title = stringResource(R.string.settings_advanced),
-            initiallyExpanded = true
-        ) {
-            if (developerPreference.developerOptionsEnabled) {
-                PreferenceSubtitle(text = "Developer options")
-                PreferenceItem(
-                    label = "Preview non-Elite account",
-                    supportingText = "Hide the Elite badge and use regular-account limits on this device. Your membership and saved projects stay unchanged.",
-                    icon = Icons.Outlined.AccountCircle,
-                    switchState = developerPreference.previewNonElite,
-                    onSwitchChange = { developerPreference.previewNonElite = it }
-                )
-                PreferenceItem(
-                    label = "Allow guest mode",
-                    supportingText = "Show Continue as guest on the sign-in screen. Normal build limits apply.",
-                    icon = Icons.Outlined.AccountCircle,
-                    switchState = developerPreference.allowGuestAccess,
-                    onSwitchChange = {
-                        developerPreference.allowGuestAccess = it
-                        if (!it) GithubPrefs.guestMode = false
-                    }
-                )
-                PreferenceItem(
-                    label = "Enforce app updates",
-                    supportingText = "Block normal app use on startup when a newer NikGapps version is available",
-                    icon = Icons.Outlined.SystemUpdateAlt,
-                    switchState = developerPreference.enforceAppUpdates,
-                    onSwitchChange = { developerPreference.enforceAppUpdates = it }
-                )
-                PreferenceItem(
-                    label = "Require internet access",
-                    supportingText = "Show the offline gate when the device has no validated internet connection. Temporary server limits do not mark the device offline.",
-                    icon = Icons.Outlined.Wifi,
-                    switchState = developerPreference.requireInternetAccess,
-                    onSwitchChange = { developerPreference.requireInternetAccess = it }
-                )
-                PreferenceItem(
-                    label = "Biometric lock",
-                    supportingText = "Require biometrics or the device screen lock when opening the app",
-                    icon = Icons.Outlined.Fingerprint,
-                    switchState = developerPreference.biometricLockEnabled,
-                    onSwitchChange = { enabled ->
-                        if (!enabled) {
-                            developerPreference.biometricLockEnabled = false
-                        } else if (!canUseAppLock(context)) {
-                            Toast.makeText(context, "Set up a supported screen lock or fingerprint first", Toast.LENGTH_LONG).show()
+    Container(
+        title = stringResource(R.string.settings_advanced),
+        initiallyExpanded = false
+    ) {
+        if (developerPreference.developerOptionsEnabled) {
+            PreferenceSubtitle(text = "Developer options")
+            PreferenceItem(
+                label = "Preview non-Elite account",
+                supportingText = "Hide the Elite badge and use regular-account limits on this device. Your membership and saved projects stay unchanged.",
+                icon = Icons.Outlined.AccountCircle,
+                switchState = developerPreference.previewNonElite,
+                onSwitchChange = { developerPreference.previewNonElite = it }
+            )
+            PreferenceItem(
+                label = "Allow guest mode",
+                supportingText = "Show Continue as guest on the sign-in screen. Normal build limits apply.",
+                icon = Icons.Outlined.AccountCircle,
+                switchState = developerPreference.allowGuestAccess,
+                onSwitchChange = {
+                    developerPreference.allowGuestAccess = it
+                    if (!it) GithubPrefs.guestMode = false
+                }
+            )
+            PreferenceItem(
+                label = "Enforce app updates",
+                supportingText = "Block normal app use on startup when a newer NikGapps version is available",
+                icon = Icons.Outlined.SystemUpdateAlt,
+                switchState = developerPreference.enforceAppUpdates,
+                onSwitchChange = { developerPreference.enforceAppUpdates = it }
+            )
+            PreferenceItem(
+                label = "Require internet access",
+                supportingText = "Show the offline gate when the device has no validated internet connection. Temporary server limits do not mark the device offline.",
+                icon = Icons.Outlined.Wifi,
+                switchState = developerPreference.requireInternetAccess,
+                onSwitchChange = { developerPreference.requireInternetAccess = it }
+            )
+            PreferenceItem(
+                label = "Biometric lock",
+                supportingText = "Require biometrics or the device screen lock when opening the app",
+                icon = Icons.Outlined.Fingerprint,
+                switchState = developerPreference.biometricLockEnabled,
+                onSwitchChange = { enabled ->
+                    if (!enabled) {
+                        developerPreference.biometricLockEnabled = false
+                    } else if (!canUseAppLock(context)) {
+                        Toast.makeText(context, "Set up a supported screen lock or fingerprint first", Toast.LENGTH_LONG).show()
+                    } else {
+                        val activity = context as? Activity
+                        if (activity == null) {
+                            Toast.makeText(context, "Unable to start authentication", Toast.LENGTH_LONG).show()
                         } else {
-                            val activity = context as? Activity
-                            if (activity == null) {
-                                Toast.makeText(context, "Unable to start authentication", Toast.LENGTH_LONG).show()
-                            } else {
-                                authenticateForAppLock(
-                                    activity = activity,
-                                    title = "Enable biometric lock",
-                                    subtitle = "Authenticate once to verify app lock",
-                                    onSuccess = {
-                                        markAppLockSessionAuthenticated()
-                                        developerPreference.biometricLockEnabled = true
-                                    },
-                                    onError = { message ->
-                                        developerPreference.biometricLockEnabled = false
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    }
-                                )
-                            }
+                            authenticateForAppLock(
+                                activity = activity,
+                                title = "Enable biometric lock",
+                                subtitle = "Authenticate once to verify app lock",
+                                onSuccess = {
+                                    markAppLockSessionAuthenticated()
+                                    developerPreference.biometricLockEnabled = true
+                                },
+                                onError = { message ->
+                                    developerPreference.biometricLockEnabled = false
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                }
+                            )
                         }
                     }
-                )
-                PreferenceItem(
-                    label = "Allow unsupported Android versions",
-                    supportingText = "Show Android versions without published package metadata",
-                    icon = Icons.Outlined.Science,
-                    switchState = developerPreference.allowUnsupportedAndroidVersions,
-                    onSwitchChange = { developerPreference.allowUnsupportedAndroidVersions = it }
-                )
-                PreferenceItem(
-                    label = "Hide developer options",
-                    supportingText = "Restore developer settings to defaults. Tap the app version 28 times to enable them again.",
-                    icon = Icons.Outlined.Android,
-                    onClick = {
-                        developerPreference.hideDeveloperOptions()
-                    }
-                )
+                }
+            )
+            PreferenceItem(
+                label = "Allow unsupported Android versions",
+                supportingText = "Show Android versions without published package metadata",
+                icon = Icons.Outlined.Science,
+                switchState = developerPreference.allowUnsupportedAndroidVersions,
+                onSwitchChange = { developerPreference.allowUnsupportedAndroidVersions = it }
+            )
+            PreferenceItem(
+                label = "Hide developer options",
+                supportingText = "Restore developer settings to defaults. Tap the app version 28 times to enable them again.",
+                icon = Icons.Outlined.Android,
+                onClick = {
+                    developerPreference.hideDeveloperOptions()
+                }
+            )
 
-                ServerRequestLimitsPreference()
-
-            }
+            ServerRequestLimitsPreference()
 
         }
+
     }
 }
 
 @Composable
 fun AccountPreferences(showSignInHint: Boolean = false) {
-    SettingsPage {
-        Container(title = "Account", initiallyExpanded = true) {
-            PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
-            if (showSignInHint) {
-                Text(
-                    "Enter your GitHub personal access token below and tap Save token to continue.",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                GitHubTokenPreference()
-                PreferenceSubtitle(text = "Or sign in with GitHub")
-                GitHubAccountPreference()
-            } else {
-                GitHubAccountPreference()
-                GitHubTokenPreference()
-            }
-            ProjectBackupPreferences()
+    Container(title = "Account", initiallyExpanded = false) {
+        PreferenceSubtitle(text = stringResource(R.string.settings_authentication))
+        if (showSignInHint) {
+            Text(
+                "Enter your GitHub personal access token below and tap Save token to continue.",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            GitHubTokenPreference()
+            PreferenceSubtitle(text = "Or sign in with GitHub")
+            GitHubAccountPreference()
+        } else {
+            GitHubAccountPreference()
+            GitHubTokenPreference()
         }
+        ProjectBackupPreferences()
     }
 }
 
@@ -263,72 +254,70 @@ fun SystemPreferences(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    SettingsPage {
-        Container(
-            title = stringResource(R.string.settings_system),
-            initiallyExpanded = true
-        ) {
-            PreferenceSubtitle(text = "ZIP builds")
-            BuildCompressionOptions()
-            com.nikgapps.app.presentation.ui.component.EliteBuildOptions()
-            PreferenceItem(
-                label = "Ask before building",
-                supportingText = "Confirm the compression choice for each new build",
-                icon = Icons.Outlined.HelpOutline,
-                switchState = BuildCompressionPrefs.askBeforeBuild,
-                onSwitchChange = { BuildCompressionPrefs.askBeforeBuild = it }
-            )
-            PreferenceSubtitle(text = stringResource(R.string.settings_device_access))
-            PreferenceItem(
-                label = stringResource(R.string.settings_permissions),
-                supportingText = stringResource(R.string.settings_permissions_description),
-                icon = Icons.Outlined.Security,
-                onClick = onPermissionsClick
-            )
-            PreferenceItem(
-                label = stringResource(R.string.settings_android_app_settings),
-                supportingText = stringResource(R.string.settings_android_app_settings_description),
-                icon = Icons.Outlined.AppSettingsAlt,
-                onClick = onAppSettingsClick
-            )
+    Container(
+        title = stringResource(R.string.settings_system),
+        initiallyExpanded = false
+    ) {
+        PreferenceSubtitle(text = "ZIP builds")
+        BuildCompressionOptions()
+        com.nikgapps.app.presentation.ui.component.EliteBuildOptions()
+        PreferenceItem(
+            label = "Ask before building",
+            supportingText = "Confirm the compression choice for each new build",
+            icon = Icons.Outlined.HelpOutline,
+            switchState = BuildCompressionPrefs.askBeforeBuild,
+            onSwitchChange = { BuildCompressionPrefs.askBeforeBuild = it }
+        )
+        PreferenceSubtitle(text = stringResource(R.string.settings_device_access))
+        PreferenceItem(
+            label = stringResource(R.string.settings_permissions),
+            supportingText = stringResource(R.string.settings_permissions_description),
+            icon = Icons.Outlined.Security,
+            onClick = onPermissionsClick
+        )
+        PreferenceItem(
+            label = stringResource(R.string.settings_android_app_settings),
+            supportingText = stringResource(R.string.settings_android_app_settings_description),
+            icon = Icons.Outlined.AppSettingsAlt,
+            onClick = onAppSettingsClick
+        )
 
-            PreferenceItem(
-                label = stringResource(R.string.settings_battery_optimization),
-                supportingText = stringResource(
-                    if (ignoresBatteryOptimizations) R.string.settings_battery_optimization_allowed
-                    else R.string.settings_battery_optimization_restricted
-                ),
-                icon = Icons.Outlined.BatterySaver,
-                onClick = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                            Uri.parse("package:${context.packageName}"))
-                    )
-                }
-            )
+        PreferenceItem(
+            label = stringResource(R.string.settings_battery_optimization),
+            supportingText = stringResource(
+                if (ignoresBatteryOptimizations) R.string.settings_battery_optimization_allowed
+                else R.string.settings_battery_optimization_restricted
+            ),
+            icon = Icons.Outlined.BatterySaver,
+            onClick = {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:${context.packageName}"))
+                )
+            }
+        )
 
-            PreferenceSubtitle(text = stringResource(R.string.settings_background))
-            PreferenceItem(
-                label = "Automatic update checks",
-                supportingText = updateIntervalLabel(updatePrefs.intervalHours),
-                icon = Icons.Outlined.SystemUpdate,
-                onClick = {
-                    val intervals = listOf(0, 12, 24, 168)
-                    dialog.show(
-                        title = "Automatic update checks",
-                        description = "Choose how often NikGapps checks for a new app release",
-                        choices = intervals.map(::updateIntervalLabel),
-                        selectedChoice = intervals.indexOf(updatePrefs.intervalHours).coerceAtLeast(0),
-                        onSelect = { index ->
-                            updatePrefs.intervalHours = intervals[index]
-                            AppUpdateManager.scheduleChecks(context, intervals[index])
-                            if (intervals[index] > 0) AppUpdateManager.checkOnAppStart(context)
-                        }
-                    )
-                }
-            )
+        PreferenceSubtitle(text = stringResource(R.string.settings_background))
+        PreferenceItem(
+            label = "Automatic update checks",
+            supportingText = updateIntervalLabel(updatePrefs.intervalHours),
+            icon = Icons.Outlined.SystemUpdate,
+            onClick = {
+                val intervals = listOf(0, 12, 24, 168)
+                dialog.show(
+                    title = "Automatic update checks",
+                    description = "Choose how often NikGapps checks for a new app release",
+                    choices = intervals.map(::updateIntervalLabel),
+                    selectedChoice = intervals.indexOf(updatePrefs.intervalHours).coerceAtLeast(0),
+                    onSelect = { index ->
+                        updatePrefs.intervalHours = intervals[index]
+                        AppUpdateManager.scheduleChecks(context, intervals[index])
+                        if (intervals[index] > 0) AppUpdateManager.checkOnAppStart(context)
+                    }
+                )
+            }
+        )
 
-        }
     }
 }
 
@@ -337,35 +326,33 @@ fun AboutPreferences(versionName: String, onChangelogClick: () -> Unit) {
     val context = LocalContext.current
     val developerPreference = globalClass.preferencesManager.displayPrefs
     var developerTapCount by remember { mutableStateOf(0) }
-    SettingsPage {
-        Container(title = stringResource(R.string.settings_about), initiallyExpanded = true) {
-            PreferenceItem(
-                label = "Changelog",
-                supportingText = "See the complete NikGapps version history",
-                icon = Icons.Outlined.History,
-                onClick = onChangelogClick
-            )
-            PreferenceItem(
-                label = stringResource(R.string.app_name),
-                supportingText = stringResource(R.string.settings_version, versionName),
-                icon = Icons.Outlined.Android,
-                onClick = {
-                    if (!developerPreference.developerOptionsEnabled) {
-                        developerTapCount++
-                        if (developerTapCount >= 28) {
-                            developerPreference.developerOptionsEnabled = true
-                            developerTapCount = 0
-                            Toast.makeText(context, "Developer options enabled", Toast.LENGTH_SHORT).show()
-                        }
+    Container(title = stringResource(R.string.settings_about), initiallyExpanded = false) {
+        PreferenceItem(
+            label = "Changelog",
+            supportingText = "See the complete NikGapps version history",
+            icon = Icons.Outlined.History,
+            onClick = onChangelogClick
+        )
+        PreferenceItem(
+            label = stringResource(R.string.app_name),
+            supportingText = stringResource(R.string.settings_version, versionName),
+            icon = Icons.Outlined.Android,
+            onClick = {
+                if (!developerPreference.developerOptionsEnabled) {
+                    developerTapCount++
+                    if (developerTapCount >= 28) {
+                        developerPreference.developerOptionsEnabled = true
+                        developerTapCount = 0
+                        Toast.makeText(context, "Developer options enabled", Toast.LENGTH_SHORT).show()
                     }
                 }
-            )
-            PreferenceItem(
-                label = stringResource(R.string.settings_application_id),
-                supportingText = "com.nikgapps",
-                icon = Icons.Outlined.Badge
-            )
-        }
+            }
+        )
+        PreferenceItem(
+            label = stringResource(R.string.settings_application_id),
+            supportingText = "com.nikgapps",
+            icon = Icons.Outlined.Badge
+        )
     }
 }
 
@@ -375,19 +362,6 @@ private fun updateIntervalLabel(hours: Int) = when (hours) {
     24 -> "Daily"
     168 -> "Weekly"
     else -> "Every $hours hours"
-}
-
-@Composable
-private fun SettingsPage(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        content()
-    }
 }
 
 @Deprecated("Use the category-specific preference pages")

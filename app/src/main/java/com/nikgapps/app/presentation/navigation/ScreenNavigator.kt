@@ -99,7 +99,8 @@ data class NavItem(
 
 val listOfNavItems = buildList {
     add(NavItem("Projects", Icons.Default.FolderSpecial, Screens.Home.name))
-    add(NavItem("Download", Icons.Default.FileDownload, Screens.Download.name))
+    add(NavItem("Downloads", Icons.Default.FileDownload, Screens.Download.name))
+    add(NavItem("Settings", Icons.Default.Settings, Screens.Settings.name))
 }
 
 enum class Screens {
@@ -244,24 +245,32 @@ fun BottomNavigationBar(navController: NavHostController, selectedRoute: String,
 @Composable
 private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable (Modifier) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        // Leave room for two 56dp actions, their gaps and the screen margins.
-        val navigationWidth = (maxWidth - 168.dp).coerceIn(96.dp, 208.dp)
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-            navigation(Modifier.width(navigationWidth))
-            ProjectGlassSurface(modifier = Modifier.size(56.dp), shape = CircleShape) {
-            Surface(onClick = onCreateProject,
-                modifier = Modifier.size(56.dp).semantics { role = Role.Button },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
-                contentColor = MaterialTheme.colorScheme.onSurface) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Add, "Create project", Modifier.size(24.dp))
+        val actionSize = if (maxWidth < 400.dp) 48.dp else 56.dp
+        val navigationWidth = (maxWidth - 48.dp - actionSize * 2).coerceAtMost(304.dp)
+        val stacked = navigationWidth < 216.dp
+        val actions: @Composable () -> Unit = {
+            ProjectGlassSurface(modifier = Modifier.size(actionSize), shape = CircleShape) {
+                Surface(onClick = onCreateProject,
+                    modifier = Modifier.size(actionSize).semantics { role = Role.Button },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
+                    contentColor = MaterialTheme.colorScheme.onSurface) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, "Create project", Modifier.size(24.dp))
+                    }
                 }
             }
-            }
-            AccountProfileButton()
+            AccountProfileButton(size = actionSize)
+        }
+        if (stacked) Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp, 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            navigation(Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { actions() }
+        } else Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+            navigation(Modifier.width(navigationWidth))
+            actions()
         }
     }
 }
@@ -307,7 +316,7 @@ private fun ExpressiveNavigationItem(item: NavItem, selected: Boolean, onClick: 
     Surface(onClick = onClick, modifier = modifier.heightIn(min = 56.dp).semantics { role = Role.Tab; this.selected = selected },
         shape = CircleShape, color = containerColor, contentColor = contentColor,
         tonalElevation = 0.dp) {
-        Column(Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+        Column(Modifier.padding(horizontal = 2.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(item.icon, contentDescription = null, Modifier.size(24.dp))
@@ -367,7 +376,9 @@ fun NavigationHost(
             AppsScreen()
         }
         composable(route = Screens.Settings.name) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            NavigationTab(navController, Screens.Settings.name) {
+                SettingsScreen(onBack = { navController.popBackStack() }, showBackButton = false)
+            }
         }
         composable(route = Screens.Logs.name) {
             LogsScreen(onBack = { navController.popBackStack() })

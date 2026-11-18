@@ -66,6 +66,7 @@ import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.registry.*
 import com.nikgapps.app.presentation.ui.component.StockAppRemovalDialog
 import com.nikgapps.app.presentation.ui.component.HeaderActionPill
+import com.nikgapps.app.presentation.ui.component.AdaptiveTopAppBar
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.network.EliteMembershipRepository
@@ -591,11 +592,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = {
-        Text(current.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }, navigationIcon = {
-        IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }, actions = {
+    Scaffold(topBar = { AdaptiveTopAppBar(title = current.name,
+        onBack = { navController.navigateUp() }, actions = {
         HeaderActionPill {
         IconButton(onClick = {
             notificationsExpanded = !notificationsExpanded

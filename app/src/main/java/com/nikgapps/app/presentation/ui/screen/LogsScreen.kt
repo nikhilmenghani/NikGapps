@@ -36,6 +36,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 import com.nikgapps.app.presentation.ui.component.HeaderActionPill
+import com.nikgapps.app.presentation.ui.component.AdaptiveTopAppBar
 
 private const val MAX_LOG_LINES = 10_000
 private const val LOGCAT_BATCH_INTERVAL_MS = 250L
@@ -135,13 +136,8 @@ fun LogsScreen(onBack: () -> Unit = {}) {
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Column {
-        Text("App logs", maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text("NikGapps process · PID ${Process.myPid()}", style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    } }, navigationIcon = {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-    }, actions = {
+    Scaffold(topBar = { AdaptiveTopAppBar(title = "App logs",
+        subtitle = "NikGapps process · PID ${Process.myPid()}", onBack = onBack, actions = {
         HeaderActionPill {
         IconButton(onClick = { paused = !paused }) {
             Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,

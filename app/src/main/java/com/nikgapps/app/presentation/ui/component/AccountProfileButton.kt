@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import coil3.compose.SubcomposeAsyncImage
 import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.data.GithubPrefs
@@ -73,7 +74,7 @@ internal fun AccountMembershipProvider(content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun AccountProfileButton() {
+internal fun AccountProfileButton(size: Dp = 56.dp) {
     val username = GithubPrefs.username
     val membership = LocalAccountMembership.current
     var expanded by rememberSaveable(username) { mutableStateOf(false) }
@@ -85,9 +86,9 @@ internal fun AccountProfileButton() {
         with(density) { AccountPopupPositionProvider(margin = 16.dp.roundToPx(), gap = 8.dp.roundToPx()) }
     }
     Box {
-        ProjectGlassSurface(modifier = Modifier.size(56.dp), shape = CircleShape) {
+        ProjectGlassSurface(modifier = Modifier.size(size), shape = CircleShape) {
         Surface(onClick = { expanded = !expanded },
-            modifier = Modifier.size(56.dp).semantics { role = Role.Button; contentDescription = "Profile" },
+            modifier = Modifier.size(size).semantics { role = Role.Button; contentDescription = "Profile" },
             shape = CircleShape,
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface) {

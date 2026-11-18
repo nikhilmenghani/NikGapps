@@ -1,6 +1,10 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,7 +41,6 @@ fun Container(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
             .block(
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
@@ -69,7 +72,9 @@ fun Container(
             }
         }
 
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(visible = expanded,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

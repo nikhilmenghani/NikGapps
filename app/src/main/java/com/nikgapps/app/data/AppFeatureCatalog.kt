@@ -40,6 +40,7 @@ object AppFeatureCatalog {
             AppFeature("Standard or compressed", "Build speed or smaller files", "Settings → System lets you choose standard builds or compressed builds. Compression usually creates smaller ZIPs but takes longer. The optional build prompt can remember your choice.")
         )),
         AppFeaturePage("Settings", "Make NikGapps work your way", listOf(
+            AppFeature("One settings page", "Expand only what you need", "Open Settings from the bottom navigation beside Projects and Downloads. Appearance, Account, System and About are together on one scrolling page, with every section collapsed initially. Expand a section to configure it; Advanced is available when developer options are enabled."),
             AppFeature("Appearance", "Customize the app's look", "Open Settings → Appearance to choose your theme and colors. Liquid glass turns the colorful background and glass surfaces on or off; turn it off for the standard themed background and solid cards. Tap its info icon for details."),
             AppFeature("Updates and changelog", "Stay informed about new releases", "Settings → System offers automatic update-check intervals. Settings → About has the cached changelog. Expand release rows, use Show all for longer lists, or Refresh to download the latest changelog."),
             AppFeature("Background operation", "Review permissions and battery access", "Use Settings → System to review device access and battery optimization settings so background operations can continue reliably.")

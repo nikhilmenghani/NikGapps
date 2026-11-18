@@ -8,6 +8,7 @@ import com.nikgapps.app.network.RegistryProjectContent
 import com.nikgapps.app.registry.RegistryAvailability
 import com.nikgapps.app.presentation.ui.component.ProjectGlassSurface
 import com.nikgapps.app.presentation.ui.component.HeaderActionPill
+import com.nikgapps.app.presentation.ui.component.AdaptiveTopAppBar
 import com.nikgapps.app.presentation.ui.component.LocalAccountMembership
 import com.nikgapps.app.presentation.ui.component.ProjectCreationUnavailableDialog
 import androidx.compose.runtime.collectAsState
@@ -430,10 +431,8 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                     if (projectMenuVisible) drawRect(Color.Black.copy(alpha = .20f))
                 },
             topBar = {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent),
-                    title = { Text("Projects") },
+                AdaptiveTopAppBar(
+                    title = "Projects", actionCount = if (isLatestVersion) 4 else 5,
                     actions = {
                         HeaderActionPill {
                         if (!isLatestVersion) {
@@ -479,11 +478,6 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                             }
                             DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
                                 shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) },
-                                    onClick = {
-                                        showMoreOptions = false
-                                        navController.navigate(Screens.Settings.name) { launchSingleTop = true }
-                                    })
                                 DropdownMenuItem(text = { Text("Logs") }, leadingIcon = { Icon(Icons.Default.Terminal, null) },
                                     onClick = {
                                         showMoreOptions = false
