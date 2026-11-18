@@ -40,13 +40,13 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.FilledTonalButton
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -131,7 +131,7 @@ internal fun GitHubTokenTopSheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
                 modifier = Modifier.align(Alignment.TopCenter)
                     .statusBarsPadding().navigationBarsPadding().imePadding()
             ) {
-                Surface(
+                com.nikgapps.app.presentation.ui.component.GlassSurface(
                     modifier = Modifier.fillMaxWidth().clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -253,7 +253,7 @@ private fun GitHubTokenAccessDialog(onDismiss: () -> Unit) {
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.matchParentSize().clickable(
                 interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss))
-            Surface(
+            com.nikgapps.app.presentation.ui.component.GlassSurface(
                 modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().clickable(
                     interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
                 shape = RoundedCornerShape(24.dp),
@@ -324,10 +324,10 @@ private fun TokenHelpSection(
         animationSpec = tween(240), label = "Token help container")
     val borderColor by animateColorAsState(if (expanded) colors.primary else colors.outlineVariant,
         animationSpec = tween(240), label = "Token help border")
-    Surface(
+    com.nikgapps.app.presentation.ui.component.GlassSurface(
         shape = RoundedCornerShape(16.dp),
         color = containerColor,
-        contentColor = if (expanded) colors.onSecondaryContainer else colors.onSurface,
+        contentColor = if (expanded && !com.nikgapps.app.data.DisplayPrefs.useLiquidGlass) colors.onSecondaryContainer else colors.onSurface,
         border = BorderStroke(1.dp, borderColor)
     ) {
         Column {

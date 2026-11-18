@@ -87,7 +87,7 @@ import com.nikgapps.app.data.REGULAR_PROJECT_LIMIT
 import com.nikgapps.app.data.ProjectLimitReachedException
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
@@ -113,7 +113,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.FilledTonalButton
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.surfaceColorAtElevation
@@ -253,7 +253,7 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
         }.onFailure { Toast.makeText(context, "Cannot export recovery data: ${it.message}", Toast.LENGTH_LONG).show() }
     }
     if (recoveryMessage) Dialog(onDismissRequest = { recoveryMessage = false }) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Some projects need recovery", style = MaterialTheme.typography.titleLarge)
@@ -612,7 +612,7 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
     }
 
     if (showProjectLimit) Dialog(onDismissRequest = { showProjectLimit = false }) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Project limit reached", style = MaterialTheme.typography.titleLarge)
@@ -728,7 +728,7 @@ internal fun ProjectCard(
     var dismissUpdate by remember { mutableStateOf(false) }
     var dismissalReleaseId by remember { mutableStateOf<String?>(null) }
     if (dismissUpdate) androidx.compose.ui.window.Dialog(onDismissRequest = { dismissUpdate = false }) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Dismiss this update for this project?", style = MaterialTheme.typography.titleLarge)

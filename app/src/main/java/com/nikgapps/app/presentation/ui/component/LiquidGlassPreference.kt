@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -17,7 +18,7 @@ import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 
 internal const val LIQUID_GLASS_DESCRIPTION =
-    "Show a colorful background with glass project cards, header and navigation. " +
+    "Show a colorful background, glass surfaces and coordinated teal controls across the app, including settings, packages and build screens. " +
     "Turn off to use the standard background and solid cards. " +
     "Your light or dark theme still applies."
 
@@ -43,7 +44,7 @@ internal fun LiquidGlassPreference() {
         trailingContent = { Switch(checked = enabled, onCheckedChange = null) }
     )
     if (showInfo) Dialog(onDismissRequest = { showInfo = false }) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        GlassSurface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Liquid glass", style = MaterialTheme.typography.titleLarge)

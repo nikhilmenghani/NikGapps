@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.surfaceColorAtElevation
@@ -23,7 +22,9 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.toSize
 import com.nikgapps.app.data.DisplayPrefs
 
@@ -46,20 +47,27 @@ private class GoogleLightField(val size: Size, val base: Color, dark: Boolean) {
 
 private data class GlassBackdrop(val field: GoogleLightField, val origin: Offset)
 private val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdrop?> { null }
+internal val LocalGlassScene = staticCompositionLocalOf { false }
 
 /** Shared scene coordinates let each tile sample the light field at its actual scroll position. */
 @Composable
 internal fun ProjectsBackdrop(enabled: Boolean = true, content: @Composable () -> Unit) {
     val glassEnabled = enabled && DisplayPrefs.useLiquidGlass
     val colors = MaterialTheme.colorScheme
+    val view = LocalView.current
+    val screenLocation = remember(view) { IntArray(2) }
     var size by remember { mutableStateOf(Size.Zero) }
     var origin by remember { mutableStateOf(Offset.Zero) }
     val field = remember(size, colors.background, glassEnabled) {
         if (glassEnabled) GoogleLightField(size, colors.background, colors.background.luminance() < .5f) else null
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides field?.let { GlassBackdrop(it, origin) }) {
+    CompositionLocalProvider(LocalGlassScene provides true,
+        LocalGlassBackdrop provides field?.let { GlassBackdrop(it, origin) }) {
         Box(Modifier.fillMaxSize().onSizeChanged { size = it.toSize() }
-            .onGloballyPositioned { origin = it.positionInRoot() }
+            .onGloballyPositioned {
+                view.getLocationOnScreen(screenLocation)
+                origin = it.positionInRoot() + Offset(screenLocation[0].toFloat(), screenLocation[1].toFloat())
+            }
             .drawWithContent {
                 if (field != null) field.draw(this) else drawRect(colors.background)
                 drawContent()
@@ -70,16 +78,29 @@ internal fun ProjectsBackdrop(enabled: Boolean = true, content: @Composable () -
 @Composable
 internal fun ProjectGlassSurface(
     modifier: Modifier = Modifier,
-    shape: CornerBasedShape = RoundedCornerShape(18.dp),
+    shape: Shape = RoundedCornerShape(18.dp),
+    classicColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    classicBorder: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    classicTonalElevation: Dp = 2.dp,
+    classicShadowElevation: Dp = 0.dp,
+    glass: Boolean = true,
+    readable: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
-    val glassEnabled = DisplayPrefs.useLiquidGlass
+    val view = LocalView.current
+    val screenLocation = remember(view) { IntArray(2) }
+    val glassEnabled = glass && DisplayPrefs.useLiquidGlass
     val dark = colors.background.luminance() < .5f
     val backdrop = LocalGlassBackdrop.current
     var position by remember { mutableStateOf(Offset.Zero) }
     val blurRadius = with(androidx.compose.ui.platform.LocalDensity.current) { 22.dp.toPx() }
-    val frost = colors.surface.copy(alpha = if (dark) .20f else .36f)
+    val frost = colors.surface.copy(alpha = if (readable) {
+        if (dark) .55f else .72f
+    } else if (dark) .20f else .36f)
     val rim = Brush.linearGradient(
         0f to Color.White.copy(alpha = if (dark) .22f else .68f),
         .28f to Color.White.copy(alpha = if (dark) .06f else .22f),
@@ -90,12 +111,16 @@ internal fun ProjectGlassSurface(
         .22f to Color.White.copy(alpha = if (dark) .015f else .08f),
         .55f to Color.Transparent,
         1f to Color.Black.copy(alpha = if (dark) .065f else .025f))
-    Surface(modifier = modifier.onGloballyPositioned { position = it.positionInRoot() },
-        shape = shape, color = if (glassEnabled) Color.Transparent else colors.surfaceColorAtElevation(3.dp),
-        contentColor = colors.onSurface,
-        border = if (glassEnabled) BorderStroke(.75.dp, rim) else BorderStroke(1.dp, colors.outlineVariant),
-        tonalElevation = if (glassEnabled) 0.dp else 2.dp, shadowElevation = if (glassEnabled) 4.dp else 0.dp) {
-        Box {
+    val surfaceModifier = modifier.onGloballyPositioned {
+        view.getLocationOnScreen(screenLocation)
+        position = it.positionInRoot() + Offset(screenLocation[0].toFloat(), screenLocation[1].toFloat())
+    }
+    val surfaceColor = if (glassEnabled) Color.Transparent else classicColor
+    val surfaceBorder = if (glassEnabled) BorderStroke(.75.dp, rim) else classicBorder
+    val surfaceTonalElevation = if (glassEnabled) 0.dp else classicTonalElevation
+    val surfaceShadowElevation = if (glassEnabled) 4.dp else classicShadowElevation
+    val layers: @Composable () -> Unit = {
+        Box(propagateMinConstraints = true) {
             if (glassEnabled) {
             // Only the sampled background is blurred; labels, icons and touch targets are a separate layer.
             Box(Modifier.matchParentSize().graphicsLayer {
@@ -114,7 +139,14 @@ internal fun ProjectGlassSurface(
             })
             Box(Modifier.matchParentSize().background(frost).background(reflection))
             }
-            Box { content() }
+            Box(propagateMinConstraints = true) { content() }
         }
     }
+    // The chosen Surface overload stays stable when the appearance preference changes.
+    if (onClick == null) Surface(modifier = surfaceModifier, shape = shape, color = surfaceColor,
+        contentColor = contentColor, border = surfaceBorder, tonalElevation = surfaceTonalElevation,
+        shadowElevation = surfaceShadowElevation, content = layers)
+    else Surface(onClick = onClick, enabled = enabled, modifier = surfaceModifier, shape = shape,
+        color = surfaceColor, contentColor = contentColor, border = surfaceBorder,
+        tonalElevation = surfaceTonalElevation, shadowElevation = surfaceShadowElevation, content = layers)
 }

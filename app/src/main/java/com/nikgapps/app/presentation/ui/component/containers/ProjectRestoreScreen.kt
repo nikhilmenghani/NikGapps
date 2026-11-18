@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.containers
 
+import com.nikgapps.app.presentation.ui.component.GlassScreenSurface
 import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -15,6 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
+import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +50,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
     LaunchedEffect(error) { if (error != null) showWarnings = true }
     Dialog(onDismissRequest = { if (!busy) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        GlassScreenSurface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -72,7 +76,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                     item(key = "restore-info") {
                         AnimatedVisibility(showInfo, enter = expandVertically(expandFrom = Alignment.Top),
                             exit = shrinkVertically(shrinkTowards = Alignment.Top)) {
-                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                            com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("Created with NikGapps ${backup.source.appVersion} (${backup.source.buildType}) · Backup format ${backup.formatVersion}",
                                         style = MaterialTheme.typography.bodySmall)
@@ -88,7 +92,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                     item(key = "restore-warnings") {
                         AnimatedVisibility(showWarnings, enter = expandVertically(expandFrom = Alignment.Top),
                             exit = shrinkVertically(shrinkTowards = Alignment.Top)) {
-                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                            com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(if (canChooseProjects) "Outdated projects may need updating before they can be built. Enable Import outdated projects to include them."
                                         else "Outdated projects cannot be imported. ${plan.outdated.size} will be skipped.",
@@ -104,7 +108,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                     items(backup.projects, key = { it.id }) { project ->
                         val outdated = plan.outdated.any { it.id == project.id }
                         val selected = project.id in selectedIds && (!outdated || includeOutdated)
-                        Surface(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(enabled = canChooseProjects && (!outdated || includeOutdated) && !busy,
+                        com.nikgapps.app.presentation.ui.component.GlassSurface(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(enabled = canChooseProjects && (!outdated || includeOutdated) && !busy,
                             role = Role.Checkbox, onClickLabel = "Select ${project.name}", onClick = { onSelection(project.id) })
                             .semantics { toggleableState = if (selected) ToggleableState.On else ToggleableState.Off },
                             shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
@@ -149,7 +153,7 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                     }
                 }
                 if (canChooseProjects && plan.outdated.isNotEmpty()) {
-                    Surface(
+                    com.nikgapps.app.presentation.ui.component.GlassSurface(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                             .toggleable(value = includeOutdated, enabled = !busy, role = Role.Checkbox,
                                 onValueChange = onIncludeOutdated),
@@ -183,21 +187,17 @@ internal fun ProjectRestoreScreen(backup: ProjectBackup, plan: BackupRestorePlan
                 }
             }
         }
-        if (confirmOverwrite) AlertDialog(onDismissRequest = { confirmOverwrite = false },
-            containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp,
-            shape = RoundedCornerShape(24.dp), title = { Text("Replace existing projects?", style = MaterialTheme.typography.titleLarge) },
-            text = { Text("Restore will replace all $existingCount existing projects with ${selectedIds.size} projects from this backup. This cannot be undone.",
+        if (confirmOverwrite) AccountDialog(onDismiss = { confirmOverwrite = false },
+            title = "Replace existing projects?",
+            content = { Text("Restore will replace all $existingCount existing projects with ${selectedIds.size} projects from this backup. This cannot be undone.",
                 style = MaterialTheme.typography.bodyMedium) },
-            confirmButton = {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            actions = {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilledTonalButton(onClick = { confirmOverwrite = false }, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             shape = RoundedCornerShape(16.dp)) { Text("Cancel") }
                         Button(onClick = { confirmOverwrite = false; onRestore() },
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Restore") }
                     }
-                }
             })
     }
 }

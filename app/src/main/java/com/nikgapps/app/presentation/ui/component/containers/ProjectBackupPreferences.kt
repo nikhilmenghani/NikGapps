@@ -13,6 +13,8 @@ import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,11 +126,6 @@ fun ProjectBackupPreferences() {
                     tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
         }
-        AnimatedVisibility(visible = showBackupInfo) {
-        Text("Move projects between debug and release builds using a .nikgapps file. Includes package choices, installer settings and debloater targets. Restore replaces all existing projects. Outdated projects are exported; Elite users can optionally restore them. Sign-in tokens, APKs, ZIPs and build allowances are not included.",
-            Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         PreferenceItem(title = if (busy) "Working…" else "Export projects", description = "Save a .nikgapps backup file",
             icon = Icons.Default.FileUpload, enabled = !busy, onClick = {
                 scope.launch {
@@ -208,22 +205,17 @@ fun ProjectBackupPreferences() {
             }
         )
     }
-    notice?.let { text -> AlertDialog(
-        onDismissRequest = { notice = null },
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        tonalElevation = 0.dp,
-        shape = RoundedCornerShape(24.dp),
-        title = { Text("Project backup", style = MaterialTheme.typography.titleLarge) },
-        text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
-        confirmButton = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Button(onClick = { notice = null }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("OK", style = MaterialTheme.typography.labelLarge) }
-            }
-        }
-    ) }
+    if (showBackupInfo) AccountDialog(title = "Project backup", onDismiss = { showBackupInfo = false },
+        content = {
+            Text("Move projects between debug and release builds using a .nikgapps file. Includes package choices, installer settings and debloater targets. Restore replaces all existing projects. Outdated projects are exported; Elite users can optionally restore them. Sign-in tokens, APKs, ZIPs and build allowances are not included.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }, actions = {
+            Button(onClick = { showBackupInfo = false }, modifier = Modifier.fillMaxWidth()) { Text("Got it") }
+        })
+    notice?.let { text -> AccountDialog(title = "Project backup", onDismiss = { notice = null },
+        content = { Text(text, style = MaterialTheme.typography.bodyMedium) },
+        actions = {
+            Button(onClick = { notice = null }, modifier = Modifier.fillMaxWidth()) { Text("OK") }
+        }) }
 
 }

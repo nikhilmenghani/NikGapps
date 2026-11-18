@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,10 +65,11 @@ fun EliteBuildOptions() {
 fun EliteFeaturesDialog(elite: Boolean, onDismiss: () -> Unit) {
     val features = com.nikgapps.app.data.AppFeatureCatalog.eliteFeatures.map { it.title to it.details }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxWidth(.94f).heightIn(max = (LocalConfiguration.current.screenHeightDp * .85f).dp),
+        GlassSurface(Modifier.fillMaxWidth(.94f).heightIn(max = (LocalConfiguration.current.screenHeightDp * .85f).dp),
             shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(20.dp),
+                Row(Modifier.fillMaxWidth().background(if (com.nikgapps.app.data.DisplayPrefs.useLiquidGlass)
+                    androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh).padding(20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Image(painterResource(R.drawable.nikgapps_logo), null, Modifier.size(48.dp))
                     Column(Modifier.weight(1f)) {
@@ -79,7 +81,7 @@ fun EliteFeaturesDialog(elite: Boolean, onDismiss: () -> Unit) {
                 LazyColumn(Modifier.weight(1f, fill = false), contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     features.forEach { (name, description) -> item {
-                        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                        GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(name, style = MaterialTheme.typography.titleMedium)
                                 Text(description, style = MaterialTheme.typography.bodyMedium)

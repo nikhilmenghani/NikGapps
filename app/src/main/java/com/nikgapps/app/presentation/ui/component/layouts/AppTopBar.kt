@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.component.layouts
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(title: String) {
-    TopAppBar(
+    TopAppBar(colors = glassTopAppBarColors(),
         title = { Text(text = title) },
         actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() },
         modifier = Modifier.statusBarsPadding()

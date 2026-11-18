@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nikgapps.app.data.GithubPrefs
+import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
 import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 import com.nikgapps.app.presentation.ui.screen.AccountGate
@@ -46,6 +47,9 @@ class AccountDialogInstrumentedTest {
         check(context.packageName == "com.nikgapps.review.debug")
         val originalAuth = listOf(GithubPrefs.token, GithubPrefs.username, GithubPrefs.lastUsername,
             GithubPrefs.avatarUrl, GithubPrefs.guestMode.toString())
+        val originalGlass = DisplayPrefs.useLiquidGlass
+        try {
+        DisplayPrefs.useLiquidGlass = false
         val density = context.resources.displayMetrics.density
         var dark by mutableStateOf(true)
         var screen by mutableStateOf("gate")
@@ -128,6 +132,7 @@ class AccountDialogInstrumentedTest {
         assertEquals("Rendering dialogs must not change account credentials", originalAuth,
             listOf(GithubPrefs.token, GithubPrefs.username, GithubPrefs.lastUsername,
                 GithubPrefs.avatarUrl, GithubPrefs.guestMode.toString()))
+        } finally { DisplayPrefs.useLiquidGlass = originalGlass }
     }
 
     private fun assertAction(image: Bitmap, bounds: Rect, density: Float, color: Int) {

@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.component.cards
 
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +27,7 @@ fun PermissionsCard(
     icon: ImageVector = Icons.Outlined.Shield
 ) {
     val colors = MaterialTheme.colorScheme
-    Surface(
+    com.nikgapps.app.presentation.ui.component.GlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = colors.surfaceContainer,

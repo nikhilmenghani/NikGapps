@@ -36,7 +36,7 @@ fun AppFeatureGuideDialog(screen: String, onDismiss: () -> Unit) {
     val tabState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
         usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        GlassScreenSurface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -55,7 +55,7 @@ fun AppFeatureGuideDialog(screen: String, onDismiss: () -> Unit) {
                     }
                 }
                 HorizontalDivider()
-                Surface(Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                GlassSurface(Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf("Help" to false, "Relevant" to true).forEach { (label, value) ->
@@ -142,7 +142,7 @@ private fun CompleteHelpGuide() {
 private fun FeatureGuideCard(feature: AppFeature) {
     var expanded by rememberSaveable(feature.title) { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, tween(280), label = "featureArrow")
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+    GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
         Column {
             Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null,
                 onClickLabel = if (expanded) "Collapse ${feature.title}" else "Expand ${feature.title}") { expanded = !expanded }

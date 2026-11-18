@@ -15,8 +15,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -169,7 +169,7 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
                         challenge != null -> {
                             Text("Open GitHub and enter this code to authorize NikGapps:",
                                 style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                            Surface(shape = RoundedCornerShape(16.dp), color = colors.surfaceContainerHighest) {
+                            com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(16.dp), color = colors.surfaceContainerHighest) {
                                 SelectionContainer {
                                     Text(challenge!!.userCode,
                                         modifier = Modifier.fillMaxWidth().padding(16.dp),

@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.*
@@ -57,13 +59,13 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
         }.getOrNull()
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(pkg?.name ?: "Package") }, navigationIcon = {
+    GlassScaffold(topBar = { TopAppBar(colors = glassTopAppBarColors(), title = { Text(pkg?.name ?: "Package") }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                ElevatedCard(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                com.nikgapps.app.presentation.ui.component.GlassCard(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(Modifier.size(48.dp), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                             Box(contentAlignment = Alignment.Center) {
@@ -86,7 +88,7 @@ fun AppConfigScreen(projectId: String, packageId: String, navController: NavHost
             if (metadata == null && error == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (pkg != null && current != null) {
                 item {
-                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                    com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, readable = true) {
                         AnimatedContent(version, label = "package-version") { shown ->
                             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
                                 InfoRow("Package name", shown?.packageName ?: "Not specified")

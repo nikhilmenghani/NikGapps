@@ -22,11 +22,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Button
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilledTonalButton
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,7 +55,8 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
     var showWhyGitHub by rememberSaveable { mutableStateOf(false) }
     var showTokenEditor by rememberSaveable { mutableStateOf(false) }
     Box(
-        modifier = Modifier.fillMaxSize().background(colors.background).safeDrawingPadding().padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(if (DisplayPrefs.useLiquidGlass)
+            androidx.compose.ui.graphics.Color.Transparent else colors.background).safeDrawingPadding().padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         FilledTonalIconButton(
@@ -84,7 +85,7 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(32.dp))
-            Surface(
+            com.nikgapps.app.presentation.ui.component.GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 color = colors.surfaceContainerHigh,

@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,8 +33,8 @@ fun ProfileScreen() {
     )
     val scope = rememberCoroutineScope()
     var isSheetVisible by remember { mutableStateOf(false) }
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Profile Screen") }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }
+    GlassScaffold(
+        topBar = { TopAppBar(colors = glassTopAppBarColors(), title = { Text("Profile Screen") }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),

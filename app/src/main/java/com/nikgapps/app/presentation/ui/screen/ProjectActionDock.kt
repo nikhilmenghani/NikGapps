@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassSurface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +27,7 @@ fun ProjectActionDock(actions: List<ProjectDockAction>, modifier: Modifier = Mod
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             actions.forEach { action ->
                 val content = if (action.enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                Surface(onClick = action.onClick, enabled = action.enabled,
+                GlassSurface(onClick = action.onClick, enabled = action.enabled,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -42,7 +43,9 @@ fun ProjectActionDock(actions: List<ProjectDockAction>, modifier: Modifier = Mod
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         action.count?.let { count ->
-                            Badge(Modifier.align(Alignment.TopEnd).padding(3.dp)) {
+                            Badge(Modifier.align(Alignment.TopEnd).padding(3.dp),
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
                                 Text(count.toString(), modifier = Modifier.semantics {
                                     contentDescription = "$count selected packages"
                                 })

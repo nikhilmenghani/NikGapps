@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -72,8 +74,8 @@ fun PullRequestsScreen() {
         }
     }
 
-    Scaffold(topBar = {
-        TopAppBar(
+    GlassScaffold(topBar = {
+        TopAppBar(colors = glassTopAppBarColors(),
             title = { Text("Build requests") },
             actions = {
                 com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
@@ -182,7 +184,7 @@ private fun PullRequestCard(pullRequest: GitHubPullRequest, onOpen: () -> Unit) 
         pullRequest.state == "open" -> "Open"
         else -> "Closed"
     }
-    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+    com.nikgapps.app.presentation.ui.component.GlassSurface(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {

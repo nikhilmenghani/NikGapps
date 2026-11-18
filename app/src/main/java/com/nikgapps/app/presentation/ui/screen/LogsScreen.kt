@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.content.Intent
 import android.os.Build
 import android.os.Process
@@ -140,7 +141,7 @@ fun LogsScreen(onBack: () -> Unit = {}) {
         }
     }
 
-    Scaffold(topBar = { AdaptiveTopAppBar(title = "App logs",
+    GlassScaffold(topBar = { AdaptiveTopAppBar(title = "App logs",
         subtitle = "NikGapps process · PID ${Process.myPid()}", onBack = onBack, actions = {
         HeaderActionPill {
         IconButton(onClick = { paused = !paused }) {
@@ -168,7 +169,7 @@ fun LogsScreen(onBack: () -> Unit = {}) {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Surface(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(20.dp),
+            com.nikgapps.app.presentation.ui.component.GlassSurface(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(20.dp), readable = true,
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 when {

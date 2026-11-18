@@ -1,5 +1,14 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
+
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+
+import com.nikgapps.app.presentation.ui.component.GlassScreenSurface
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
+import com.nikgapps.app.presentation.ui.component.GlassSurface
+import com.nikgapps.app.presentation.ui.component.GlassCard
 import com.nikgapps.app.presentation.ui.component.AppIcons
 import android.content.pm.PackageManager
 import android.os.Build
@@ -393,7 +402,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 
     if (registry != null && projectUpdate(current, registry).kind == ProjectUpdateKind.INCOMPATIBLE) {
         var confirmDelete by remember { mutableStateOf(false) }
-        Scaffold(topBar = { TopAppBar(
+        GlassScaffold(topBar = { TopAppBar(colors = glassTopAppBarColors(),
             title = { Text(current.name) },
             navigationIcon = { IconButton(onClick = navController::navigateUp) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -515,7 +524,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         val appSetCount = groups.count { group ->
             group.key?.let { registry?.catalog?.publicPackages(it).orEmpty().size > 1 } == true
         }
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        GlassScreenSurface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -528,7 +537,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                     Text("${current.androidVersion.displayName} · $appSetCount AppSets · ${current.selectedAppIds.size} packages",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Approx. installed size", style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -596,7 +605,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = {}, navigationIcon = {
+    GlassScaffold(topBar = { TopAppBar(colors = glassTopAppBarColors(), title = {}, navigationIcon = {
         IconButton(onClick = { navController.navigateUp() }) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
         }
@@ -876,12 +885,15 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
             ) {
+                com.nikgapps.app.presentation.ui.component.GlassSurface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer
+                ) {
                 OutlinedTextField(
                     value = searchInput,
                     onValueChange = { searchInput = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .focusRequester(searchFocusRequester),
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
@@ -908,13 +920,14 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                         Text("No apps match “${searchQuery.trim()}”")
                     }} else null,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                         cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
+                }
             }
             // Measuring a header-only/temporarily filtered list clamps the restored scroll index
             // to zero when returning from package details. Wait for both data sources first.
@@ -1073,10 +1086,10 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
     var confirmKeepStock by remember(pkg.id, stockRemovals, selected) { mutableStateOf<Boolean?>(null) }
     var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
     Box(modifier.fillMaxWidth()) {
-    ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(if (embedded) 0.dp else 16.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (embedded) 0.dp else 1.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = if (embedded)
-            MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer)) {
+    GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(if (embedded) 0.dp else 16.dp),
+        elevation = if (embedded) 0.dp else 1.dp, glass = !embedded,
+        color = if (embedded && DisplayPrefs.useLiquidGlass) androidx.compose.ui.graphics.Color.Transparent
+            else if (embedded) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer) {
         Box(Modifier.fillMaxWidth()) {
             ProjectPackageRow(pkg, device, selected, onSelected = onSelected,
                 onPressPosition = { pressPosition = it }, onLongPress = { menuOpen = true }, readOnly = readOnly)
@@ -1095,7 +1108,10 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
     Box(Modifier.offset { IntOffset(pressPosition.x.roundToInt(), pressPosition.y.roundToInt()) }.size(1.dp)) {
     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
         shape = RoundedCornerShape(12.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        containerColor = if (DisplayPrefs.useLiquidGlass) androidx.compose.ui.graphics.Color.Transparent
+            else MaterialTheme.colorScheme.surfaceContainerHigh) {
+        GlassSurface(shape = RoundedCornerShape(12.dp), color = androidx.compose.ui.graphics.Color.Transparent) {
+        Column {
         if (!readOnly && stockRemovals.isNotEmpty()) {
             DropdownMenuItem(
                 text = { Text(if (keepAosp) "Delete Stock app" else "Keep Stock app") },
@@ -1106,6 +1122,8 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
         DropdownMenuItem(text = { Text("Show info") },
             leadingIcon = { Icon(AppIcons.Info, null) },
             onClick = { menuOpen = false; onOpen() })
+        }
+        }
     }
     }
     }

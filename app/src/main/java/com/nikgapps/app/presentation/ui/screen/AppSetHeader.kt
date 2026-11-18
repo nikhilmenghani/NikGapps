@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import com.nikgapps.app.presentation.ui.component.GlassSurface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +24,7 @@ import androidx.compose.ui.unit.dp
 internal fun AppSetHeader(name: String, packageCount: Int, selectedCount: Int,
     expanded: Boolean, enabled: Boolean, onToggleExpanded: () -> Unit, onToggleSelection: (() -> Unit)?, showSelectionIndicators: Boolean = true) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "AppSet expand")
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer) {
         Box {
         Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(role = Role.Button,
@@ -76,7 +77,7 @@ internal fun AppSetContents(expanded: Boolean, nested: Boolean = true, content: 
             androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(220))
     ) {
         Column(Modifier.fillMaxWidth().padding(top = if (nested) 6.dp else 0.dp)) {
-            if (nested) Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+            if (nested) GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow) {
                 Column(Modifier.fillMaxWidth(), content = content)
             } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)

@@ -122,9 +122,12 @@ fun buildZipRoute(projectId: String, latest: Boolean = false): String {
 }
 
 @Composable
-fun ScreenNavigator(
-    progressLogViewModel: ProgressLogViewModel
-) {
+fun ScreenNavigator(progressLogViewModel: ProgressLogViewModel) {
+    ProjectsBackdrop { ScreenNavigatorContent(progressLogViewModel) }
+}
+
+@Composable
+private fun ScreenNavigatorContent(progressLogViewModel: ProgressLogViewModel) {
     var showSignInSettings by rememberSaveable { mutableStateOf(false) }
     val token = GithubPrefs.token
     val username = GithubPrefs.username
@@ -198,7 +201,8 @@ fun ScreenNavigator(
             allowSettings = currentEntry?.destination?.route == Screens.Settings.name,
             onOpenSettings = { navController.navigateWithState(Screens.Settings.name) }
         ) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Surface(Modifier.fillMaxSize(), color = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onBackground) {
                 CompositionLocalProvider(LocalShowFeatureGuide provides { showFeatureGuide = true }) {
                     NavigationHost(
                         navController = navController,
@@ -230,7 +234,7 @@ fun ScreenNavigator(
 @Composable
 fun BottomNavigationBar(navController: NavHostController, selectedRoute: String, modifier: Modifier = Modifier) {
     ProjectGlassSurface(modifier = modifier, shape = CircleShape) {
-        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             listOfNavItems.forEach { navItem ->
                 val selected = selectedRoute == navItem.route
                 ExpressiveNavigationItem(navItem, selected, {
@@ -245,9 +249,9 @@ fun BottomNavigationBar(navController: NavHostController, selectedRoute: String,
 @Composable
 private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable (Modifier) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val actionSize = if (maxWidth < 400.dp) 48.dp else 56.dp
-        val navigationWidth = (maxWidth - 48.dp - actionSize * 2).coerceAtMost(304.dp)
-        val stacked = navigationWidth < 216.dp
+        val actionSize = 48.dp
+        val navigationWidth = (maxWidth - 56.dp - actionSize * 2).coerceAtMost(264.dp)
+        val stacked = navigationWidth < 198.dp
         val actions: @Composable () -> Unit = {
             ProjectGlassSurface(modifier = Modifier.size(actionSize), shape = CircleShape) {
                 Surface(onClick = onCreateProject,
@@ -262,13 +266,13 @@ private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable
             }
             AccountProfileButton(size = actionSize)
         }
-        if (stacked) Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp, 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (stacked) Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp, 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             navigation(Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { actions() }
-        } else Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { actions() }
+        } else Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
             navigation(Modifier.width(navigationWidth))
             actions()
         }
@@ -279,7 +283,6 @@ private fun ScreenBottomBar(onCreateProject: () -> Unit, navigation: @Composable
 @Composable
 private fun NavigationTab(navController: NavHostController, route: String, content: @Composable (Dp) -> Unit) {
     AccountMembershipProvider {
-        ProjectsBackdrop(enabled = route == Screens.Home.name || route == Screens.Download.name) {
         Scaffold(bottomBar = {
             ProjectCreationGate(onCreate = {
                 if (route != Screens.Home.name) navController.navigateWithState(Screens.Home.name)
@@ -301,7 +304,6 @@ private fun NavigationTab(navController: NavHostController, route: String, conte
                 content(if (floatingOverContent) padding.calculateBottomPadding() else 0.dp)
             }
         }
-        }
     }
 }
 
@@ -313,14 +315,14 @@ private fun ExpressiveNavigationItem(item: NavItem, selected: Boolean, onClick: 
     val contentColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "navigationContent")
-    Surface(onClick = onClick, modifier = modifier.heightIn(min = 56.dp).semantics { role = Role.Tab; this.selected = selected },
+    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp).semantics { role = Role.Tab; this.selected = selected },
         shape = CircleShape, color = containerColor, contentColor = contentColor,
         tonalElevation = 0.dp) {
-        Column(Modifier.padding(horizontal = 2.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+        Column(Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(item.icon, contentDescription = null, Modifier.size(24.dp))
-            Text(item.label, style = MaterialTheme.typography.labelMedium,
+            Icon(item.icon, contentDescription = null, Modifier.size(22.dp))
+            Text(item.label, style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }

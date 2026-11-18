@@ -1,5 +1,6 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.annotation.SuppressLint
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -52,7 +53,7 @@ fun AppsScreen() {
         }
     }
 
-    Scaffold(
+    GlassScaffold(
         topBar = { AppTopBar(title = "Installed Apps") }
     ) { paddingValues ->
         val loaded = installedApps

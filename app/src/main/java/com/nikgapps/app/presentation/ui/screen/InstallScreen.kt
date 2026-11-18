@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.util.Log
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,9 +41,9 @@ fun InstallScreen(progressLogViewModel: ProgressLogViewModel) {
             rootAccessState = rootAccess
         }
     }
-    Scaffold(
+    GlassScaffold(
         topBar = {
-            TopAppBar(
+            TopAppBar(colors = glassTopAppBarColors(),
                 title = { Text("Install NikGapps") }
             )
         },

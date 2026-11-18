@@ -1,5 +1,11 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
+
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.content.Context
 import android.widget.Toast
 import android.content.Intent
@@ -179,13 +185,13 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
             context, projectId, operationKey, request, explicitRetry = retryKey > 0).toString()
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Build flashable ZIP") }, navigationIcon = {
+    GlassScaffold(topBar = { TopAppBar(colors = glassTopAppBarColors(), title = { Text("Build flashable ZIP") }, navigationIcon = {
         IconButton(onClick = navController::navigateUp,
             enabled = stage != BuildStage.RUNNING || !compressionConfirmed) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
         }
     }, actions = { com.nikgapps.app.presentation.navigation.HelpIconButton() }) }, bottomBar = {
-        Surface(tonalElevation = 3.dp) {
+        com.nikgapps.app.presentation.ui.component.GlassSurface(tonalElevation = 3.dp, readable = true) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when (stage) {
@@ -274,7 +280,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
                     color = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(8.dp))
-            Surface(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(20.dp),
+            com.nikgapps.app.presentation.ui.component.GlassSurface(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(20.dp), readable = true,
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 LazyColumn(Modifier.fillMaxSize().padding(14.dp), state = listState,

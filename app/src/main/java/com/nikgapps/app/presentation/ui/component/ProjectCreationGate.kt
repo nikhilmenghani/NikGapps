@@ -3,6 +3,7 @@ package com.nikgapps.app.presentation.ui.component
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,7 +29,7 @@ internal fun ProjectCreationGate(onCreate: () -> Unit, content: @Composable (() 
 @Composable
 internal fun ProjectCreationUnavailableDialog(retryAt: Long, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        GlassSurface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             Column {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Project creation is temporarily unavailable", style = MaterialTheme.typography.titleLarge)

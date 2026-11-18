@@ -37,13 +37,13 @@ fun ActionCard2(
     onClick: () -> Unit,
     isProcessing: Boolean = false
 ) {
-    Card(
+    com.nikgapps.app.presentation.ui.component.GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        elevation = 8.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(
             modifier = Modifier
@@ -108,13 +108,13 @@ fun ActionCard(
     onClick: () -> Unit,
     isProcessing: Boolean = false
 ) {
-    Card(
+    com.nikgapps.app.presentation.ui.component.GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        elevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(
             modifier = Modifier

@@ -29,7 +29,7 @@ internal fun AccountDialog(
     val colors = MaterialTheme.colorScheme
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        com.nikgapps.app.presentation.ui.component.GlassSurface(
             modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight),
             shape = RoundedCornerShape(24.dp),
             color = colors.surfaceContainerHigh

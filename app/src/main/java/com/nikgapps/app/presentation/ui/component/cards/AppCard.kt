@@ -26,19 +26,17 @@ import com.nikgapps.app.data.InstalledAppInfo
 
 @Composable
 fun AppCard(appInfo: InstalledAppInfo, elevation: Dp) {
-    Card(
+    com.nikgapps.app.presentation.ui.component.GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(elevation),
-        colors = CardDefaults.cardColors(
-            containerColor = when (appInfo.appType) {
+        elevation = elevation,
+        color = when (appInfo.appType) {
                 "Updated System App" -> MaterialTheme.colorScheme.secondary
                 "System App" -> MaterialTheme.colorScheme.surfaceVariant
                 else -> MaterialTheme.colorScheme.background
             }
-        )
     ) {
         Row(
             modifier = Modifier

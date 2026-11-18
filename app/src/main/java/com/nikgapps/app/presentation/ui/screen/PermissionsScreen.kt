@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
@@ -62,9 +64,9 @@ fun PermissionsScreen(
             onAllPermissionsGranted()
         }
     }
-    Scaffold(
+    GlassScaffold(
         topBar = {
-            TopAppBar(
+            TopAppBar(colors = glassTopAppBarColors(),
                 title = { Text("Permissions") },
                 navigationIcon = {
                     if (onBack != null) {

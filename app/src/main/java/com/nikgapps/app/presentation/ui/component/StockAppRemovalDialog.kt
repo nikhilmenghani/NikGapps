@@ -5,6 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -23,7 +25,7 @@ internal fun StockAppRemovalDialog(
 ) {
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * .85f
     Dialog(onDismissRequest = onDismiss) {
-        Surface(modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight),
+        GlassSurface(modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight),
             shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
             Column {
                 Column(Modifier.weight(1f, fill = false).padding(20.dp),
@@ -39,7 +41,7 @@ internal fun StockAppRemovalDialog(
                     else "Allow $packageName to remove these apps when flashing.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Surface(modifier = Modifier.weight(1f, fill = false),
+                    GlassSurface(modifier = Modifier.weight(1f, fill = false),
                         shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 240.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),

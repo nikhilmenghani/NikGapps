@@ -1,5 +1,9 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
+
+import com.nikgapps.app.presentation.ui.component.GlassButton as Button
+
 import com.nikgapps.app.presentation.ui.component.AppIcons
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -75,6 +79,9 @@ fun DebloaterSettings(projectId: String, projectName: String, targets: List<Stri
         // short lists with blank space or pushing the composer off screen.
         val windowHeight = LocalWindowInfo.current.containerSize.height
         val viewportHeight = with(LocalDensity.current) { windowHeight.toDp() * 0.85f }
+        com.nikgapps.app.presentation.ui.component.GlassSurface(Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow, readable = true) {
         Column(Modifier.fillMaxWidth().heightIn(max = viewportHeight)
             .padding(horizontal = 20.dp).padding(top = 24.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -110,7 +117,7 @@ fun DebloaterSettings(projectId: String, projectName: String, targets: List<Stri
                     }
                 }
             }
-            Surface(modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+            com.nikgapps.app.presentation.ui.component.GlassSurface(modifier = Modifier.fillMaxWidth().weight(1f, fill = false), readable = true,
                 shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -160,11 +167,12 @@ fun DebloaterSettings(projectId: String, projectName: String, targets: List<Stri
             }
             HorizontalDivider()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Cancel") }
-                FilledTonalButton(onClick = { onApply(validation.getOrThrow()); onDismiss() },
+                FilledTonalButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Cancel") }
+                Button(onClick = { onApply(validation.getOrThrow()); onDismiss() },
                     enabled = input.isBlank() && validation.isSuccess,
-                    modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Apply") }
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Apply") }
             }
         }
+    }
     }
 }

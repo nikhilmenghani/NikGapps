@@ -5,6 +5,7 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -51,6 +52,21 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHighest = Color(0xFFE1E2E8)
 )
 
+/** Glass uses one teal accent family; retain the selected theme's surfaces and status colors. */
+internal fun ColorScheme.withGlassAccent(dark: Boolean): ColorScheme = if (dark) copy(
+    primary = Color(0xFF89D5C6), onPrimary = Color(0xFF00382F),
+    primaryContainer = Color(0xFF005046), onPrimaryContainer = Color(0xFFA5F2E3),
+    secondary = Color(0xFFB1CCC5), onSecondary = Color(0xFF1C3530),
+    secondaryContainer = Color(0xFF334B45), onSecondaryContainer = Color(0xFFCDE8E0),
+    surfaceTint = Color(0xFF89D5C6), inversePrimary = Color(0xFF006B5D)
+) else copy(
+    primary = Color(0xFF006B5D), onPrimary = Color.White,
+    primaryContainer = Color(0xFFA5F2E3), onPrimaryContainer = Color(0xFF002019),
+    secondary = Color(0xFF4A635C), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFCDE8E0), onSecondaryContainer = Color(0xFF06201A),
+    surfaceTint = Color(0xFF006B5D), inversePrimary = Color(0xFF89D5C6)
+)
+
 fun Color.applyOpacity(enabled: Boolean): Color {
     return if (enabled) this else this.copy(alpha = 0.62f)
 }
@@ -89,7 +105,7 @@ fun NikGappsTheme(
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (manager.displayPrefs.useLiquidGlass) colorScheme.withGlassAccent(darkTheme) else colorScheme,
         typography = Typography,
         content = content
     )

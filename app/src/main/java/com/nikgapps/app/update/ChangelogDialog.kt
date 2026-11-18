@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
+import com.nikgapps.app.presentation.ui.component.GlassTonalButton as FilledTonalButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -85,10 +86,10 @@ fun ChangelogDialog(title: String, entries: List<ChangelogEntry>, loading: Boole
     LaunchedEffect(releases.firstOrNull()?.version) { listState.scrollToItem(0) }
     val maxHeight = (LocalConfiguration.current.screenHeightDp * .85f).dp
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxWidth(.94f).height(maxHeight), shape = RoundedCornerShape(24.dp),
+        com.nikgapps.app.presentation.ui.component.GlassSurface(Modifier.fillMaxWidth(.94f).height(maxHeight), shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface) {
             Column {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(20.dp),
+                Row(Modifier.fillMaxWidth().background(if (com.nikgapps.app.data.DisplayPrefs.useLiquidGlass) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh).padding(20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Image(painterResource(R.drawable.nikgapps_logo), null,
                         Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)))
@@ -197,7 +198,7 @@ private fun ReleaseTimelineItem(entry: ChangelogEntry, last: Boolean, status: Ch
             AnimatedVisibility(expanded,
                 enter = expandVertically(tween(280, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) + fadeIn(tween(240)),
                 exit = shrinkVertically(tween(280, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(240))) {
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                com.nikgapps.app.presentation.ui.component.GlassSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.fillMaxWidth().animateContentSize(tween(280, easing = FastOutSlowInEasing))) {
                         (if (showAll) entry.changes else entry.changes.take(5)).forEachIndexed { index, change ->
                             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

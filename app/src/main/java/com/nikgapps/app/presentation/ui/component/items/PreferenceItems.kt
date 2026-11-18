@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nikgapps.app.presentation.theme.NikGappsThemePreview
 import com.nikgapps.app.presentation.theme.applyOpacity
+import com.nikgapps.app.data.DisplayPrefs
 
 private const val horizontal = 8
 private const val vertical = 12
@@ -34,6 +35,10 @@ private const val vertical = 12
 private val PreferenceTitle
     @Composable get() = MaterialTheme.typography.titleMedium
 
+private val PreferenceRowColor
+    @Composable get() = if (DisplayPrefs.useLiquidGlass)
+        MaterialTheme.colorScheme.surface.copy(alpha = .08f)
+    else MaterialTheme.colorScheme.surfaceContainerLowest
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -50,7 +55,8 @@ fun PreferenceItem(
     onClick: () -> Unit = {},
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = PreferenceRowColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.combinedClickable(
@@ -194,7 +200,8 @@ fun PreferenceItemVariant(
     onClick: () -> Unit = {},
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = PreferenceRowColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.combinedClickable(
@@ -247,7 +254,7 @@ fun PreferenceItem(
 ) {
     Row(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(PreferenceRowColor)
             .padding(start = 16.dp, end = 24.dp)
             .heightIn(min = if (supportingText == null) 56.dp else 72.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),

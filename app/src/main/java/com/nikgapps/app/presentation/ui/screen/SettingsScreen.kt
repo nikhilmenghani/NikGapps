@@ -1,5 +1,7 @@
 package com.nikgapps.app.presentation.ui.screen
 
+import com.nikgapps.app.presentation.ui.component.glassTopAppBarColors
+import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -36,8 +38,8 @@ fun SettingsScreen(onBack: () -> Unit, showBackButton: Boolean = true) {
     var changelog by remember { mutableStateOf<List<ChangelogEntry>>(emptyList()) }
     LaunchedEffect(Unit) { changelog = ChangelogRepository.fetch(context) }
 
-    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0), topBar = {
-        TopAppBar(title = { Text(stringResource(R.string.settings)) }, navigationIcon = {
+    GlassScaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0), topBar = {
+        TopAppBar(colors = glassTopAppBarColors(), title = { Text(stringResource(R.string.settings)) }, navigationIcon = {
             if (showBackButton) IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
             }
