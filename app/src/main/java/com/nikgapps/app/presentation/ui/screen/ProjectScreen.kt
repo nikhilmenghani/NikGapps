@@ -1101,12 +1101,8 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
         }
     }
     Box(Modifier.offset { IntOffset(pressPosition.x.roundToInt(), pressPosition.y.roundToInt()) }.size(1.dp)) {
-    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
-        shape = RoundedCornerShape(12.dp),
-        containerColor = if (DisplayPrefs.useLiquidGlass) androidx.compose.ui.graphics.Color.Transparent
-            else MaterialTheme.colorScheme.surfaceContainerHigh) {
-        GlassSurface(shape = RoundedCornerShape(12.dp), color = androidx.compose.ui.graphics.Color.Transparent) {
-        Column {
+    com.nikgapps.app.presentation.ui.component.GlassDropdownMenu(
+        expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
         if (!readOnly && stockRemovals.isNotEmpty()) {
             DropdownMenuItem(
                 text = { Text(if (keepAosp) "Delete Stock app" else "Keep Stock app") },
@@ -1117,8 +1113,6 @@ internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatu
         DropdownMenuItem(text = { Text("Show info") },
             leadingIcon = { Icon(AppIcons.Info, null) },
             onClick = { menuOpen = false; onOpen() })
-        }
-        }
     }
     }
     }

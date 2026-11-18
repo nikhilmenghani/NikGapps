@@ -478,8 +478,8 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                             IconButton(onClick = { showMoreOptions = true }) {
                                 Icon(Icons.Outlined.MoreVert, contentDescription = "More options")
                             }
-                            DropdownMenu(expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false },
-                                shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                            com.nikgapps.app.presentation.ui.component.GlassDropdownMenu(
+                                expanded = showMoreOptions, onDismissRequest = { showMoreOptions = false }) {
                                 DropdownMenuItem(text = { Text("Logs") }, leadingIcon = { Icon(Icons.Default.Terminal, null) },
                                     onClick = {
                                         showMoreOptions = false

@@ -113,27 +113,23 @@ internal fun ProjectGlassSurface(
     val backdrop = LocalGlassBackdrop.current
     var position by remember { mutableStateOf(Offset.Zero) }
     val blurRadius = with(androidx.compose.ui.platform.LocalDensity.current) { 22.dp.toPx() }
-    val frost = colors.surface.copy(alpha = if (readable) {
-        if (dark) .55f else .72f
-    } else if (dark) .20f else .36f)
-    val rim = Brush.linearGradient(
-        0f to Color.White.copy(alpha = if (dark) .22f else .68f),
-        .28f to Color.White.copy(alpha = if (dark) .06f else .22f),
-        .68f to Color.White.copy(alpha = if (dark) .025f else .10f),
-        1f to Color.White.copy(alpha = if (dark) .10f else .34f))
+    val frost = colors.surfaceContainerHigh.copy(alpha = if (readable) {
+        if (dark) .60f else .78f
+    } else if (dark) .32f else .56f)
+    // Keep the complete silhouette visible. White-only gradient rims disappear on light backdrops.
+    val rim = colors.outline.copy(alpha = if (dark) .48f else .38f)
     val reflection = Brush.verticalGradient(
-        0f to Color.White.copy(alpha = if (dark) .055f else .28f),
-        .22f to Color.White.copy(alpha = if (dark) .015f else .08f),
-        .55f to Color.Transparent,
-        1f to Color.Black.copy(alpha = if (dark) .065f else .025f))
+        0f to Color.White.copy(alpha = if (dark) .035f else .08f),
+        .45f to Color.Transparent,
+        1f to Color.Black.copy(alpha = if (dark) .018f else .012f))
     val surfaceModifier = modifier.onGloballyPositioned {
         view.getLocationOnScreen(screenLocation)
         position = it.positionInRoot() + Offset(screenLocation[0].toFloat(), screenLocation[1].toFloat())
     }
     val surfaceColor = if (glassEnabled) Color.Transparent else classicColor
-    val surfaceBorder = if (glassEnabled) BorderStroke(.75.dp, rim) else classicBorder
+    val surfaceBorder = if (glassEnabled) BorderStroke(1.dp, rim) else classicBorder
     val surfaceTonalElevation = if (glassEnabled) 0.dp else classicTonalElevation
-    val surfaceShadowElevation = if (glassEnabled) 4.dp else classicShadowElevation
+    val surfaceShadowElevation = if (glassEnabled) 2.dp else classicShadowElevation
     val layers: @Composable () -> Unit = {
         Box(propagateMinConstraints = true) {
             if (glassEnabled) {

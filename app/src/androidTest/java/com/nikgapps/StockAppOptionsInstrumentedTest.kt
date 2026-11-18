@@ -27,6 +27,62 @@ import java.io.File
 class StockAppOptionsInstrumentedTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
 
+    @Test fun packageAndNavigationMenusHaveShapedShadowsAcrossAppearances() {
+        check(instrumentation.targetContext.packageName == "com.nikgapps.review.debug")
+        val originalGlass = com.nikgapps.app.data.DisplayPrefs.useLiquidGlass
+        var dark by mutableStateOf(false)
+        var more by mutableStateOf(false)
+        var projectMenu by mutableStateOf(false)
+        var invoked = 0
+        try {
+            ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+                scenario.onActivity { activity -> activity.setContent {
+                    MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
+                        com.nikgapps.app.presentation.ui.component.ProjectsBackdrop {
+                            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                                Box {
+                                    com.nikgapps.app.presentation.ui.component.GlassTonalButton({ more = true }) { Text("More options") }
+                                    com.nikgapps.app.presentation.ui.component.GlassDropdownMenu(more, { more = false }) {
+                                        DropdownMenuItem(text = { Text("Logs") }, onClick = { invoked++ })
+                                    }
+                                }
+                                Box {
+                                    com.nikgapps.app.presentation.ui.component.GlassTonalButton({ projectMenu = true }) { Text("Project actions") }
+                                    if (projectMenu) com.nikgapps.app.presentation.ui.screen.ProjectContextMenu("Example",
+                                        listOf(com.nikgapps.app.presentation.ui.screen.ProjectRadialAction("Export project",
+                                            com.nikgapps.app.presentation.ui.component.AppIcons.Info, onClick = { invoked++ })),
+                                        useRadial = false, onDismiss = { projectMenu = false })
+                                }
+                                ProjectPackageCard(fixture("youtube", "YouTube"), RegistryDeviceStatus(false),
+                                    selected = false, onOpen = { invoked++ }, onSelected = { error("Selection changed") },
+                                    keepAosp = false, onKeepAospChange = {})
+                            }
+                        }
+                    }
+                } }
+                for (darkMode in listOf(false, true)) for (glass in listOf(true, false)) {
+                    scenario.onActivity { dark = darkMode; com.nikgapps.app.data.DisplayPrefs.useLiquidGlass = glass }
+                    val suffix = "${if (glass) "glass" else "classic"}-${if (darkMode) "dark" else "light"}"
+                    longPress("YouTube")
+                    awaitText("Show info")
+                    screenshot("package-menu-$suffix")
+                    back()
+                    click("More options")
+                    awaitText("Logs")
+                    screenshot("header-menu-$suffix")
+                    back()
+                    click("Project actions")
+                    awaitText("Export project")
+                    screenshot("project-menu-$suffix")
+                    back()
+                    awaitText("YouTube")
+                    assertEquals("Opening and dismissing menus must not run their actions", 0, invoked)
+                }
+            }
+        } finally { com.nikgapps.app.data.DisplayPrefs.useLiquidGlass = originalGlass }
+    }
+
     @Test fun onlyRemovalPackagesOfferStockActionsAndRequireConfirmation() {
         check(instrumentation.targetContext.packageName == "com.nikgapps.review.debug")
         var keep by mutableStateOf(false)

@@ -57,6 +57,23 @@ internal fun GlassCard(
         border = border, glass = glass) { Column(content = content) }
 }
 
+/** The transparent menu host must not cast a second shadow around its padded bounds. */
+@Composable
+internal fun GlassDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val glass = DisplayPrefs.useLiquidGlass
+    val shape = RoundedCornerShape(12.dp)
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest, shape = shape,
+        containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = if (glass) 0.dp else MenuDefaults.TonalElevation,
+        shadowElevation = if (glass) 0.dp else MenuDefaults.ShadowElevation) {
+        GlassSurface(shape = shape, color = Color.Transparent) { Column(content = content) }
+    }
+}
+
 /** Full-screen dialogs need their own scene coordinates rather than their parent window's. */
 @Composable
 internal fun GlassScreenSurface(

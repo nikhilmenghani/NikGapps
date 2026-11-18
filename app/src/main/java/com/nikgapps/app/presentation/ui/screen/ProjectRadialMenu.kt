@@ -35,8 +35,8 @@ fun ProjectContextMenu(projectName: String, actions: List<ProjectRadialAction>,
     if (useRadial) {
         ProjectRadialMenu(projectName, actions, onDismiss)
     } else {
-        DropdownMenu(expanded = true, onDismissRequest = onDismiss,
-            shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        com.nikgapps.app.presentation.ui.component.GlassDropdownMenu(
+            expanded = true, onDismissRequest = onDismiss) {
             actions.forEach { action ->
                 val color = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 DropdownMenuItem(
