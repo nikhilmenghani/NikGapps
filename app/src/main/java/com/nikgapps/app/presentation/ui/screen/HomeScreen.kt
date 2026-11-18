@@ -7,6 +7,7 @@ import android.widget.Toast
 import com.nikgapps.app.network.RegistryProjectContent
 import com.nikgapps.app.registry.RegistryAvailability
 import com.nikgapps.app.presentation.ui.component.ProjectGlassSurface
+import com.nikgapps.app.presentation.ui.component.HeaderActionPill
 import com.nikgapps.app.presentation.ui.component.LocalAccountMembership
 import com.nikgapps.app.presentation.ui.component.ProjectCreationUnavailableDialog
 import androidx.compose.runtime.collectAsState
@@ -434,9 +435,7 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                         scrolledContainerColor = Color.Transparent),
                     title = { Text("Projects") },
                     actions = {
-                        ProjectGlassSurface(modifier = Modifier.padding(end = 12.dp), shape = CircleShape) {
-                        Row(Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = if (darkTheme) .22f else .18f))
-                            .padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        HeaderActionPill {
                         if (!isLatestVersion) {
                             HomeUpdateIndicator(
                                 latestVersion = latestVersion,
@@ -491,7 +490,6 @@ fun HomeScreen(navController: NavHostController, floatingBarBottomPadding: Dp = 
                                         navController.navigate(Screens.Logs.name) { launchSingleTop = true }
                                     })
                             }
-                        }
                         }
                         }
                     },

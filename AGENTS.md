@@ -15,3 +15,8 @@
 - Keep explanatory/help text hidden by default behind an accessible information icon next to the relevant title. Show it in a themed popup; do not add permanent help cards or expand the underlying layout unless the user explicitly asks for that presentation.
 - A control opening a browser is still an app action: use the same button design. Do not use a plain text button or link as a substitute for a normal action. Use equal-width tonal secondary and primary confirmation buttons for two actions, 16dp corners, minimum 48dp touch targets, and a divider above the action area.
 - Before reporting a UI change complete, check it against these rules and inspect the rendered screen on the requested connected device when available. Verify information is hidden initially, buttons match the project, keyboard-visible actions are reachable, and popup dismissal preserves the underlying layout. Fix discrepancies before handing it back to the user.
+
+## Installer removal metadata
+
+- Use `nikgapps-release/nikgapps_release/engine/build/PackageConstants.py:get_package_deletes` and package pipeline overrides as the source of stock-app removal rules. The Android app must consume the resolved package version's `install.removeFiles` metadata rather than duplicate these mappings in Kotlin.
+- Refer to `nikgapps-operations/MIGRATION.md` before changing hosted registry or release workflows; migrated source code and the deployed runtime can be at different stages of the migration.

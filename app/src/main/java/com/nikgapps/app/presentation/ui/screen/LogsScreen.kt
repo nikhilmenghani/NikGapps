@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
+import com.nikgapps.app.presentation.ui.component.HeaderActionPill
 
 private const val MAX_LOG_LINES = 10_000
 private const val LOGCAT_BATCH_INTERVAL_MS = 250L
@@ -134,12 +136,13 @@ fun LogsScreen(onBack: () -> Unit = {}) {
     }
 
     Scaffold(topBar = { TopAppBar(title = { Column {
-        Text("App logs")
+        Text("App logs", maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text("NikGapps process · PID ${Process.myPid()}", style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
     } }, navigationIcon = {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }, actions = {
+        HeaderActionPill {
         IconButton(onClick = { paused = !paused }) {
             Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 if (paused) "Resume Logcat" else "Pause Logcat")
@@ -150,6 +153,7 @@ fun LogsScreen(onBack: () -> Unit = {}) {
         }) { Icon(Icons.Default.DeleteSweep, "Clear captured logs") }
         com.nikgapps.app.presentation.navigation.HelpIconButton(reserveTrailingSlot = false)
         IconButton(onClick = ::exportLogs, enabled = lines.isNotEmpty()) { Icon(Icons.Default.IosShare, "Export diagnostics") }
+        }
     }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +46,7 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.presentation.ui.component.containers.GitHubAccountPreference
 import com.nikgapps.app.presentation.ui.component.containers.GitHubTokenTopSheet
+import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 
 @Composable
 fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
@@ -138,25 +138,18 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
         }
     }
     if (showWhyGitHub) {
-        AlertDialog(
-            onDismissRequest = { showWhyGitHub = false },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = colors.surfaceContainerHigh,
-            title = { Text("Why GitHub?") },
-            text = {
+        AccountDialog(
+            onDismiss = { showWhyGitHub = false },
+            title = "Why GitHub?",
+            content = {
                 Text(GITHUB_SIGN_IN_EXPLANATION,
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant)
             },
-            confirmButton = {
-                Column(Modifier.fillMaxWidth()) {
-                    HorizontalDivider(color = colors.outlineVariant)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { showWhyGitHub = false },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(16.dp)) { Text("Got it") }
-                }
+            actions = {
+                Button(onClick = { showWhyGitHub = false },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp)) { Text("Got it") }
             }
         )
     }

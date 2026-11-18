@@ -68,7 +68,11 @@ class DebloaterConfigTest {
             assertThrows(IllegalArgumentException::class.java) { DebloaterConfig.validate(listOf(it)) }
         }
         assertThrows(IllegalArgumentException::class.java) { DebloaterConfig.validate(listOf("youtube"), setOf("YouTube")) }
-        val clock = CatalogParser.parseCatalog(RegistryTestFixtures.catalog()).packages.first().copy(id = "google_clock")
+        val base = CatalogParser.parseCatalog(RegistryTestFixtures.catalog()).packages.first()
+        val clock = base.copy(id = "google_clock", versions = base.versions.mapValues { (_, version) ->
+            version.copy(install = InstallMetadata("nikgapps-package-v1", "GoogleClock", "GoogleClock", 1,
+                listOf("DeskClock"), emptyList(), emptyList(), false, "09"))
+        })
         assertThrows(IllegalArgumentException::class.java) {
             DebloaterConfig.validate(listOf("DeskClock"), DebloaterConfig.conflicts(listOf(clock), setOf("google_clock")))
         }

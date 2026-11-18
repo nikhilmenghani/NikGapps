@@ -64,6 +64,8 @@ import com.nikgapps.app.presentation.navigation.appConfigRoute
 import com.nikgapps.app.presentation.navigation.buildZipRoute
 import com.nikgapps.app.presentation.navigation.projectRoute
 import com.nikgapps.app.registry.*
+import com.nikgapps.app.presentation.ui.component.StockAppRemovalDialog
+import com.nikgapps.app.presentation.ui.component.HeaderActionPill
 import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.network.EliteMembershipRepository
@@ -76,7 +78,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 
-private data class RegistryDeviceStatus(
+internal data class RegistryDeviceStatus(
     val installed: Boolean,
     val versionName: String? = null,
     val versionCode: Long? = null
@@ -324,9 +326,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             } finally { importingConfig = false }
         }
     }
-    fun keepAospCounterpart(id: String, keep: Boolean) {
-        save(current.copy(keepAospCounterparts = if (keep) current.keepAospCounterparts + id
-            else current.keepAospCounterparts - id))
+    fun keepAospCounterpart(id: String, keep: Boolean, appSetId: String) {
+        save(current.withStockAppPreference(id, appSetId, keep))
     }
     fun exportConfig() {
         if (metadata == null) return
@@ -595,6 +596,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     }, navigationIcon = {
         IconButton(onClick = navController::navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
     }, actions = {
+        HeaderActionPill {
         IconButton(onClick = {
             notificationsExpanded = !notificationsExpanded
             sortExpanded = false
@@ -635,6 +637,7 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             notificationsExpanded = false
         }) {
             Icon(Icons.Default.FilterAlt, if (filterExpanded) "Close filter options" else "Filter apps")
+        }
         }
     }) }, bottomBar = {
         if (metadata != null) {
@@ -966,7 +969,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                 isSelectedInAppSet(current, pkg.id, set.id),
                                 onOpen = { openPackage(pkg.id) },
                                 keepAosp = pkg.id in current.keepAospCounterparts,
-                                onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
+                                stockRemovals = pkg.stockAppRemovals(current, registry?.release),
+                                onKeepAospChange = { keepAospCounterpart(pkg.id, it, set.id) },
                                 onSelected = { selectPackages(setOf(pkg.id), it, set) })
                         }
                         return@forEach
@@ -988,7 +992,8 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                         isSelectedInAppSet(current, pkg.id, set.id),
                                         onOpen = { openPackage(pkg.id) },
                                         keepAosp = pkg.id in current.keepAospCounterparts,
-                                        onKeepAospChange = { keepAospCounterpart(pkg.id, it) },
+                                        stockRemovals = pkg.stockAppRemovals(current, registry?.release),
+                                        onKeepAospChange = { keepAospCounterpart(pkg.id, it, set.id) },
                                         onSelected = { selectPackages(setOf(pkg.id), it, set) }, embedded = true)
                                     if (index < matches.lastIndex) HorizontalDivider(
                                         Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
@@ -1048,10 +1053,12 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
 }
 
 @Composable
-private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
+internal fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus, selected: Boolean,
     onOpen: () -> Unit, onSelected: (Boolean) -> Unit, keepAosp: Boolean,
-    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier, readOnly: Boolean = false, embedded: Boolean = false) {
+    onKeepAospChange: (Boolean) -> Unit, modifier: Modifier = Modifier, readOnly: Boolean = false,
+    embedded: Boolean = false, stockRemovals: List<String> = emptyList()) {
     var menuOpen by remember(pkg.id) { mutableStateOf(false) }
+    var confirmKeepStock by remember(pkg.id, stockRemovals, selected) { mutableStateOf<Boolean?>(null) }
     var pressPosition by remember(pkg.id) { mutableStateOf(Offset.Zero) }
     Box(modifier.fillMaxWidth()) {
     ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(if (embedded) 0.dp else 16.dp),
@@ -1065,7 +1072,7 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
                 Box(Modifier.align(Alignment.CenterStart).width(3.dp).fillMaxHeight(.65f)
                     .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
             }
-            if (selected && keepAosp) {
+            if (selected && keepAosp && stockRemovals.isNotEmpty()) {
                 Box(Modifier.matchParentSize()) {
                     Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(4.dp)
                         .background(MaterialTheme.colorScheme.error))
@@ -1077,11 +1084,11 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
         shape = RoundedCornerShape(12.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        if (selected) {
+        if (!readOnly && stockRemovals.isNotEmpty()) {
             DropdownMenuItem(
                 text = { Text(if (keepAosp) "Delete Stock app" else "Keep Stock app") },
                 leadingIcon = { Icon(if (keepAosp) Icons.Default.DeleteOutline else Icons.Default.Shield, null) },
-                onClick = { menuOpen = false; onKeepAospChange(!keepAosp) }
+                onClick = { menuOpen = false; confirmKeepStock = !keepAosp }
             )
         }
         DropdownMenuItem(text = { Text("Show info") },
@@ -1089,6 +1096,12 @@ private fun ProjectPackageCard(pkg: CatalogPackage, device: RegistryDeviceStatus
             onClick = { menuOpen = false; onOpen() })
     }
     }
+    }
+    confirmKeepStock?.let { keep ->
+        StockAppRemovalDialog(packageName = pkg.name, targets = stockRemovals, keep = keep,
+            selectOnConfirm = !selected,
+            onDismiss = { confirmKeepStock = null },
+            onConfirm = { confirmKeepStock = null; onKeepAospChange(keep) })
     }
 }
 

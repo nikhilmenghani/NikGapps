@@ -8,16 +8,19 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,7 +29,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.heightIn
@@ -38,6 +43,7 @@ import com.nikgapps.R
 import com.nikgapps.BuildConfig
 import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
+import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 import com.nikgapps.app.utils.network.GitHubDeviceAuth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -152,52 +158,83 @@ fun GitHubAccountPreference(asSignInButton: Boolean = false) {
             }
         }
 
-        AlertDialog(
-            onDismissRequest = ::dismissDialog,
-            title = { Text("GitHub account") },
-            text = {
+        val colors = MaterialTheme.colorScheme
+        val canContinue = challenge != null || (!loading && clientId.isNotBlank())
+        AccountDialog(
+            onDismiss = ::dismissDialog,
+            title = "GitHub account",
+            content = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     when {
                         challenge != null -> {
-                            Text("Open GitHub and enter this code to authorize NikGapps:")
-                            SelectionContainer { Text(challenge!!.userCode) }
-                            Text(if (finishingSignIn) "Finishing GitHub sign-in…" else "Waiting for authorization…")
-                            CircularProgressIndicator()
+                            Text("Open GitHub and enter this code to authorize NikGapps:",
+                                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            Surface(shape = RoundedCornerShape(16.dp), color = colors.surfaceContainerHighest) {
+                                SelectionContainer {
+                                    Text(challenge!!.userCode,
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        textAlign = TextAlign.Center)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                Text(if (finishingSignIn) "Finishing GitHub sign-in…" else "Waiting for authorization…",
+                                    style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            }
                         }
-                        loading -> CircularProgressIndicator()
+                        loading -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            Text("Preparing GitHub sign-in…", style = MaterialTheme.typography.bodyMedium,
+                                color = colors.onSurfaceVariant)
+                        }
                         GithubPrefs.token.isNotBlank() -> Text(
                             "${GithubPrefs.username.ifBlank { "A token" }} is connected. " +
-                                "NikGapps can use this account for GitHub requests."
+                                "NikGapps can use this account for GitHub requests.",
+                            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant
                         )
-                        clientId.isBlank() -> Text("This build needs a NikGapps GitHub OAuth client ID to enable account sign-in. You can still add a personal access token below.")
-                        else -> Text("Use your GitHub account to authorize NikGapps. A code will appear here; no password is entered in the app.")
+                        clientId.isBlank() -> Text("This build needs a NikGapps GitHub OAuth client ID to enable account sign-in. You can still add a personal access token below.",
+                            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                        else -> Text("Use your GitHub account to authorize NikGapps. A code will appear here; no password is entered in the app.",
+                            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                     }
-                    error?.let { Text(it) }
+                    error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.error) }
                 }
             },
-            confirmButton = {
-                when {
-                    challenge != null -> TextButton(onClick = {
-                        openVerificationPage(challenge!!)
-                    }) { Text("Copy code & open GitHub") }
-                    !loading && clientId.isNotBlank() -> TextButton(onClick = ::beginSignIn) {
-                        Text(if (GithubPrefs.token.isBlank()) "Sign in" else "Switch account")
+            actions = {
+                if (canContinue) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = ::dismissDialog,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                            Text("Close")
+                        }
+                        Button(onClick = {
+                            val active = challenge
+                            if (active != null) openVerificationPage(active) else beginSignIn()
+                        }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                            Text(when {
+                                challenge != null -> "Open GitHub"
+                                GithubPrefs.token.isBlank() -> "Sign in"
+                                else -> "Switch account"
+                            }, textAlign = TextAlign.Center)
+                        }
                     }
+                } else {
+                    Button(onClick = ::dismissDialog, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(16.dp)) { Text("Close") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = ::dismissDialog) { Text("Close") }
                 if (GithubPrefs.token.isNotBlank()) {
-                    TextButton(onClick = {
+                    FilledTonalButton(onClick = {
                         if (GithubPrefs.username.isNotBlank()) GithubPrefs.lastUsername = GithubPrefs.username
                         dismissDialog()
                         GithubPrefs.token = ""
                         GithubPrefs.username = ""
                         GithubPrefs.avatarUrl = ""
-                    }) { Text("Sign out") }
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                        Text("Sign out")
+                    }
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
+            }
         )
     }
 }

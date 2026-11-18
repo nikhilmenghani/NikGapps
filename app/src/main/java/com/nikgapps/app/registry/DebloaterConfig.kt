@@ -94,10 +94,10 @@ object DebloaterConfig {
                 version.apk?.path?.substringBeforeLast('/')?.substringAfterLast('/')?.let(::add)
             }
             if (pkg.id in kept) {
-                val stock = mapOf("google_clock" to "DeskClock", "google_contacts" to "Contacts",
-                    "google_dialer" to "Dialer", "google_calendar" to "Calendar", "gboard" to "LatinIME",
-                    "google_messages" to "Messaging", "google_camera" to "Camera", "google_chrome" to "Browser")
-                stock[pkg.id]?.let(::add)
+                // Use the registry's installer rules, so newly supported counterparts are protected too.
+                // All known versions are conservative here; the UI uses the project's exact version.
+                pkg.versions.values.flatMap { it.install?.removeFiles.orEmpty() }
+                    .filter(String::isNotBlank).forEach { addAll(stockAppConflictNames(it)) }
             }
         }
     }
