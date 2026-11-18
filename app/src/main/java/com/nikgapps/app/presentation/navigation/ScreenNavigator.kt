@@ -62,7 +62,6 @@ import com.nikgapps.app.presentation.ui.screen.ProfileScreen
 import com.nikgapps.app.presentation.ui.screen.PullRequestsScreen
 import com.nikgapps.app.presentation.ui.screen.ProjectScreen
 import com.nikgapps.app.presentation.ui.screen.SettingsScreen
-import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.extensions.navigateWithState
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.network.InternetRequiredGate
@@ -122,12 +121,12 @@ fun buildZipRoute(projectId: String, latest: Boolean = false): String {
 }
 
 @Composable
-fun ScreenNavigator(progressLogViewModel: ProgressLogViewModel) {
-    ProjectsBackdrop { ScreenNavigatorContent(progressLogViewModel) }
+fun ScreenNavigator() {
+    ProjectsBackdrop { ScreenNavigatorContent() }
 }
 
 @Composable
-private fun ScreenNavigatorContent(progressLogViewModel: ProgressLogViewModel) {
+private fun ScreenNavigatorContent() {
     var showSignInSettings by rememberSaveable { mutableStateOf(false) }
     val token = GithubPrefs.token
     val username = GithubPrefs.username
@@ -204,7 +203,6 @@ private fun ScreenNavigatorContent(progressLogViewModel: ProgressLogViewModel) {
                 CompositionLocalProvider(LocalShowFeatureGuide provides { showFeatureGuide = true }) {
                     NavigationHost(
                         navController = navController,
-                        progressLogViewModel,
                         modifier = Modifier.fillMaxSize().clipToBounds()
                     )
                     if (showFeatureGuide) guideState.SaveableStateProvider("feature-guide") {
@@ -330,7 +328,6 @@ private fun ExpressiveNavigationItem(item: NavItem, selected: Boolean, onClick: 
 @Composable
 fun NavigationHost(
     navController: NavHostController,
-    progressLogViewModel: ProgressLogViewModel,
     modifier: Modifier
 ) {
     NavHost(

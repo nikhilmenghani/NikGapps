@@ -13,12 +13,10 @@ androidxComposeBom = "2026.09.00"
 datastores = "1.2.1"
 appcompat = "1.8.0"
 coil = "3.6.3"
-libsuv = "6.0.0"
 okhttpv = "5.5.0"
 jsonv = "1.11.0"
 kotlin = "2.4.20"
 workmanager = "2.11.2"
-device-names = "2.1.1"
 posthog = "3.70.0"
 
 [libraries]
@@ -42,11 +40,9 @@ androidx-datastore = { group = "androidx.datastore", name = "datastore-preferenc
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
-libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsuv" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttpv" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "jsonv" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
-android-device-names = { group = "com.jaredrummler", name = "android-device-names", version.ref = "device-names" }
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog" }
 
 [plugins]

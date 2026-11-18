@@ -5,14 +5,12 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.nikgapps.app.presentation.theme.NikGappsTheme
 import com.nikgapps.app.presentation.navigation.ScreenNavigator
-import com.nikgapps.app.presentation.ui.viewmodel.ProgressLogViewModel
 import com.nikgapps.app.utils.permissions.Permissions
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.security.AppLock
@@ -27,7 +25,6 @@ import com.nikgapps.dumps.installApk
 import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
-    private val progressLogViewModel: ProgressLogViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +42,7 @@ class MainActivity : ComponentActivity() {
                     AppLock(
                         enabled = globalClass.preferencesManager.displayPrefs.biometricLockEnabled && canUseAppLock(this@MainActivity),
                         activity = this@MainActivity
-                    ) { ScreenNavigator(progressLogViewModel) }
+                    ) { ScreenNavigator() }
                 }
             }
             handleUpdateIntent(intent)

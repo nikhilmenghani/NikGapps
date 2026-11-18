@@ -80,7 +80,6 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import com.nikgapps.app.utils.ZipBuildProgress
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.utils.network.EliteMembershipRepository
 import com.nikgapps.app.network.LocalInternetAvailable
@@ -122,7 +121,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
     var consumedMetadataRefreshes by rememberSaveable(projectId) { mutableIntStateOf(0) }
     var metadataLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf<ZipBuildProgress?>(null) }
     var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var packageSort by rememberSaveable(projectId) { mutableStateOf(PackageSort.NAME) }
     var sortDescending by rememberSaveable(projectId) { mutableStateOf(false) }
@@ -1070,9 +1068,6 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
             dismissButton = { TextButton(onClick = { confirmEliteResetRemaining = null }) { Text("Cancel") } }
         )
     }
-    progress?.let { p -> AlertDialog({}, title = { Text("Building flashable ZIP") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth()); Text(p.message); Text("${p.completed} of ${p.total} packages")
-    } }, confirmButton = {}) }
     result?.let { (failed, message) -> AlertDialog({ result = null }, title = { Text(if (failed) "Build failed" else "Build complete") },
         text = { Text(message) }, confirmButton = { TextButton({ result = null }) { Text("OK") } }) }
 }

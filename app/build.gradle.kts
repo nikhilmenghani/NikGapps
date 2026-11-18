@@ -134,10 +134,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
-    implementation(libs.libsu)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.work.runtime.ktx)
-    implementation(libs.android.device.names)
     implementation(libs.posthog.android)
 }

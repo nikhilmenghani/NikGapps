@@ -22,7 +22,6 @@ class App: Application() {
         val globalClass
             get() = appContext as App
 
-        var hasRootAccess: Boolean = false
     }
 
     val preferencesManager: PreferencesManager by lazy { PreferencesManager() }
