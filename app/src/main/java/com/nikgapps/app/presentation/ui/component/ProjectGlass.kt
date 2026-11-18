@@ -27,43 +27,48 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.toSize
 import com.nikgapps.app.data.DisplayPrefs
+import com.nikgapps.app.data.BackgroundPrefs
+import com.nikgapps.app.data.GlassBackground
+import com.nikgapps.app.presentation.theme.palette
 
-private class GoogleLightField(val size: Size, val base: Color, dark: Boolean) {
-    private val ground = lerp(base, if (dark) Color(0xFF102A24) else Color(0xFFF0F6F2), if (dark) .55f else .35f)
+private class GlassLightField(val size: Size, base: Color, dark: Boolean, background: GlassBackground) {
+    private val palette = background.palette
+    private val ground = lerp(base, if (dark) palette.darkGround else palette.lightGround, if (dark) .55f else .35f)
     private fun glow(color: Color, alpha: Float, x: Float, y: Float, radius: Float) =
         Brush.radialGradient(listOf(color.copy(alpha = alpha), Color.Transparent),
             center = Offset(size.width * x, size.height * y), radius = (size.width * radius).coerceAtLeast(1f))
     private val lights = listOf(
-        glow(Color(0xFF4285F4), if (dark) .24f else .19f, -.18f, .10f, 1.15f),
-        glow(Color(0xFFFBBC05), if (dark) .48f else .27f, .68f, -.02f, 1.12f),
-        glow(Color(0xFFEA4335), if (dark) .15f else .10f, 1.10f, .38f, .85f),
-        glow(Color(0xFF34A853), if (dark) .23f else .17f, -.15f, .72f, 1.35f),
-        glow(Color(0xFF4285F4), if (dark) .14f else .10f, 1.10f, .98f, 1.15f))
+        glow(palette.lights[0], if (dark) .24f else .19f, -.18f, .10f, 1.15f),
+        glow(palette.lights[1], if (dark) .48f else .27f, .68f, -.02f, 1.12f),
+        glow(palette.lights[2], if (dark) .15f else .10f, 1.10f, .38f, .85f),
+        glow(palette.lights[3], if (dark) .23f else .17f, -.15f, .72f, 1.35f),
+        glow(palette.lights[4], if (dark) .14f else .10f, 1.10f, .98f, 1.15f))
     fun draw(scope: DrawScope) = with(scope) {
-        drawRect(ground, size = this@GoogleLightField.size)
-        lights.forEach { drawRect(it, size = this@GoogleLightField.size) }
+        drawRect(ground, size = this@GlassLightField.size)
+        lights.forEach { drawRect(it, size = this@GlassLightField.size) }
     }
 }
 
-private data class GlassBackdrop(val field: GoogleLightField, val origin: Offset)
+private data class GlassBackdrop(val field: GlassLightField, val origin: Offset)
 private val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdrop?> { null }
 internal val LocalGlassScene = staticCompositionLocalOf { false }
 
 /** Shared scene coordinates let each tile sample the light field at its actual scroll position. */
 @Composable
-internal fun ProjectsBackdrop(enabled: Boolean = true, content: @Composable () -> Unit) {
+internal fun ProjectsBackdrop(modifier: Modifier = Modifier, enabled: Boolean = true,
+    background: GlassBackground = BackgroundPrefs.selected, content: @Composable () -> Unit) {
     val glassEnabled = enabled && DisplayPrefs.useLiquidGlass
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
     val screenLocation = remember(view) { IntArray(2) }
     var size by remember { mutableStateOf(Size.Zero) }
     var origin by remember { mutableStateOf(Offset.Zero) }
-    val field = remember(size, colors.background, glassEnabled) {
-        if (glassEnabled) GoogleLightField(size, colors.background, colors.background.luminance() < .5f) else null
+    val field = remember(size, colors.background, glassEnabled, background) {
+        if (glassEnabled) GlassLightField(size, colors.background, colors.background.luminance() < .5f, background) else null
     }
     CompositionLocalProvider(LocalGlassScene provides true,
         LocalGlassBackdrop provides field?.let { GlassBackdrop(it, origin) }) {
-        Box(Modifier.fillMaxSize().onSizeChanged { size = it.toSize() }
+        Box(modifier.fillMaxSize().onSizeChanged { size = it.toSize() }
             .onGloballyPositioned {
                 view.getLocationOnScreen(screenLocation)
                 origin = it.positionInRoot() + Offset(screenLocation[0].toFloat(), screenLocation[1].toFloat())
@@ -73,6 +78,16 @@ internal fun ProjectsBackdrop(enabled: Boolean = true, content: @Composable () -
                 drawContent()
             }) { content() }
     }
+}
+
+/** Thumbnails use the same renderer as the actual app backdrop. */
+@Composable
+internal fun BackgroundSwatch(background: GlassBackground, modifier: Modifier = Modifier) {
+    val base = MaterialTheme.colorScheme.background
+    Box(modifier.drawWithCache {
+        val field = GlassLightField(size, base, base.luminance() < .5f, background)
+        onDrawBehind { field.draw(this) }
+    })
 }
 
 @Composable

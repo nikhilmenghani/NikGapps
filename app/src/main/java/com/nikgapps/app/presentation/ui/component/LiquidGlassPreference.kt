@@ -18,7 +18,7 @@ import com.nikgapps.app.data.DisplayPrefs
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 
 internal const val LIQUID_GLASS_DESCRIPTION =
-    "Show a colorful background, glass surfaces and coordinated teal controls across the app, including settings, packages and build screens. " +
+    "Show your chosen background, glass surfaces and coordinated controls across the app, including settings, packages and build screens. " +
     "Turn off to use the standard background and solid cards. " +
     "Your light or dark theme still applies."
 

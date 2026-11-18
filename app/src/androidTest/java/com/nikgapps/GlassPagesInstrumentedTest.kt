@@ -12,6 +12,15 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nikgapps.app.data.DisplayPrefs
+import com.nikgapps.app.data.BackgroundPrefs
+import com.nikgapps.app.data.GlassBackground
+import com.nikgapps.app.data.dataStore
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import com.nikgapps.app.presentation.ui.component.GlassButton
 import com.nikgapps.app.presentation.ui.component.GlassTonalButton
@@ -27,6 +36,57 @@ import java.io.File
 
 class GlassPagesInstrumentedTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
+
+    @Test fun backgroundPickerPreviewsCancelsAndPersistsChoicesAcrossThemes() {
+        val context = instrumentation.targetContext
+        check(context.packageName == "com.nikgapps.review.debug")
+        val originalGlass = DisplayPrefs.useLiquidGlass
+        val originalBackground = BackgroundPrefs.selected
+        var dark by mutableStateOf(true)
+        try {
+            DisplayPrefs.useLiquidGlass = true
+            ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+                scenario.onActivity { activity -> activity.setContent {
+                    val base = if (dark) darkColorScheme() else lightColorScheme()
+                    MaterialTheme(colorScheme = base.withGlassAccent(dark, BackgroundPrefs.selected)) {
+                        SettingsScreen(onBack = {})
+                    }
+                } }
+                click("Appearance")
+                click("Background")
+                pickBackground("Dusk")
+                assertEquals("Preview must not save a choice", originalBackground, BackgroundPrefs.selected)
+                click("Cancel")
+                awaitText("Liquid glass")
+                assertEquals(originalBackground, BackgroundPrefs.selected)
+                for (darkMode in listOf(true, false)) for (background in GlassBackground.entries) {
+                    scenario.onActivity { dark = darkMode }
+                    val before = BackgroundPrefs.selected
+                    click("Background")
+                    pickBackground(background.label)
+                    assertEquals("Selecting a preview must not change the app", before, BackgroundPrefs.selected)
+                    capture("background-${background.id}", darkMode, true)
+                    click("Apply")
+                    assertEquals(background, BackgroundPrefs.selected)
+                    runBlocking {
+                        withTimeout(3000) {
+                            context.dataStore.data.first { it[stringPreferencesKey("glassBackground")] == background.id }
+                        }
+                    }
+                    val scheme = (if (darkMode) darkColorScheme() else lightColorScheme()).withGlassAccent(darkMode, background)
+                    assertTrue("Selected control colors must remain readable",
+                        ColorUtils.calculateContrast(scheme.onPrimary.toArgb(), scheme.primary.toArgb()) >= 4.5)
+                    assertTrue("Container labels must remain readable",
+                        ColorUtils.calculateContrast(scheme.onPrimaryContainer.toArgb(), scheme.primaryContainer.toArgb()) >= 4.5)
+                    // Applying a background must preserve the expanded Settings section.
+                    awaitText("Liquid glass")
+                }
+            }
+        } finally {
+            BackgroundPrefs.selected = originalBackground
+            DisplayPrefs.useLiquidGlass = originalGlass
+        }
+    }
 
     @Test fun glassActionsPreserveEnabledStateAndDialogLayoutAcrossThemes() {
         val context = instrumentation.targetContext
@@ -178,6 +238,19 @@ class GlassPagesInstrumentedTest {
         var node = awaitText(text)
         while (!node.isClickable && node.parent != null) node = requireNotNull(node.parent)
         return node
+    }
+
+    private fun pickBackground(label: String) {
+        repeat(4) {
+            if (find { it.isVisibleToUser && it.text?.toString() == label } != null) {
+                click(label)
+                return
+            }
+            find { it.isScrollable && it.isVisibleToUser }
+                ?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            instrumentation.waitForIdleSync()
+        }
+        click(label)
     }
 
     private fun click(text: String) {

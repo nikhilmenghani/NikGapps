@@ -13,12 +13,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.ThemePreference
+import com.nikgapps.app.data.BackgroundPrefs
+import com.nikgapps.app.data.GlassBackground
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF9ECAFF), onPrimary = Color(0xFF003258),
@@ -52,20 +55,21 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHighest = Color(0xFFE1E2E8)
 )
 
-/** Glass uses one teal accent family; retain the selected theme's surfaces and status colors. */
-internal fun ColorScheme.withGlassAccent(dark: Boolean): ColorScheme = if (dark) copy(
-    primary = Color(0xFF89D5C6), onPrimary = Color(0xFF00382F),
-    primaryContainer = Color(0xFF005046), onPrimaryContainer = Color(0xFFA5F2E3),
-    secondary = Color(0xFFB1CCC5), onSecondary = Color(0xFF1C3530),
-    secondaryContainer = Color(0xFF334B45), onSecondaryContainer = Color(0xFFCDE8E0),
-    surfaceTint = Color(0xFF89D5C6), inversePrimary = Color(0xFF006B5D)
-) else copy(
-    primary = Color(0xFF006B5D), onPrimary = Color.White,
-    primaryContainer = Color(0xFFA5F2E3), onPrimaryContainer = Color(0xFF002019),
-    secondary = Color(0xFF4A635C), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCDE8E0), onSecondaryContainer = Color(0xFF06201A),
-    surfaceTint = Color(0xFF006B5D), inversePrimary = Color(0xFF89D5C6)
-)
+/** One coordinated accent family for every control; theme surfaces and status colors remain intact. */
+internal fun ColorScheme.withGlassAccent(dark: Boolean,
+    background: GlassBackground = GlassBackground.GOOGLE): ColorScheme {
+    val palette = background.palette
+    val accent = if (dark) palette.darkAccent else palette.lightAccent
+    return copy(
+        primary = accent.primary, onPrimary = accent.onPrimary,
+        primaryContainer = accent.container, onPrimaryContainer = accent.onContainer,
+        secondary = lerp(accent.primary, onSurface, .55f), onSecondary = accent.onPrimary,
+        secondaryContainer = lerp(accent.container, surface, .35f),
+        onSecondaryContainer = lerp(accent.onContainer, onSurface, .5f),
+        surfaceTint = accent.primary,
+        inversePrimary = if (dark) palette.lightAccent.primary else palette.darkAccent.primary
+    )
+}
 
 fun Color.applyOpacity(enabled: Boolean): Color {
     return if (enabled) this else this.copy(alpha = 0.62f)
@@ -105,7 +109,8 @@ fun NikGappsTheme(
     }
 
     MaterialTheme(
-        colorScheme = if (manager.displayPrefs.useLiquidGlass) colorScheme.withGlassAccent(darkTheme) else colorScheme,
+        colorScheme = if (manager.displayPrefs.useLiquidGlass)
+            colorScheme.withGlassAccent(darkTheme, BackgroundPrefs.selected) else colorScheme,
         typography = Typography,
         content = content
     )

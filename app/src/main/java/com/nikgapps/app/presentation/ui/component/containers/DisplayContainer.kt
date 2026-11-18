@@ -50,6 +50,7 @@ import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.presentation.ui.component.ServerRequestLimitsPreference
 import com.nikgapps.app.presentation.ui.component.LiquidGlassPreference
+import com.nikgapps.app.presentation.ui.component.BackgroundPreference
 import com.nikgapps.app.presentation.ui.component.items.PreferenceItem
 import com.nikgapps.app.presentation.ui.component.items.PreferenceSubtitle
 import com.nikgapps.app.utils.managers.emptyString
@@ -77,6 +78,7 @@ fun AppearancePreferences() {
         )
         PreferenceSubtitle(text = stringResource(R.string.settings_colors_and_theme))
         LiquidGlassPreference()
+        BackgroundPreference()
         PreferenceItem(
             label = stringResource(R.string.use_dynamic_color),
             supportingText = emptyString,
