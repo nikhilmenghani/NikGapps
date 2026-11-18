@@ -120,8 +120,6 @@ internal fun AccountProfileButton(size: Dp = 56.dp) {
 
 @Composable
 private fun WelcomeCard(username: String, isElite: Boolean) {
-    val guest = com.nikgapps.app.data.DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode &&
-        (GithubPrefs.token.isBlank() || username.isBlank())
     val textHeight = with(LocalDensity.current) {
         MaterialTheme.typography.titleMedium.lineHeight.toDp() * 2 +
             MaterialTheme.typography.labelSmall.lineHeight.toDp()
@@ -143,7 +141,7 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
                 AccountAvatar(modifier = Modifier.size(40.dp),
                     contentDescription = "$username's GitHub profile picture")
                 // The fixed column height prevents membership updates from moving the card.
-                if (isElite && !guest) Surface(
+                if (isElite) Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -158,10 +156,10 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
             }
             Column(Modifier.weight(1f).height(textHeight),
                 verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
-                Text(if (guest) "Welcome, Guest" else if (username.isBlank()) "Loading account…" else "Welcome, $username",
+                Text(if (username.isBlank()) "Loading account…" else "Welcome, $username",
                     style = MaterialTheme.typography.titleMedium, maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(if (guest) "Guest mode · Sign in from Settings" else "Signed in with GitHub",
+                Text("Signed in with GitHub",
                     style = MaterialTheme.typography.labelSmall, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
@@ -172,9 +170,7 @@ private fun WelcomeCard(username: String, isElite: Boolean) {
 
 @Composable
 private fun AccountAvatar(modifier: Modifier, contentDescription: String? = null) {
-    val guest = DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode &&
-        (GithubPrefs.token.isBlank() || GithubPrefs.username.isBlank())
-    if (guest || GithubPrefs.avatarUrl.isBlank()) {
+    if (GithubPrefs.avatarUrl.isBlank()) {
         Icon(Icons.Default.AccountCircle, contentDescription = contentDescription, modifier = modifier)
     } else {
         SubcomposeAsyncImage(

@@ -162,16 +162,14 @@ private fun ScreenNavigatorContent(progressLogViewModel: ProgressLogViewModel) {
     LaunchedEffect(signedIn) {
         if (signedIn) {
             showSignInSettings = false
-            GithubPrefs.guestMode = false
         }
     }
-    if (!signedIn && !(GithubPrefs.guestMode && DisplayPrefs.guestAccessEnabled)) {
+    if (!signedIn) {
         BackHandler(enabled = showSignInSettings) { showSignInSettings = false }
         if (showSignInSettings) {
             SettingsScreen(onBack = { showSignInSettings = false })
         } else {
-            AccountGate(onOpenSettings = { showSignInSettings = true },
-                onContinueAsGuest = { GithubPrefs.continueAsGuest() })
+            AccountGate(onOpenSettings = { showSignInSettings = true })
         }
         return
     }

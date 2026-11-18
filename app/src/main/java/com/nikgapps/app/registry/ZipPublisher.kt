@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import java.io.File
 import com.nikgapps.app.utils.AppDiagnostics
 import com.nikgapps.app.analytics.AppAnalytics
+import com.nikgapps.app.analytics.BuildAnalyticsIdentity
+import com.nikgapps.app.utils.network.GitHubBuildAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -24,6 +26,15 @@ class ZipPublisher(private val context: Context, private val checkpoint: (String
         conflictResolution: ConflictResolution = ConflictResolution.RENAME,
         operationId: String? = null
     ): String = withContext(Dispatchers.IO) {
+      val identity = operationId?.let { id ->
+          val preferences = context.getSharedPreferences("build-operations", Context.MODE_PRIVATE)
+          if (preferences.contains("verified-username:$id")) {
+              val username = preferences.getString("verified-username:$id", "").orEmpty()
+              // Revalidate anonymous snapshots left by older builds in every build variant.
+              if (username.isBlank()) GitHubBuildAuth.requireBuildAccess()
+              else BuildAnalyticsIdentity(username)
+          } else GitHubBuildAuth.requireBuildAccess()
+      } ?: GitHubBuildAuth.requireBuildAccess()
       val caller = currentCoroutineContext()
       synchronized(PUBLICATION_LOCK) {
         caller.ensureActive()
@@ -53,7 +64,7 @@ class ZipPublisher(private val context: Context, private val checkpoint: (String
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
             AppAnalytics.zipCreationSucceeded(
-                fileName, packageCount, source.length(), conflictResolution.name.lowercase()
+                fileName, packageCount, source.length(), conflictResolution.name.lowercase(), identity
             )
             return@synchronized completePublication(output.absolutePath, operationId)
         }
@@ -103,7 +114,7 @@ class ZipPublisher(private val context: Context, private val checkpoint: (String
             AppDiagnostics.info("publication", "completed", mapOf("file" to source.name,
                 "bytes" to source.length(), "destination" to "Downloads/NikGapps"))
             AppAnalytics.zipCreationSucceeded(
-                fileName, packageCount, source.length(), conflictResolution.name.lowercase()
+                fileName, packageCount, source.length(), conflictResolution.name.lowercase(), identity
             )
             return@synchronized location
         } catch (e: Exception) {

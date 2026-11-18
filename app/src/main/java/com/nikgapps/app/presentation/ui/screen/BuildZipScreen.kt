@@ -157,8 +157,7 @@ fun BuildZipScreen(projectId: String, navController: NavHostController, latestRe
         }
         stage = BuildStage.RUNNING
         authFailure = false
-        operationLabel = if (GithubPrefs.guestMode && GithubPrefs.token.isBlank()) "Preparing guest build"
-            else "Verifying GitHub account"
+        operationLabel = "Verifying GitHub account"
         if (retryKey > 0) logs.clear()
         try {
             GitHubBuildAuth.requireBuildAccess()

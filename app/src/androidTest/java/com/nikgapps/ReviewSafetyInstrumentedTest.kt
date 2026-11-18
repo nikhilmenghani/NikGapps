@@ -13,6 +13,10 @@ import com.nikgapps.app.utils.worker.BuildZipWorker
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.nikgapps.app.data.dataStore
+import kotlinx.coroutines.flow.first
 import org.junit.runner.RunWith
 import java.io.File
 import java.util.UUID
@@ -42,9 +46,11 @@ class ReviewSafetyInstrumentedTest {
     @Test fun buildWorkerForegroundStartupFailsTruthfullyWithoutAuthentication() = runBlocking {
         val context = context()
         check(GithubPrefs.token.isBlank()) { "Never use a live account in review fixtures" }
-        val previousGuestMode = GithubPrefs.guestMode
+        val legacyKeys = listOf("developerOptionsEnabled", "allowGuestAccess", "github_guest_mode")
+            .map(::booleanPreferencesKey)
+        val original = context.dataStore.data.first()
+        context.dataStore.edit { saved -> legacyKeys.forEach { saved[it] = true } }
         try {
-        GithubPrefs.guestMode = false
         delay(100)
         val request = OneTimeWorkRequestBuilder<BuildZipWorker>().build()
         val manager = WorkManager.getInstance(context); manager.enqueue(request).result.get()
@@ -52,7 +58,27 @@ class ReviewSafetyInstrumentedTest {
         val info = manager.getWorkInfoById(request.id).get()!!
         assertEquals(WorkInfo.State.FAILED, info.state)
         assertTrue(info.outputData.getBoolean(BuildZipWorker.KEY_AUTH_ERROR, false))
-        } finally { GithubPrefs.guestMode = previousGuestMode }
+        } finally {
+            context.dataStore.edit { saved -> legacyKeys.forEach { key ->
+                original[key]?.let { saved[key] = it } ?: saved.remove(key)
+            } }
+        }
+    }
+    @Test fun publicationRejectsLegacyAnonymousReceiptsAndMissingOperationIds() = runBlocking {
+        val context = context()
+        check(GithubPrefs.token.isBlank()) { "Never use a live account in review fixtures" }
+        val preferences = context.getSharedPreferences("build-operations", Context.MODE_PRIVATE)
+        val operation = "retired-guest-fixture"
+        preferences.edit().putString("verified-username:$operation", "").commit()
+        try {
+            for (id in listOf(null, operation)) {
+                try {
+                    com.nikgapps.app.registry.ZipPublisher(context).publish(
+                        java.io.File(context.cacheDir, "no-auth.zip"), 0, operationId = id)
+                    fail("Publishing a ZIP must require GitHub sign-in")
+                } catch (_: com.nikgapps.app.utils.network.GitHubBuildAuth.AuthException) { }
+            }
+        } finally { preferences.edit().remove("verified-username:$operation").commit() }
     }
     private fun context(): Context = InstrumentationRegistry.getInstrumentation().targetContext.also {
         check(it.packageName == "com.nikgapps.review.debug") { "Disposable review app required" }

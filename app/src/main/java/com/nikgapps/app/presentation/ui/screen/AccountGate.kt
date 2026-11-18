@@ -49,9 +49,8 @@ import com.nikgapps.app.presentation.ui.component.containers.GitHubTokenTopSheet
 import com.nikgapps.app.presentation.ui.component.dialogs.AccountDialog
 
 @Composable
-fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
+fun AccountGate(onOpenSettings: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val allowGuest = DisplayPrefs.guestAccessEnabled
     var showWhyGitHub by rememberSaveable { mutableStateOf(false) }
     var showTokenEditor by rememberSaveable { mutableStateOf(false) }
     Box(
@@ -81,7 +80,7 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                 color = colors.onBackground)
             Spacer(Modifier.height(8.dp))
-            Text(if (allowGuest) "Sign in with GitHub or continue as a guest." else "Sign in with GitHub to get started.",
+            Text("Sign in with GitHub to get started.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(32.dp))
@@ -116,15 +115,6 @@ fun AccountGate(onOpenSettings: () -> Unit, onContinueAsGuest: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(24.dp))
-            if (allowGuest) {
-                FilledTonalButton(onClick = onContinueAsGuest, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("Continue as guest") }
-                Spacer(Modifier.height(8.dp))
-                Text("Create projects and build ZIPs with the normal build limit. Sign in later for Elite benefits.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(16.dp))
-            }
             FilledTonalButton(onClick = { showTokenEditor = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
                 Icon(Icons.Outlined.Key, null, Modifier.size(20.dp))

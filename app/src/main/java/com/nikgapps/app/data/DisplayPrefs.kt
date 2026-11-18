@@ -37,14 +37,6 @@ object DisplayPrefs {
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var allowGuestAccess by prefMutableState(
-        keyName = "allowGuestAccess",
-        defaultValue = false,
-        getPreferencesKey = { booleanPreferencesKey(it) }
-    )
-
-    val guestAccessEnabled: Boolean get() = developerOptionsEnabled && allowGuestAccess
-
     var previewNonElite by prefMutableState(
         keyName = "previewNonElite",
         defaultValue = false,
@@ -53,12 +45,6 @@ object DisplayPrefs {
 
     val nonElitePreviewEnabled: Boolean
         get() = nonElitePreviewEnabled(developerOptionsEnabled, previewNonElite)
-
-    private var storedAllowUnsupportedAndroidVersions by prefMutableState(
-        keyName = "allowUnsupportedAndroidVersions",
-        defaultValue = false,
-        getPreferencesKey = { booleanPreferencesKey(it) }
-    )
 
     private var storedBiometricLockEnabled by prefMutableState(
         keyName = "biometricLockEnabled",
@@ -78,10 +64,6 @@ object DisplayPrefs {
         getPreferencesKey = { booleanPreferencesKey(it) }
     )
 
-    var allowUnsupportedAndroidVersions: Boolean
-        get() = developerOptionValue(developerOptionsEnabled, storedAllowUnsupportedAndroidVersions, false)
-        set(value) { storedAllowUnsupportedAndroidVersions = value }
-
     var biometricLockEnabled: Boolean
         get() = developerOptionValue(developerOptionsEnabled, storedBiometricLockEnabled, false)
         set(value) { storedBiometricLockEnabled = value }
@@ -98,9 +80,6 @@ object DisplayPrefs {
         // Disable first so no hidden override remains effective while preferences persist.
         developerOptionsEnabled = false
         previewNonElite = false
-        allowGuestAccess = false
-        GithubPrefs.guestMode = false
-        allowUnsupportedAndroidVersions = false
         biometricLockEnabled = false
         requireInternetAccess = true
         enforceAppUpdates = true

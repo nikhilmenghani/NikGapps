@@ -26,7 +26,7 @@ class ArtifactAndZipTest {
                 put(RegistryZipAssembler.DEBLOATER_GUARD, "# safe fixture".toByteArray())
             }
             val request = BuildRequest("17", 37, "arm64-v8a", set, ReleaseChannel.STABLE, emptyMap(),
-                setOf("gms_core"), debloatTargets = listOf("YouTube", "youtube"))
+                setOf("gms_core"), debloatTargets = listOf("YouTube", "youtube"), creatorUsername = "fixture-user")
             val artifacts = listOf(ValidatedArtifact(pkg, fixture, descriptor))
             val output = RegistryZipAssembler { assets }.build(dir, request, artifacts)
             ZipFile(output).use { zip ->
@@ -69,7 +69,7 @@ class ArtifactAndZipTest {
         }
         val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
         val output = RegistryZipAssembler { assets }.build(dir, BuildRequest("16", 36, "arm64-v8a", set,
-            ReleaseChannel.STABLE, emptyMap(), setOf("gms_core"), Instant.parse("2026-08-02T00:00:00Z")),
+            ReleaseChannel.STABLE, emptyMap(), setOf("gms_core"), Instant.parse("2026-08-02T00:00:00Z"), creatorUsername = "fixture-user"),
             listOf(ValidatedArtifact(resolved, zip, descriptor)))
         assertTrue(output.name.contains("20260802"))
         val dated = RegistryZipAssembler { assets }.build(File(dir, "current-date"),
@@ -96,7 +96,7 @@ class ArtifactAndZipTest {
                 built.getInputStream(built.getEntry("customize.sh")).bufferedReader().readText())
             assertEquals("#MAGISK", built.getInputStream(
                 built.getEntry("META-INF/com/google/android/updater-script")).bufferedReader().readText())
-            assertEquals("Created by Guest".padStart(32).padEnd(38),
+            assertEquals("Created by fixture-user".padStart(32).padEnd(38),
                 built.getInputStream(built.getEntry("creator.txt")).bufferedReader().readText())
             val installer = built.getInputStream(built.getEntry("common/install.sh")).bufferedReader().readText()
             assertTrue(installer.contains("ProgressBarValues=\""))
@@ -124,7 +124,7 @@ class ArtifactAndZipTest {
             }
             val set = CatalogParser.parseAppSets(RegistryTestFixtures.appSets()).appSets.first()
             val request = BuildRequest("16", 36, "arm64-v8a", set, ReleaseChannel.STABLE,
-                emptyMap(), setOf("gms_core"))
+                emptyMap(), setOf("gms_core"), creatorUsername = "fixture-user")
             val artifacts = listOf(ValidatedArtifact(pkg, nested, descriptor))
             val normal = RegistryZipAssembler { assets }.build(File(dir, "normal"), request, artifacts)
             val compressed = RegistryZipAssembler { assets }.build(File(dir, "compressed"),

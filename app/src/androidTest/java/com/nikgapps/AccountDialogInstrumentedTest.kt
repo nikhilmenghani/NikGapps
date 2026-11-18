@@ -46,7 +46,7 @@ class AccountDialogInstrumentedTest {
         val context = instrumentation.targetContext
         check(context.packageName == "com.nikgapps.review.debug")
         val originalAuth = listOf(GithubPrefs.token, GithubPrefs.username, GithubPrefs.lastUsername,
-            GithubPrefs.avatarUrl, GithubPrefs.guestMode.toString())
+            GithubPrefs.avatarUrl)
         val originalGlass = DisplayPrefs.useLiquidGlass
         try {
         DisplayPrefs.useLiquidGlass = false
@@ -60,7 +60,7 @@ class AccountDialogInstrumentedTest {
                 MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
                     Surface(Modifier.fillMaxSize()) {
                         when (screen) {
-                            "gate" -> AccountGate(onOpenSettings = { externalActions++ }, onContinueAsGuest = { externalActions++ })
+                            "gate" -> AccountGate(onOpenSettings = { externalActions++ })
                             "account" -> Column(Modifier.padding(24.dp)) { GitHubAccountPreference() }
                             else -> Column(Modifier.padding(24.dp)) {
                                 Button(onClick = { exampleOpen = true }) { Text("Open dialog fixture") }
@@ -131,7 +131,7 @@ class AccountDialogInstrumentedTest {
         assertEquals(0, externalActions)
         assertEquals("Rendering dialogs must not change account credentials", originalAuth,
             listOf(GithubPrefs.token, GithubPrefs.username, GithubPrefs.lastUsername,
-                GithubPrefs.avatarUrl, GithubPrefs.guestMode.toString()))
+                GithubPrefs.avatarUrl))
         } finally { DisplayPrefs.useLiquidGlass = originalGlass }
     }
 

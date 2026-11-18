@@ -6,4 +6,5 @@ internal const val GITHUB_SIGN_IN_EXPLANATION =
     "with fewer interruptions from GitHub's request limits. Only read-only access to public repositories is needed.\n\n" +
     "Continue with GitHub provides this access automatically; you don't need to create or paste a separate token.\n\n" +
     "Your GitHub username is used to credit you as the creator of the ZIP.\n\n" +
+    "Build activity is recorded with a generated device identifier and your GitHub username when signed in.\n\n" +
     "NikGapps does not store your GitHub password."

@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SystemUpdate
-import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
@@ -46,7 +45,6 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.R
 import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.data.BuildCompressionPrefs
-import com.nikgapps.app.data.GithubPrefs
 import com.nikgapps.app.presentation.ui.component.BuildCompressionOptions
 import com.nikgapps.app.presentation.ui.component.ServerRequestLimitsPreference
 import com.nikgapps.app.presentation.ui.component.LiquidGlassPreference
@@ -125,38 +123,28 @@ fun AdvancedPreferences() {
             PreferenceSubtitle(text = "Developer options")
             PreferenceItem(
                 label = "Preview non-Elite account",
-                supportingText = "Hide the Elite badge and use regular-account limits on this device. Your membership and saved projects stay unchanged.",
+                supportingText = "Try the app with regular-account limits",
                 icon = Icons.Outlined.AccountCircle,
                 switchState = developerPreference.previewNonElite,
                 onSwitchChange = { developerPreference.previewNonElite = it }
             )
             PreferenceItem(
-                label = "Allow guest mode",
-                supportingText = "Show Continue as guest on the sign-in screen. Normal build limits apply.",
-                icon = Icons.Outlined.AccountCircle,
-                switchState = developerPreference.allowGuestAccess,
-                onSwitchChange = {
-                    developerPreference.allowGuestAccess = it
-                    if (!it) GithubPrefs.guestMode = false
-                }
-            )
-            PreferenceItem(
                 label = "Enforce app updates",
-                supportingText = "Block normal app use on startup when a newer NikGapps version is available",
+                supportingText = "Require the latest app version",
                 icon = Icons.Outlined.SystemUpdateAlt,
                 switchState = developerPreference.enforceAppUpdates,
                 onSwitchChange = { developerPreference.enforceAppUpdates = it }
             )
             PreferenceItem(
                 label = "Require internet access",
-                supportingText = "Show the offline gate when the device has no validated internet connection. Temporary server limits do not mark the device offline.",
+                supportingText = "Require an internet connection to open the app",
                 icon = Icons.Outlined.Wifi,
                 switchState = developerPreference.requireInternetAccess,
                 onSwitchChange = { developerPreference.requireInternetAccess = it }
             )
             PreferenceItem(
                 label = "Biometric lock",
-                supportingText = "Require biometrics or the device screen lock when opening the app",
+                supportingText = "Unlock the app with your fingerprint or screen lock",
                 icon = Icons.Outlined.Fingerprint,
                 switchState = developerPreference.biometricLockEnabled,
                 onSwitchChange = { enabled ->
@@ -187,15 +175,8 @@ fun AdvancedPreferences() {
                 }
             )
             PreferenceItem(
-                label = "Allow unsupported Android versions",
-                supportingText = "Show Android versions without published package metadata",
-                icon = Icons.Outlined.Science,
-                switchState = developerPreference.allowUnsupportedAndroidVersions,
-                onSwitchChange = { developerPreference.allowUnsupportedAndroidVersions = it }
-            )
-            PreferenceItem(
                 label = "Hide developer options",
-                supportingText = "Restore developer settings to defaults. Tap the app version 28 times to enable them again.",
+                supportingText = "Reset developer settings and hide this section",
                 icon = Icons.Outlined.Android,
                 onClick = {
                     developerPreference.hideDeveloperOptions()
@@ -228,6 +209,7 @@ fun AccountPreferences(showSignInHint: Boolean = false) {
             GitHubTokenPreference()
         }
         ProjectBackupPreferences()
+        com.nikgapps.app.presentation.ui.component.VirtualMacPreference()
     }
 }
 

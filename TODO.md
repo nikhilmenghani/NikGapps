@@ -1,5 +1,9 @@
 # Parked features
 
+## Build allowances
+
+- [ ] **Restore and enforce allowances after reinstall:** use a trusted remote build ledger keyed by the full, versioned Android-ID-derived `device_id`, with verified GitHub account association where available. The Virtual MAC is a short display value and must not be a unique key or credential. Current quotas remain installation-local; PostHog events alone are not an authoritative quota service. Handle retries, concurrent builds, offline failures, signing-key changes and factory resets explicitly. Do not ship privileged credentials in the APK.
+
 ## Package downloads
 
 - [ ] **Guest package downloads:** populate the Download destination with existing NikGapps packages and allow guests to download them. The navigation entry and placeholder are in place; package browsing, downloading and public guest access remain to be implemented.

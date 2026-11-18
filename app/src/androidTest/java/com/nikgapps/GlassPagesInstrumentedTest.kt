@@ -37,6 +37,72 @@ import java.io.File
 class GlassPagesInstrumentedTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
 
+    @Test fun developerOptionsHideRemovedOverridesAndUseShortDescriptions() {
+        check(instrumentation.targetContext.packageName == "com.nikgapps.review.debug")
+        val originalDeveloper = DisplayPrefs.developerOptionsEnabled
+        val originalGlass = DisplayPrefs.useLiquidGlass
+        var dark by mutableStateOf(true)
+        try {
+            DisplayPrefs.developerOptionsEnabled = true
+            ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+                scenario.onActivity { activity -> activity.setContent {
+                    val base = if (dark) darkColorScheme() else lightColorScheme()
+                    MaterialTheme(colorScheme = if (DisplayPrefs.useLiquidGlass) base.withGlassAccent(dark) else base) {
+                        SettingsScreen(onBack = {})
+                    }
+                } }
+                click("Advanced")
+                find { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                for (darkMode in listOf(true, false)) for (glass in listOf(true, false)) {
+                    scenario.onActivity { dark = darkMode; DisplayPrefs.useLiquidGlass = glass }
+                    awaitText("Try the app with regular-account limits")
+                    awaitText("Require the latest app version")
+                    awaitText("Require an internet connection to open the app")
+                    assertNull(find { it.text?.toString()?.contains("Allow guest mode") == true })
+                    assertNull(find { it.text?.toString()?.contains("Allow unsupported Android versions") == true })
+                    capture("developer-options", darkMode, glass)
+                }
+            }
+        } finally {
+            DisplayPrefs.developerOptionsEnabled = originalDeveloper
+            DisplayPrefs.useLiquidGlass = originalGlass
+        }
+    }
+
+    @Test fun virtualMacIsVisibleInAccountAndHelpPreservesSettingsAcrossThemes() {
+        val context = instrumentation.targetContext
+        check(context.packageName == "com.nikgapps.review.debug")
+        val expected = requireNotNull(com.nikgapps.app.data.VirtualDeviceIdentity.read(context))
+        val originalGlass = DisplayPrefs.useLiquidGlass
+        var dark by mutableStateOf(true)
+        try {
+            ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+                scenario.onActivity { activity -> activity.setContent {
+                    val base = if (dark) darkColorScheme() else lightColorScheme()
+                    MaterialTheme(colorScheme = if (DisplayPrefs.useLiquidGlass) base.withGlassAccent(dark) else base) {
+                        SettingsScreen(onBack = {})
+                    }
+                } }
+                click("Account")
+                for (darkMode in listOf(true, false)) for (glass in listOf(true, false)) {
+                    scenario.onActivity { dark = darkMode; DisplayPrefs.useLiquidGlass = glass }
+                    awaitText(expected.virtualMac)
+                    assertNull(find { it.text?.toString()?.contains("This virtual MAC address") == true })
+                    var info = requireNotNull(find { it.contentDescription?.toString() == "About virtual MAC" })
+                    while (!info.isClickable && info.parent != null) info = requireNotNull(info.parent)
+                    check(info.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                    awaitText("This virtual MAC address is generated to uniquely identify your device across multiple app reinstalls.")
+                    awaitText("Got it")
+                    capture("virtual-mac-help", darkMode, glass)
+                    click("Got it")
+                    awaitText(expected.virtualMac)
+                    capture("virtual-mac-account", darkMode, glass)
+                    assertEquals(expected, com.nikgapps.app.data.VirtualDeviceIdentity.read(context))
+                }
+            }
+        } finally { DisplayPrefs.useLiquidGlass = originalGlass }
+    }
+
     @Test fun backgroundPickerPreviewsCancelsAndPersistsChoicesAcrossThemes() {
         val context = instrumentation.targetContext
         check(context.packageName == "com.nikgapps.review.debug")

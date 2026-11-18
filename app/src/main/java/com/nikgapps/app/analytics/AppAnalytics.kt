@@ -3,7 +3,7 @@ package com.nikgapps.app.analytics
 import android.app.Application
 import com.nikgapps.BuildConfig
 import com.nikgapps.app.data.GithubPrefs
-import com.nikgapps.app.data.DisplayPrefs
+import com.nikgapps.app.data.VirtualDeviceIdentity
 import com.posthog.PersonProfiles
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
@@ -12,9 +12,11 @@ import com.posthog.android.PostHogAndroidConfig
 /** Product analytics with the signed-in GitHub username attached to events. */
 object AppAnalytics {
     private var initialized = false
+    private var deviceIdentity: VirtualDeviceIdentity? = null
 
     fun initialize(application: Application) {
         if (initialized || BuildConfig.POSTHOG_API_KEY.isBlank()) return
+        deviceIdentity = VirtualDeviceIdentity.read(application)
         val config = PostHogAndroidConfig(
             apiKey = BuildConfig.POSTHOG_API_KEY,
             host = BuildConfig.POSTHOG_HOST
@@ -41,7 +43,8 @@ object AppAnalytics {
         zipName: String,
         packageCount: Int,
         sizeBytes: Long,
-        conflictResolution: String
+        conflictResolution: String,
+        identity: BuildAnalyticsIdentity? = null
     ) = capture(
         "zip_creation_succeeded",
         mapOf(
@@ -51,7 +54,7 @@ object AppAnalytics {
             "size_mb" to sizeBytes.toDouble() / 1_048_576,
             "conflict_resolution" to conflictResolution,
             "location" to "Downloads/NikGapps"
-        )
+        ), identity
     )
 
     fun zipCreationFailed(
@@ -75,15 +78,17 @@ object AppAnalytics {
         capture(event, properties.filterValues { it != null }.mapValues { it.value!! })
     }
 
-    private fun capture(event: String, properties: Map<String, Any>) {
+    private fun capture(event: String, properties: Map<String, Any>, identity: BuildAnalyticsIdentity? = null) {
         if (initialized) {
             val username = GithubPrefs.username.trim()
             val signedIn = GithubPrefs.token.isNotBlank() && username.isNotEmpty()
-            val accountMode = if (signedIn) "signed_in"
-                else if (DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode) "guest" else "signed_out"
+            val accountMode = if (signedIn) "signed_in" else "signed_out"
             val eventProperties = properties + ("account_mode" to accountMode) +
                 if (signedIn) mapOf("github_username" to username) else emptyMap()
-            PostHog.capture(event = event, properties = eventProperties)
+            val capturedProperties = buildEventProperties(eventProperties, identity) +
+                if (event == "zip_creation_succeeded" || event == "zip_creation_failed")
+                    deviceIdentity?.properties().orEmpty() else emptyMap()
+            PostHog.capture(event = event, properties = capturedProperties)
             PostHog.flush()
         }
     }

@@ -1,23 +1,23 @@
 package com.nikgapps.app.utils.network
 
 import com.nikgapps.app.data.GithubPrefs
-import com.nikgapps.app.data.DisplayPrefs
+import com.nikgapps.app.analytics.BuildAnalyticsIdentity
 import kotlinx.coroutines.CancellationException
 import java.io.IOException
 
-/** Permit explicit guest builds or verify the signed-in GitHub session. */
+/** Verify the signed-in GitHub session before every build, including debug builds. */
 object GitHubBuildAuth {
     class AuthException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
-    suspend fun requireBuildAccess() {
+    suspend fun requireBuildAccess(): BuildAnalyticsIdentity {
         val token = GithubPrefs.token
-        if (DisplayPrefs.guestAccessEnabled && GithubPrefs.guestMode && token.isBlank()) return
         if (token.isBlank()) throw AuthException("Sign in to GitHub before building a ZIP.")
         try {
-            GitHubDeviceAuth.accountProfile(token)
+            val profile = GitHubDeviceAuth.accountProfile(token)
             if (GithubPrefs.token != token) {
                 throw AuthException("GitHub account changed. Retry the build.")
             }
+            return BuildAnalyticsIdentity(profile.login.trim())
         } catch (failure: AuthException) {
             throw failure
         } catch (invalid: GitHubDeviceAuth.InvalidTokenException) {

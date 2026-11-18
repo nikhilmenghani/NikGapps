@@ -977,7 +977,6 @@ private fun ProjectSheet(
     }
 
     var metadataVersions by remember { mutableStateOf<Set<AndroidVersion>?>(null) }
-    val developerPrefs = globalClass.preferencesManager.displayPrefs
     LaunchedEffect(project) {
         sheetVisible = true
         if (project == null) {
@@ -1000,7 +999,6 @@ private fun ProjectSheet(
     }
     val selectableVersions = when {
         metadataVersions == null -> null
-        developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions -> AndroidVersion.entries
         else -> AndroidVersion.entries.filter { it in metadataVersions.orEmpty() }
     }
     LaunchedEffect(selectableVersions) {
@@ -1178,8 +1176,6 @@ private fun ProjectSheet(
                 Text(
                     if (selectableVersions == null)
                         "Checking published metadata"
-                    else if (developerPrefs.developerOptionsEnabled && developerPrefs.allowUnsupportedAndroidVersions)
-                        "Developer override enabled"
                     else
                         "Versions with published metadata",
                     style = MaterialTheme.typography.bodySmall,

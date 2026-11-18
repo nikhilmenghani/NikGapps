@@ -205,8 +205,8 @@ private fun ZipOutputStream.file(path: String, file: File, compressed: Boolean) 
 
 internal fun buildCreatorLabel(username: String?): String {
     val value = username?.trim().orEmpty()
-    require(value.isEmpty() || value.matches(Regex("[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"))) {
+    require(value.matches(Regex("[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"))) {
         "Invalid GitHub creator username"
     }
-    return "Created by ${value.ifEmpty { "Guest" }}"
+    return "Created by $value"
 }

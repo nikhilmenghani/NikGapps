@@ -31,22 +31,26 @@ class BuildZipWorker(context: Context, params: WorkerParameters) : CoroutineWork
     private suspend fun runBuild(): Result {
         setForeground(foreground("Preparing build", 0, 0))
         logFile.parentFile?.mkdirs(); logFile.writeText("")
-        try {
-            progress(if (GithubPrefs.guestMode && GithubPrefs.token.isBlank()) "Preparing guest build"
-                else "Verifying GitHub account", 0, 0)
+        val verifiedIdentity = try {
+            progress("Verifying GitHub account", 0, 0)
             GitHubBuildAuth.requireBuildAccess()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             return authFailure(error.message ?: "GitHub sign-in is required before building a ZIP.")
         }
-        val creatorUsername = if (GithubPrefs.token.isBlank()) null else GithubPrefs.username.trim()
-        if (creatorUsername != null && creatorUsername.isBlank())
-            return authFailure("Could not verify your GitHub username. Sign in again before building a ZIP.")
         var project = BuildProjectRepository(applicationContext).getProjects().firstOrNull { it.id == projectId }
             ?: return failure("Project not found")
         val quota = BuildQuotaRepository(applicationContext)
         val operations = applicationContext.getSharedPreferences("build-operations", Context.MODE_PRIVATE)
+        // Keep the initiating identity across worker retries and deferred conflict-resolution publication.
+        if (!operations.contains("verified-username:$id") ||
+            operations.getString("verified-username:$id", "").isNullOrBlank()) {
+            check(operations.edit().putString("verified-username:$id", verifiedIdentity.githubUsername).commit()) {
+                "Cannot persist verified build identity"
+            }
+        }
+        val creatorUsername = operations.getString("verified-username:$id", "").orEmpty().takeIf { it.isNotBlank() }
         (operations.getString("worker-published:$id", null) ?: operations.getString("publication:$id", null))?.let { saved ->
             quota.recordSuccess(operationId = id.toString())
             return Result.success(workDataOf(KEY_LOCATION to saved))
