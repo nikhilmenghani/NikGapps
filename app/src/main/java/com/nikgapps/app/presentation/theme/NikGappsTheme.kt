@@ -11,7 +11,12 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
@@ -22,6 +27,9 @@ import com.nikgapps.App.Companion.globalClass
 import com.nikgapps.app.data.ThemePreference
 import com.nikgapps.app.data.BackgroundPrefs
 import com.nikgapps.app.data.GlassBackground
+
+// Connection and update checks can overlap; restore themed system bars only after both finish.
+internal val LocalStartupLogoCount = staticCompositionLocalOf<MutableIntState?> { null }
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF9ECAFF), onPrimary = Color(0xFF003258),
@@ -98,22 +106,26 @@ fun NikGappsTheme(
     }
 
     val view = LocalView.current
+    val startupLogos = remember { mutableIntStateOf(0) }
+    val showingStartupLogo = startupLogos.intValue > 0
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
+                isAppearanceLightStatusBars = !darkTheme && !showingStartupLogo
+                isAppearanceLightNavigationBars = !darkTheme && !showingStartupLogo
             }
         }
     }
 
-    MaterialTheme(
-        colorScheme = if (manager.displayPrefs.useLiquidGlass)
-            colorScheme.withGlassAccent(darkTheme, BackgroundPrefs.selected) else colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalStartupLogoCount provides startupLogos) {
+        MaterialTheme(
+            colorScheme = if (manager.displayPrefs.useLiquidGlass)
+                colorScheme.withGlassAccent(darkTheme, BackgroundPrefs.selected) else colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }
 
 @Composable

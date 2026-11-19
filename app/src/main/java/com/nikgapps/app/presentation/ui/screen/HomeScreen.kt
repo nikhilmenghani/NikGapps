@@ -772,6 +772,7 @@ internal fun ProjectCard(
     var menuTouch by remember { mutableStateOf(Offset.Zero) }
     val outdated = unavailable?.isNotEmpty() == true || update?.kind == ProjectUpdateKind.INCOMPATIBLE
     val liquidGlass = DisplayPrefs.useLiquidGlass
+    val lightGlass = liquidGlass && MaterialTheme.colorScheme.background.luminance() >= .5f
     val canBuild = project.selectedAppIds.isNotEmpty() && unavailable?.isEmpty() == true && !outdated
     var actionsExpanded by rememberSaveable(project.id) { mutableStateOf(false) }
     Box {
@@ -813,18 +814,23 @@ internal fun ProjectCard(
                     modifier = Modifier.size(44.dp),
                     shape = MaterialTheme.shapes.medium,
                     color = when {
-                        outdated -> MaterialTheme.colorScheme.errorContainer.copy(alpha = if (liquidGlass) .38f else 1f)
-                        update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.primary.copy(alpha = if (liquidGlass) .18f else 1f)
-                        else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (liquidGlass) .35f else 1f)
+                        outdated -> MaterialTheme.colorScheme.errorContainer
+                        update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.primary
+                        liquidGlass -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
                     }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Outlined.FolderSpecial,
                             contentDescription = null,
+                            modifier = Modifier.size(if (liquidGlass) 28.dp else 24.dp),
                             tint = when {
-                                outdated -> if (liquidGlass) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onErrorContainer
-                                update?.kind == ProjectUpdateKind.AVAILABLE -> if (liquidGlass) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
+                                outdated && lightGlass -> MaterialTheme.colorScheme.error
+                                outdated -> MaterialTheme.colorScheme.onErrorContainer
+                                update?.kind == ProjectUpdateKind.AVAILABLE -> MaterialTheme.colorScheme.onPrimary
+                                lightGlass -> MaterialTheme.colorScheme.primary
+                                liquidGlass -> MaterialTheme.colorScheme.onPrimaryContainer
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )

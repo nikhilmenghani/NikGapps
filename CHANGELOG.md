@@ -1,8 +1,15 @@
 # NikGapps changelog
 
+## 0.82
+- Refresh the NikGapps logo, startup and permissions screens. Refine project cards and add a Home theme toggle.
+- Move account details into an animated profile popup and add wavy ZIP build progress indicators.
+- Improve GitHub sign-in and explain why it’s needed for ZIP builds, creator credit, Elite benefits and reliable package downloads.
+- Improve changelog indicators and release checks with cached release status.
+- Improve server cooldown handling and connection diagnostics.
+- Enable Liquid glass by default, with background choices, compact navigation and a switch to use the standard theme.
+- Clarify stock-app choices with removal previews and automatic selection.
+
 ## 0.81
-- Block project creation during server cooldowns and show when to retry.
-- Show server-reported request limits and manual connection checks in Developer options.
 - Added the ability to back up your projects and restore them after signing in on another device.
 - Improve project management, screen-specific help and navigation.
 - Unify app selection and build review, with app icons, package size estimates and debloater details.

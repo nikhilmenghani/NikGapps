@@ -838,6 +838,11 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                    Text(
+                                        "Successful ZIP builds are reported to PostHog with your GitHub username, device ID and build details.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                             if (eliteMember) {
