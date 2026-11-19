@@ -10,6 +10,7 @@ import com.nikgapps.app.presentation.ui.component.GlassScaffold
 import com.nikgapps.app.presentation.ui.component.GlassSurface
 import com.nikgapps.app.presentation.ui.component.GlassCard
 import com.nikgapps.app.presentation.ui.component.AppIcons
+import com.nikgapps.app.data.DisplayPrefs
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.OpenableColumns
@@ -720,11 +721,17 @@ fun ProjectScreen(projectId: String, autoBuild: Boolean = false, navController: 
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
             ) {
-                Surface(
-                    shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+                val glassUpdatesPanel = DisplayPrefs.useLiquidGlass && !sortExpanded && !filterExpanded
+                GlassSurface(
+                    shape = if (glassUpdatesPanel) RoundedCornerShape(18.dp)
+                        else RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     tonalElevation = 3.dp,
-                    modifier = Modifier.fillMaxWidth().animateContentSize()
+                    glass = glassUpdatesPanel,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = if (glassUpdatesPanel) 16.dp else 0.dp)
+                        .animateContentSize()
                 ) {
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

@@ -4,8 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.compose.material.icons.filled.ExpandMore
@@ -19,6 +20,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.nikgapps.app.data.ReleaseNoticeRepository
@@ -28,7 +30,6 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>, updates: Map<String, ProjectUpdate>) {
@@ -57,17 +58,27 @@ fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>, updates
     }
     release?.takeIf { releaseAvailableToProjects(it, projects, updates) }?.let { published ->
         var expanded by rememberSaveable(published.id) { mutableStateOf(false) }
-        val releaseDate = remember(published.createdAt) {
-            runCatching { DateTimeFormatter.ofPattern("MMM d, yyyy 'UTC'", Locale.getDefault())
-                .withZone(ZoneOffset.UTC).format(Instant.parse(published.createdAt)) }.getOrNull()
+        val releaseDay = remember(published.createdAt) {
+            runCatching { Instant.parse(published.createdAt).atOffset(ZoneOffset.UTC).toLocalDate() }.getOrNull()
         }
-        OutlinedCard(
+        val locale = LocalLocale.current.platformLocale
+        val releaseDate = remember(releaseDay, locale) {
+            releaseDay?.format(DateTimeFormatter.ofPattern("MMM d, yyyy 'UTC'", locale))
+        }
+        var changes by remember(published.id, releaseDay) { mutableStateOf(emptyList<String>()) }
+        LaunchedEffect(expanded, online, published.id, releaseDay) {
+            if (expanded && releaseDay != null) {
+                changes = PackageReleaseNotesRepository.changesOn(context.cacheDir, releaseDay, online)
+            }
+        }
+        ProjectGlassSurface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentColor = MaterialTheme.colorScheme.onSurface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            shape = RoundedCornerShape(18.dp),
+            classicColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            classicBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            classicTonalElevation = 0.dp
         ) {
+            Column {
                 Row(modifier = Modifier.fillMaxWidth()
                     .semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }
                     .clickable(role = Role.Button, onClickLabel = if (expanded) "Hide release details" else "Show release details") {
@@ -87,16 +98,36 @@ fun RegistryReleaseBanner(online: Boolean, projects: List<BuildProject>, updates
                     Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            AnimatedVisibility(visible = expanded) {
-                Column {
-                    Text("Updated packages and fixes are available. Press and hold a compatible project and choose Build latest ZIP to update.",
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
-                        FilledTonalButton(onClick = { dismissTarget = published }, shape = CircleShape,
-                            modifier = Modifier.height(40.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) { Text("Dismiss", style = MaterialTheme.typography.labelMedium) }
+                AnimatedVisibility(visible = expanded,
+                    enter = expandVertically(expandFrom = Alignment.Top),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top)
+                ) {
+                    Column {
+                        Text("Updated packages and fixes are available. Press and hold a compatible project and choose Build latest ZIP to update.",
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AnimatedVisibility(visible = changes.isNotEmpty(),
+                            enter = expandVertically(expandFrom = Alignment.Top),
+                            exit = shrinkVertically(shrinkTowards = Alignment.Top)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Changelog", style = MaterialTheme.typography.labelLarge)
+                                changes.forEach { change ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("•", style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary)
+                                        Text(change, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
+                            GlassTonalButton(onClick = { dismissTarget = published }, shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) { Text("Dismiss", style = MaterialTheme.typography.labelMedium) }
+                        }
                     }
                 }
             }

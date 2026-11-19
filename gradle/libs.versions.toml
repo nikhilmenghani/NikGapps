@@ -18,6 +18,7 @@ jsonv = "1.11.0"
 kotlin = "2.4.20"
 workmanager = "2.11.2"
 posthog = "3.70.0"
+snakeyaml = "2.7"
 
 [libraries]
 desugar-jdk = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar-jdk" }
@@ -44,6 +45,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "jsonv" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 
 [plugins]
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

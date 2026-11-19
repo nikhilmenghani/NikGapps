@@ -138,4 +138,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.work.runtime.ktx)
     implementation(libs.posthog.android)
+    implementation(libs.snakeyaml)
 }
