@@ -82,7 +82,7 @@ class ArtifactAndZipTest {
             val manifest = built.getInputStream(built.getEntry("nikgapps/build-manifest.json")).bufferedReader().readText()
             assertTrue(manifest.contains("2026-08-02T00:00:00Z"))
             assertTrue(manifest.contains("\"creatorUsername\":\"nikhilmenghani\""))
-            assertEquals("Created by nikhilmenghani".padStart(32).padEnd(38),
+            assertEquals(" ".repeat(6) + "Created by nikhilmenghani" + " ".repeat(7),
                 built.getInputStream(built.getEntry("creator.txt")).bufferedReader().readText())
         }
         ZipFile(output).use { built ->
@@ -96,7 +96,7 @@ class ArtifactAndZipTest {
                 built.getInputStream(built.getEntry("customize.sh")).bufferedReader().readText())
             assertEquals("#MAGISK", built.getInputStream(
                 built.getEntry("META-INF/com/google/android/updater-script")).bufferedReader().readText())
-            assertEquals("Created by fixture-user".padStart(32).padEnd(38),
+            assertEquals(" ".repeat(7) + "Created by fixture-user" + " ".repeat(8),
                 built.getInputStream(built.getEntry("creator.txt")).bufferedReader().readText())
             val installer = built.getInputStream(built.getEntry("common/install.sh")).bufferedReader().readText()
             assertTrue(installer.contains("ProgressBarValues=\""))

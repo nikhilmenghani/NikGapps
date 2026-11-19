@@ -103,7 +103,10 @@ class RegistryZipAssembler(private val assetSource: BuilderAssetSource) {
                 finalZip.text("customize.sh", "actual_file_name=${output.nameWithoutExtension}\n" + customize)
                 finalZip.text("nikgapps/build-manifest.json", manifest(request, artifacts))
                 finalZip.text("zip_name.txt", output.nameWithoutExtension)
-                finalZip.text("creator.txt", creator.padStart(32).padEnd(38))
+                // Match Python's center(38) for the recovery banner, preserving longer credits in full.
+                val creatorPadding = (38 - creator.length).coerceAtLeast(0)
+                finalZip.text("creator.txt", " ".repeat(creatorPadding / 2) + creator +
+                    " ".repeat(creatorPadding - creatorPadding / 2))
                 finalZip.text("META-INF/com/google/android/updater-script", "#MAGISK")
             }
             if (!part.renameTo(output)) error("Cannot publish ${output.name}")
