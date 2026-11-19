@@ -1,5 +1,9 @@
 # NikGapps changelog
 
+## 0.83
+- Show package release notes in the expanded announcement when the dates match.
+- Extend Liquid glass styling to release announcements and Project updates.
+
 ## 0.82
 - Refresh the NikGapps logo, startup and permissions screens. Refine project cards and add a Home theme toggle.
 - Move account details into an animated profile popup and add wavy ZIP build progress indicators.
